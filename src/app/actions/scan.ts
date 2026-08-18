@@ -1,5 +1,7 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { getAttendeeProgress, syncCompletion, type AttendeeProgress } from "@/lib/attendee";
@@ -39,22 +41,27 @@ export async function recordScan(rawCode: string, stationId: string): Promise<Sc
   if (!attendee) return { ok: false, error: `El código ${code} no existe.` };
   if (!station || !station.active) return { ok: false, error: "Esa estación ya no está activa." };
 
-  const existing = await prisma.scan.findUnique({
-    where: { attendeeId_stationId: { attendeeId: attendee.id, stationId: station.id } },
-    select: { id: true },
-  });
-
-  if (!existing) {
+  // Insertamos directo y dejamos que el indice unico resuelva la carrera: si dos
+  // personas escanean el mismo pase en la misma estacion a la vez, la segunda
+  // cae en P2002 y la tratamos como repetido en vez de reventar.
+  let repetido = false;
+  try {
     await prisma.scan.create({
       data: { attendeeId: attendee.id, stationId: station.id, staffId: session.id },
     });
     await syncCompletion(attendee.id);
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      repetido = true;
+    } else {
+      throw error;
+    }
   }
 
   const progress = await getAttendeeProgress(code);
   if (!progress) return { ok: false, error: "No pudimos leer el avance del pase." };
 
-  if (existing) {
+  if (repetido) {
     return {
       ok: true,
       status: "repetido",
