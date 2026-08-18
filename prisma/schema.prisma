@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STAFF
+  ADMIN
+}
+
+model Staff {
+  id        String   @id @default(cuid())
+  name      String
+  pinHash   String
+  role      Role     @default(STAFF)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  scans     Scan[]
+  redeemed  Attendee[] @relation("RedeemedBy")
+}
+
+model Station {
+  id        String   @id @default(cuid())
+  name      String
+  emoji     String   @default("⭐")
+  order     Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  scans     Scan[]
+
+  @@index([order])
+}
+
+model Attendee {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  name        String
+  email       String?
+  phone       String?
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  redeemedAt  DateTime?
+
+  redeemedById String?
+  redeemedBy   Staff?  @relation("RedeemedBy", fields: [redeemedById], references: [id], onDelete: SetNull)
+
+  scans       Scan[]
+
+  @@index([createdAt])
+  @@index([completedAt])
+}
+
+model Scan {
+  id         String   @id @default(cuid())
+  attendeeId String
+  stationId  String
+  staffId    String?
+  createdAt  DateTime @default(now())
+
+  attendee   Attendee @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+  station    Station  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  staff      Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  @@unique([attendeeId, stationId])
+  @@index([createdAt])
+  @@index([stationId])
+}
