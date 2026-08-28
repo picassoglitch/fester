@@ -94,7 +94,7 @@ export default function ScanConsole({
             }}
           >
             {stations.map((station) => (
-              <option key={station.id} value={station.id} className="bg-night">
+              <option key={station.id} value={station.id} className="bg-ink">
                 {station.emoji} {station.name}
               </option>
             ))}
@@ -131,16 +131,16 @@ export default function ScanConsole({
         <div
           className={`animate-pop card border p-5 ${
             tone === "ok"
-              ? "border-mint/50 bg-mint/10"
+              ? "border-success/50 bg-success/10"
               : tone === "prize"
-                ? "border-star/50 bg-star/10"
+                ? "border-gold/50 bg-gold/10"
                 : tone === "warn"
                   ? "border-white/25"
-                  : "border-coral/50 bg-coral/10"
+                  : "border-alert/50 bg-alert/10"
           }`}
         >
           {!outcome.ok ? (
-            <p className="text-center text-lg font-semibold text-coral">{outcome.error}</p>
+            <p className="text-center text-lg font-semibold text-alert">{outcome.error}</p>
           ) : (
             <div className="space-y-4">
               <div className="text-center">
@@ -150,7 +150,7 @@ export default function ScanConsole({
                 </p>
                 <p
                   className={`mt-2 text-sm font-semibold ${
-                    tone === "ok" ? "text-mint" : tone === "prize" ? "text-star" : "text-white/70"
+                    tone === "ok" ? "text-success" : tone === "prize" ? "text-gold" : "text-white/70"
                   }`}
                 >
                   {outcome.message}
@@ -162,7 +162,7 @@ export default function ScanConsole({
                   <span
                     key={station.id}
                     title={station.name}
-                    className={station.visitedAt ? "text-star" : "text-white/15"}
+                    className={station.visitedAt ? "text-gold" : "text-white/15"}
                   >
                     ★
                   </span>
@@ -172,7 +172,7 @@ export default function ScanConsole({
               <p className="text-center text-sm text-white/70">
                 {outcome.attendee.stars} de {outcome.attendee.total} estrellas ·{" "}
                 {outcome.attendee.pending === 0 ? (
-                  <span className="font-semibold text-mint">recorrido completo</span>
+                  <span className="font-semibold text-success">recorrido completo</span>
                 ) : (
                   <span className="font-semibold text-white">
                     le faltan {outcome.attendee.pending}

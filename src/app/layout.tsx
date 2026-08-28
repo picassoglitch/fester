@@ -1,13 +1,17 @@
 import type { Metadata, Viewport } from "next";
+import { EVENT } from "@/lib/event";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Fester · Recorrido de estaciones",
-  description: "Registra tu pase, junta estrellas en cada estación y reclama tu premio.",
+  title: {
+    default: `${EVENT.name} ${EVENT.year} · ${EVENT.tagline}`,
+    template: `%s · ${EVENT.name} ${EVENT.year}`,
+  },
+  description: `${EVENT.name} ${EVENT.year}. ${EVENT.dateLabel}, ${EVENT.city}. Registro sin costo al encuentro de soluciones Fester para la construcción.`,
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b0718",
+  themeColor: "#04162e",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

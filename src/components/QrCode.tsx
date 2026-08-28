@@ -12,7 +12,7 @@ export default function QrCode({ value, size = 220 }: { value: string; size?: nu
       width: size,
       margin: 1,
       errorCorrectionLevel: "M",
-      color: { dark: "#0b0718", light: "#ffffff" },
+      color: { dark: "#04162e", light: "#ffffff" },
     }).catch(() => {});
   }, [value, size]);
 

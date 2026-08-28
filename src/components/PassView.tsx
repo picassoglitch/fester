@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AttendeeProgress } from "@/lib/attendee";
 import QrCode from "@/components/QrCode";
+import FesterLogo from "@/components/FesterLogo";
 import { formatTime } from "@/lib/format";
 
 const POLL_MS = 10_000;
@@ -65,14 +66,15 @@ export default function PassView({
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-col gap-4 px-4 py-6 sm:py-10">
-      <header className="text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-grape">Tu pase</p>
+      <header className="flex flex-col items-center text-center">
+        <FesterLogo className="h-8" />
+        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-brand">Tu pase</p>
         <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{data.name}</h1>
         <p className="mt-1 font-mono text-sm tracking-[0.35em] text-white/45">{data.code}</p>
       </header>
 
       {justEarned && (
-        <div className="animate-pop rounded-2xl border border-star/40 bg-star/10 px-4 py-3 text-center text-sm font-semibold text-star">
+        <div className="animate-pop rounded-2xl border border-gold/40 bg-gold/10 px-4 py-3 text-center text-sm font-semibold text-gold">
           ★ ¡Estrella conseguida en {justEarned}!
         </div>
       )}
@@ -83,7 +85,7 @@ export default function PassView({
           {data.redeemedByName ? ` · ${data.redeemedByName}` : ""}
         </div>
       ) : done ? (
-        <div className="animate-ring rounded-2xl border border-mint/40 bg-mint/10 px-4 py-3 text-center text-sm font-semibold text-mint">
+        <div className="animate-ring rounded-2xl border border-success/40 bg-success/10 px-4 py-3 text-center text-sm font-semibold text-success">
           🎉 ¡Recorrido completo! Pasa al módulo de premios y muestra este código.
         </div>
       ) : null}
@@ -110,14 +112,14 @@ export default function PassView({
                 Te faltan <span className="font-semibold text-white">{data.pending}</span>
               </>
             ) : (
-              <span className="font-semibold text-mint">Completo</span>
+              <span className="font-semibold text-success">Completo</span>
             )}
           </p>
         </div>
 
         <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-grape to-star transition-[width] duration-700"
+            className="h-full rounded-full bg-gradient-to-r from-sky to-brand transition-[width] duration-700"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -128,14 +130,14 @@ export default function PassView({
               key={station.id}
               className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
                 station.visitedAt
-                  ? "border-star/30 bg-star/10"
+                  ? "border-gold/30 bg-gold/10"
                   : "border-white/10 bg-white/[0.03]"
               }`}
             >
               <span className="text-xl">{station.emoji}</span>
               <span className="flex-1 text-sm font-medium">{station.name}</span>
               {station.visitedAt ? (
-                <span className="text-right text-xs text-star">
+                <span className="text-right text-xs text-gold">
                   ★ {formatTime(station.visitedAt)}
                 </span>
               ) : (

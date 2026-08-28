@@ -30,17 +30,17 @@ export function StaffForm() {
           required
         />
         <select name="role" className="field sm:w-40" defaultValue="STAFF">
-          <option value="STAFF" className="bg-night">
+          <option value="STAFF" className="bg-ink">
             Staff
           </option>
-          <option value="ADMIN" className="bg-night">
+          <option value="ADMIN" className="bg-ink">
             Administrador
           </option>
         </select>
         <Submit label="Agregar" />
       </div>
-      {state.error && <p className="text-sm text-coral">{state.error}</p>}
-      {state.ok && <p className="text-sm text-mint">{state.ok}</p>}
+      {state.error && <p className="text-sm text-alert">{state.error}</p>}
+      {state.ok && <p className="text-sm text-success">{state.ok}</p>}
     </form>
   );
 }
@@ -63,8 +63,8 @@ export function ResetPinForm({ id }: { id: string }) {
       <button type="submit" className="btn btn-ghost px-4 py-2 text-sm">
         Cambiar PIN
       </button>
-      {state.error && <span className="text-xs text-coral">{state.error}</span>}
-      {state.ok && <span className="text-xs text-mint">{state.ok}</span>}
+      {state.error && <span className="text-xs text-alert">{state.error}</span>}
+      {state.ok && <span className="text-xs text-success">{state.ok}</span>}
     </form>
   );
 }

@@ -100,13 +100,22 @@ export default async function AttendeeJourneyPage({
           <p className="mt-2 text-sm text-white/60">
             {attendee.email ?? "sin correo"} · {attendee.phone ?? "sin teléfono"}
           </p>
+          <p className="mt-1 text-sm text-white/60">
+            {attendee.company ?? "sin empresa"}
+            {attendee.position ? ` · ${attendee.position}` : ""}
+          </p>
+          <p className="mt-1 text-sm text-white/45">
+            {attendee.industry ?? "giro sin capturar"}
+            {attendee.state ? ` · ${attendee.state}` : ""}
+          </p>
           <p className="mt-1 text-sm text-white/45">
             Registro {formatDateTime(attendee.createdAt)}
+            {attendee.privacyAt ? " · aviso de privacidad aceptado" : ""}
           </p>
         </div>
         <div className="text-right">
           <p className="text-3xl font-bold">
-            <span className="text-star">★</span> {stars}
+            <span className="text-gold">★</span> {stars}
             <span className="text-lg font-medium text-white/40"> / {stations.length}</span>
           </p>
           <p className="mt-1 text-sm text-white/55">
@@ -154,7 +163,7 @@ export default async function AttendeeJourneyPage({
                         <input type="hidden" name="code" value={attendee.code} />
                         <button
                           type="submit"
-                          className="text-xs text-coral/80 underline underline-offset-4"
+                          className="text-xs text-alert/80 underline underline-offset-4"
                         >
                           Revertir escaneo
                         </button>
@@ -173,7 +182,7 @@ export default async function AttendeeJourneyPage({
               Estaciones pendientes
             </h2>
             {missing.length === 0 ? (
-              <p className="text-sm text-mint">Ninguna. Ya puede reclamar su premio.</p>
+              <p className="text-sm text-success">Ninguna. Ya puede reclamar su premio.</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {missing.map((station) => (
@@ -225,7 +234,7 @@ export default async function AttendeeJourneyPage({
             </p>
             <form action={deleteAttendee} className="mt-4 border-t border-white/8 pt-4">
               <input type="hidden" name="code" value={attendee.code} />
-              <button type="submit" className="text-xs text-coral/80 underline underline-offset-4">
+              <button type="submit" className="text-xs text-alert/80 underline underline-offset-4">
                 Eliminar asistente y su historial
               </button>
             </form>

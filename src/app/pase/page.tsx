@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { normalizeCode } from "@/lib/codes";
+import FesterLogo from "@/components/FesterLogo";
 
 export default function RecoverPassPage() {
   const router = useRouter();
@@ -20,8 +21,9 @@ export default function RecoverPassPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-5 px-5 py-10">
-      <header className="text-center">
-        <h1 className="text-2xl font-bold">Abrir mi pase</h1>
+      <header className="flex flex-col items-center text-center">
+        <FesterLogo className="h-9" />
+        <h1 className="mt-4 text-2xl font-bold">Abrir mi pase</h1>
         <p className="mt-2 text-sm text-white/60">Escribe el código que aparece en tu pase.</p>
       </header>
 

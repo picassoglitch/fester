@@ -16,15 +16,15 @@ function Kpi({
   label: string;
   value: string | number;
   hint?: string;
-  tone?: "default" | "star" | "mint" | "coral";
+  tone?: "default" | "gold" | "success" | "alert";
 }) {
   const color =
-    tone === "star"
-      ? "text-star"
-      : tone === "mint"
-        ? "text-mint"
-        : tone === "coral"
-          ? "text-coral"
+    tone === "gold"
+      ? "text-gold"
+      : tone === "success"
+        ? "text-success"
+        : tone === "alert"
+          ? "text-alert"
           : "text-white";
   return (
     <div className="card p-4">
@@ -74,7 +74,7 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
         <div className="flex items-center gap-3 text-xs text-white/50">
           <span className="flex items-center gap-2">
             <span
-              className={`h-2 w-2 rounded-full ${live ? "animate-pulse bg-mint" : "bg-white/30"}`}
+              className={`h-2 w-2 rounded-full ${live ? "animate-pulse bg-success" : "bg-white/30"}`}
             />
             Actualizado {relativeTime(new Date(updatedAt))}
           </span>
@@ -97,7 +97,7 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
         <Kpi
           label="Completaron"
           value={totals.completed}
-          tone="mint"
+          tone="success"
           hint={
             totals.attendees > 0
               ? `${Math.round((totals.completed / totals.attendees) * 100)}% del total`
@@ -107,7 +107,7 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
         <Kpi
           label="Premios por entregar"
           value={totals.pendingPrizes}
-          tone="star"
+          tone="gold"
           hint={`${totals.redeemed} entregados`}
         />
         <Kpi
@@ -156,7 +156,7 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
                   </div>
                   <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white/8">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-grape to-star transition-[width] duration-700"
+                      className="h-full rounded-full bg-gradient-to-r from-sky to-brand transition-[width] duration-700"
                       style={{ width: `${Math.min(100, Math.round(station.rate * 100))}%` }}
                     />
                   </div>
@@ -178,12 +178,12 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
             {distribution.map((count, stars) => (
               <li key={stars} className="flex items-center gap-3 text-sm">
                 <span className="w-14 shrink-0 text-white/60">
-                  {stars} <span className="text-star">★</span>
+                  {stars} <span className="text-gold">★</span>
                 </span>
                 <div className="h-5 flex-1 overflow-hidden rounded-md bg-white/8">
                   <div
                     className={`h-full rounded-md transition-[width] duration-700 ${
-                      stars === distribution.length - 1 ? "bg-mint" : "bg-grape"
+                      stars === distribution.length - 1 ? "bg-success" : "bg-brand"
                     }`}
                     style={{ width: `${Math.round((count / maxBucket) * 100)}%` }}
                   />
@@ -202,7 +202,7 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
                 {registrationsByHour.map((row) => (
                   <div key={row.hour} className="flex flex-1 flex-col items-center gap-1">
                     <div
-                      className="w-full rounded-t bg-coral/70"
+                      className="w-full rounded-t bg-alert/70"
                       style={{ height: `${Math.max(4, (row.count / maxHour) * 72)}px` }}
                       title={`${row.count} registros`}
                     />

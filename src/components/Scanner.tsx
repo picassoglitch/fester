@@ -82,7 +82,7 @@ export default function Scanner({
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
         <div
           className={`h-52 w-52 rounded-2xl border-2 transition ${
-            paused ? "border-mint/70" : "border-white/70"
+            paused ? "border-success/70" : "border-white/70"
           }`}
         />
       </div>
@@ -94,7 +94,7 @@ export default function Scanner({
       )}
 
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-night/90 p-6 text-center text-sm text-coral">
+        <div className="absolute inset-0 flex items-center justify-center bg-ink/90 p-6 text-center text-sm text-alert">
           {error}
         </div>
       )}

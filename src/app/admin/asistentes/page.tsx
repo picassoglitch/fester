@@ -124,7 +124,7 @@ export default async function AttendeesPage({
             href={href({ filtro: item.key, pagina: 1 })}
             className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm transition ${
               filter === item.key
-                ? "border-grape bg-grape/20 text-white"
+                ? "border-brand bg-brand/20 text-white"
                 : "border-white/12 text-white/60 hover:text-white"
             }`}
           >
@@ -168,7 +168,7 @@ export default async function AttendeesPage({
                   {attendee.code}
                 </td>
                 <td className="px-4 py-3 tabular-nums">
-                  <span className="text-star">★</span> {stars}/{activeIds.size}
+                  <span className="text-gold">★</span> {stars}/{activeIds.size}
                 </td>
                 <td className="px-4 py-3 text-white/60">{formatDateTime(attendee.createdAt)}</td>
                 <td className="px-4 py-3 text-white/60">
@@ -180,7 +180,7 @@ export default async function AttendeesPage({
                       🎁 Premio entregado
                     </span>
                   ) : attendee.completedAt ? (
-                    <span className="rounded-full bg-star/15 px-2.5 py-1 text-xs text-star">
+                    <span className="rounded-full bg-gold/15 px-2.5 py-1 text-xs text-gold">
                       Listo para premio
                     </span>
                   ) : (
