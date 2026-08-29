@@ -14,47 +14,39 @@ function MapIllustration() {
       className="h-72 w-full sm:h-80"
       preserveAspectRatio="xMidYMid slice"
     >
-      <rect width="480" height="260" fill="#0a2447" />
+      <rect width="480" height="260" fill="#f1f3f5" />
 
       {/* Manzanas */}
-      <g stroke="#5ca8ff" strokeOpacity="0.16" strokeWidth="1">
-        {Array.from({ length: 9 }).map((_, i) => (
-          <line key={`h${i}`} x1="0" y1={i * 30} x2="480" y2={i * 30} />
-        ))}
-        {Array.from({ length: 17 }).map((_, i) => (
-          <line key={`v${i}`} x1={i * 30} y1="0" x2={i * 30} y2="260" />
-        ))}
+      <g fill="#e6e9ed">
+        <rect x="20" y="24" width="120" height="72" />
+        <rect x="288" y="24" width="150" height="72" />
+        <rect x="20" y="164" width="120" height="80" />
+        <rect x="288" y="164" width="150" height="80" />
       </g>
 
-      {/* Avenidas principales */}
-      <g stroke="#5ca8ff" strokeOpacity="0.4" strokeWidth="7" strokeLinecap="round">
-        <line x1="240" y1="-20" x2="200" y2="280" />
-        <line x1="-20" y1="150" x2="500" y2="126" />
+      {/* Area verde */}
+      <rect x="330" y="30" width="96" height="60" rx="6" fill="#d7e8d2" />
+
+      {/* Calles */}
+      <g stroke="#ffffff" strokeLinecap="round">
+        <line x1="0" y1="130" x2="480" y2="122" strokeWidth="16" />
+        <line x1="252" y1="-10" x2="222" y2="270" strokeWidth="14" />
+        <line x1="150" y1="-10" x2="132" y2="270" strokeWidth="8" />
+        <line x1="0" y1="46" x2="480" y2="40" strokeWidth="7" />
+        <line x1="0" y1="214" x2="480" y2="208" strokeWidth="7" />
       </g>
-      <g stroke="#5ca8ff" strokeOpacity="0.22" strokeWidth="4" strokeLinecap="round">
-        <line x1="60" y1="-20" x2="120" y2="280" />
-        <line x1="380" y1="-20" x2="345" y2="280" />
+      <g stroke="#c9ced6" strokeWidth="1">
+        <line x1="0" y1="122" x2="480" y2="114" />
+        <line x1="0" y1="138" x2="480" y2="130" />
       </g>
 
       {/* Manzana del recinto */}
-      <rect
-        x="196"
-        y="96"
-        width="70"
-        height="46"
-        fill="#e2001a"
-        fillOpacity="0.16"
-        stroke="#e2001a"
-        strokeOpacity="0.55"
-      />
+      <rect x="196" y="98" width="62" height="42" fill="#e2001a" fillOpacity="0.12" />
 
       {/* Pin */}
-      <g transform="translate(231 104)">
-        <ellipse cx="0" cy="34" rx="10" ry="3.5" fill="#04162e" fillOpacity="0.55" />
-        <path
-          d="M0 32C0 32 14 16.5 14 9A14 14 0 1 0-14 9C-14 16.5 0 32 0 32Z"
-          fill="#e2001a"
-        />
+      <g transform="translate(227 104)">
+        <ellipse cx="0" cy="34" rx="10" ry="3.5" fill="#0a2447" fillOpacity="0.25" />
+        <path d="M0 32C0 32 14 16.5 14 9A14 14 0 1 0-14 9C-14 16.5 0 32 0 32Z" fill="#e2001a" />
         <circle cx="0" cy="9" r="5" fill="#ffffff" />
       </g>
     </svg>
@@ -101,7 +93,7 @@ export default function Venue() {
           </p>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-sky/20 bg-ink/50">
+        <div className="overflow-hidden rounded-2xl border border-white/15 bg-white">
           <a
             href={VENUE_DIRECTIONS_URL}
             target="_blank"
@@ -110,15 +102,15 @@ export default function Venue() {
           >
             <MapIllustration />
           </a>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-sky/15 p-4">
-            <p className="text-sm text-white/70">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/10 bg-white p-4">
+            <p className="text-sm text-ink-soft/80">
               {VENUE.name} · {VENUE.area}
             </p>
             <a
               href={VENUE_DIRECTIONS_URL}
               target="_blank"
               rel="noreferrer"
-              className="btn btn-primary px-6 py-2.5 text-sm uppercase tracking-wide"
+              className="btn border border-brand px-6 py-2.5 text-sm uppercase tracking-wide text-brand"
             >
               Cómo llegar <span aria-hidden>→</span>
             </a>

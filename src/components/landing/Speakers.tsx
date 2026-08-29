@@ -67,7 +67,7 @@ export default function Speakers() {
             {SPEAKERS.map((speaker) => (
               <li
                 key={speaker.name}
-                className="flex w-[calc(100%-1rem)] shrink-0 snap-start flex-col overflow-hidden rounded-xl bg-white text-ink-soft sm:w-[calc(50%-0.5rem)] lg:w-[calc(25%-0.75rem)]"
+                className="flex w-[calc(100%-1rem)] shrink-0 snap-start flex-col overflow-hidden rounded-xl bg-white text-ink-soft sm:w-[calc(50%-0.5rem)] lg:w-[calc(25%-0.75rem)] xl:w-[calc(20%-0.8rem)]"
               >
                 <div
                   aria-hidden
@@ -89,33 +89,33 @@ export default function Speakers() {
             ))}
           </ul>
 
-          <div className="mt-4 flex items-center justify-center gap-3">
-            <button
-              type="button"
-              aria-label="Ponentes anteriores"
-              onClick={() => scrollByCards(-1)}
-              className="btn btn-ghost h-9 w-9 rounded-full p-0 text-sm"
-            >
-              ‹
-            </button>
-            <div className="flex items-center gap-1.5">
-              {SPEAKERS.map((speaker, index) => (
-                <span
-                  key={speaker.name}
-                  className={`h-1.5 rounded-full transition-all ${
-                    index === page ? "w-5 bg-brand" : "w-1.5 bg-white/25"
-                  }`}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              aria-label="Ponentes siguientes"
-              onClick={() => scrollByCards(1)}
-              className="btn btn-ghost h-9 w-9 rounded-full p-0 text-sm"
-            >
-              ›
-            </button>
+          {/* Flechas sobre los extremos del carrusel, como en el diseño. */}
+          <button
+            type="button"
+            aria-label="Ponentes anteriores"
+            onClick={() => scrollByCards(-1)}
+            className="absolute left-1 top-[45%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-sky/30 bg-ink/90 text-lg text-white/80 transition hover:text-white lg:-left-5"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="Ponentes siguientes"
+            onClick={() => scrollByCards(1)}
+            className="absolute right-1 top-[45%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-sky/30 bg-ink/90 text-lg text-white/80 transition hover:text-white lg:-right-5"
+          >
+            ›
+          </button>
+
+          <div className="mt-4 flex items-center justify-center gap-1.5">
+            {SPEAKERS.map((speaker, index) => (
+              <span
+                key={speaker.name}
+                className={`h-1.5 rounded-full transition-all ${
+                  index === page ? "w-5 bg-brand" : "w-1.5 bg-white/25"
+                }`}
+              />
+            ))}
           </div>
         </div>
       </div>

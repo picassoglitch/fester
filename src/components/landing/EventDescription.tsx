@@ -10,7 +10,7 @@ export default function EventDescription() {
       <div className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <p className="eyebrow">Descripción</p>
+            <p className="eyebrow">El evento</p>
             <h2 className="mt-4 text-3xl font-black uppercase leading-[0.95] sm:text-4xl">
               {DESCRIPTION.title}
             </h2>

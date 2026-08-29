@@ -6,10 +6,10 @@
 export const EVENT = {
   brand: "Fester",
   claim: "El Socio que Nunca Falla®",
-  /** Nombre del evento tal como aparece en el key visual. */
+  /** Nombre del evento tal como aparece en el diseño aprobado. */
   name: "Encuentro Fester",
   year: "2026",
-  tagline: "Para lo que vas a construir hoy",
+  tagline: "El socio que nunca falla — del piso al techo",
   dateLabel: "5 de Noviembre 2026",
   dateShort: "5 de Noviembre",
   city: "Ciudad de México",
@@ -18,7 +18,7 @@ export const EVENT = {
 } as const;
 
 export const NAV_LINKS = [
-  { href: "#evento", label: "Encuentro 2026" },
+  { href: "#evento", label: "Encuentro Fester 2026" },
   { href: "#descripcion", label: "Descripción" },
   { href: "#ponentes", label: "Ponentes" },
   { href: "#sede", label: "Sede" },

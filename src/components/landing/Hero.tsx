@@ -1,4 +1,3 @@
-import FesterLogo from "@/components/FesterLogo";
 import { EVENT, VENUE } from "@/lib/event";
 
 /**
@@ -43,35 +42,35 @@ export default function Hero() {
 
       <div className="mx-auto grid w-full max-w-6xl items-center gap-10 px-4 pb-16 pt-14 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:pb-24">
         <div className="bracket">
-          <h1 className="text-[3.25rem] font-black uppercase leading-[0.86] tracking-tight sm:text-7xl lg:text-[5.25rem]">
+          <h1 className="text-[3rem] font-black uppercase leading-[0.86] tracking-tight sm:text-6xl lg:text-[4.75rem]">
             <span className="block">Encuentro</span>
-            <span className="mt-1 flex flex-wrap items-center gap-4">
-              <FesterLogo className="h-14 sm:h-16 lg:h-20" />
-              <span className="text-brand">{EVENT.year}</span>
+            <span className="block">
+              Fester <span className="text-white">{EVENT.year}</span>
             </span>
           </h1>
 
-          <p className="mt-6 max-w-md text-xl font-semibold uppercase leading-snug tracking-wide text-white/90 sm:text-2xl">
-            Para lo que vas <span className="text-brand">a construir hoy</span>
+          <p className="mt-6 max-w-lg text-lg font-normal leading-snug text-white/85 sm:text-xl">
+            {EVENT.tagline}
           </p>
 
-          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/80">
+          <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-white/80">
             <span className="inline-flex items-center gap-2">
               <span aria-hidden>🗓️</span>
               {EVENT.dateLabel}
             </span>
+            <span aria-hidden className="hidden h-4 w-px bg-white/25 sm:block" />
             <span className="inline-flex items-center gap-2">
               <span aria-hidden>📍</span>
-              {VENUE.name}, {EVENT.city}
+              {EVENT.city}
             </span>
           </div>
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a href="#registro" className="btn btn-primary px-8 uppercase tracking-wide">
+          <div className="mt-8">
+            <a
+              href="#registro"
+              className="btn btn-primary w-full max-w-xs justify-between px-7 py-4 text-lg uppercase tracking-wide sm:w-auto sm:min-w-[16rem]"
+            >
               Regístrate <span aria-hidden>→</span>
-            </a>
-            <a href="#descripcion" className="btn btn-outline px-8 uppercase tracking-wide">
-              Conoce el evento
             </a>
           </div>
         </div>
@@ -83,26 +82,24 @@ export default function Hero() {
             className="absolute inset-x-0 bottom-0 h-2/3 bg-[linear-gradient(180deg,transparent,rgba(27,87,165,0.55))]"
           />
 
-          <div className="relative flex items-start justify-between p-6">
-            <p className="eyebrow">{EVENT.claim}</p>
+          <div className="relative flex items-start justify-end p-6">
             <span className="rounded border border-white/25 px-2.5 py-1 text-[0.6rem] font-bold uppercase tracking-[0.25em] text-white/70">
               Henkel
             </span>
           </div>
 
-          <div className="relative mt-auto flex flex-col gap-2 px-6 pb-6">
-            <p className="text-5xl font-black uppercase leading-none">
-              5<span className="ml-2 text-xl font-bold">de</span> Noviembre
+          <div className="relative mt-auto flex flex-col gap-3 px-6 pb-6">
+            <p className="text-2xl font-black uppercase leading-tight">
+              Del piso al techo,
+              <br />
+              <span className="text-brand">una sola marca</span>
             </p>
-            <p className="text-lg font-semibold uppercase tracking-[0.25em] text-white/75">
-              {EVENT.city}
+            <p className="max-w-sm text-sm text-white/60">
+              Impermeabilización, adhesivos y protección de superficies para cada etapa de tu
+              proyecto, con el respaldo técnico de Henkel.
             </p>
-            <p className="mt-1 max-w-sm text-sm text-white/60">
-              Un día completo de soluciones Fester: del piso al techo, con el respaldo técnico de
-              Henkel.
-            </p>
-            <p className="mt-4 rounded bg-brand px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white">
-              Regístrate y sé parte del evento más grande de Fester
+            <p className="mt-2 rounded bg-brand px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white">
+              {VENUE.name} · {EVENT.dateShort} · {EVENT.city}
             </p>
           </div>
         </div>
