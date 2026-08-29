@@ -4,11 +4,12 @@ import { getAttendeeProgress } from "@/lib/attendee";
 import { normalizeCode } from "@/lib/codes";
 import { appUrl } from "@/lib/site";
 import PassView from "@/components/PassView";
+import FesterLogo from "@/components/FesterLogo";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Mi pase · Fester",
+  title: "Mi pase",
 };
 
 export default async function PassPage({ params }: { params: Promise<{ code: string }> }) {
@@ -18,6 +19,7 @@ export default async function PassPage({ params }: { params: Promise<{ code: str
   if (!progress) {
     return (
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
+        <FesterLogo className="h-9" />
         <h1 className="text-2xl font-bold">Pase no encontrado</h1>
         <p className="text-sm text-white/60">
           El código <span className="font-mono">{normalizeCode(code)}</span> no existe. Revísalo o

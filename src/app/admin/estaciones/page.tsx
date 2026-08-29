@@ -87,7 +87,7 @@ export default async function StationsPage() {
               <span>
                 {station._count.scans} escaneos ·{" "}
                 {station.active ? (
-                  <span className="text-mint">activa</span>
+                  <span className="text-success">activa</span>
                 ) : (
                   <span className="text-white/40">inactiva</span>
                 )}
@@ -101,7 +101,7 @@ export default async function StationsPage() {
                 </form>
                 <form action={deleteStation}>
                   <input type="hidden" name="id" value={station.id} />
-                  <button type="submit" className="text-coral/80 underline underline-offset-4">
+                  <button type="submit" className="text-alert/80 underline underline-offset-4">
                     Eliminar
                   </button>
                 </form>

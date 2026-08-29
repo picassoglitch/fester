@@ -31,7 +31,7 @@ export default async function StaffPage() {
               <p className="font-medium">
                 {person.name}
                 {person.role === "ADMIN" && (
-                  <span className="ml-2 rounded-full bg-grape/25 px-2 py-0.5 text-xs text-white/80">
+                  <span className="ml-2 rounded-full bg-brand/25 px-2 py-0.5 text-xs text-white/80">
                     admin
                   </span>
                 )}

@@ -35,11 +35,11 @@ export default async function PrizesPage() {
       <div className="mb-4 grid grid-cols-2 gap-3">
         <div className="card p-4">
           <p className="text-xs text-white/50">Por entregar</p>
-          <p className="text-2xl font-bold text-star">{pendingPrizes}</p>
+          <p className="text-2xl font-bold text-gold">{pendingPrizes}</p>
         </div>
         <div className="card p-4">
           <p className="text-xs text-white/50">Entregados</p>
-          <p className="text-2xl font-bold text-mint">{delivered}</p>
+          <p className="text-2xl font-bold text-success">{delivered}</p>
         </div>
       </div>
 

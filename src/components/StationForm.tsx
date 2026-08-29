@@ -35,8 +35,8 @@ export default function StationForm() {
         />
         <Submit />
       </div>
-      {state.error && <p className="text-sm text-coral">{state.error}</p>}
-      {state.ok && <p className="text-sm text-mint">{state.ok}</p>}
+      {state.error && <p className="text-sm text-alert">{state.error}</p>}
+      {state.ok && <p className="text-sm text-success">{state.ok}</p>}
     </form>
   );
 }

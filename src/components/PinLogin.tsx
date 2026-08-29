@@ -33,13 +33,13 @@ export default function PinLogin({ next }: { next: string }) {
           <span
             key={index}
             className={`h-3.5 w-3.5 rounded-full transition ${
-              index < pin.length ? "bg-grape" : "bg-white/15"
+              index < pin.length ? "bg-brand" : "bg-white/15"
             }`}
           />
         ))}
       </div>
 
-      {state.error && <p className="text-center text-sm text-coral">{state.error}</p>}
+      {state.error && <p className="text-center text-sm text-alert">{state.error}</p>}
 
       <div className="grid grid-cols-3 gap-2.5">
         {KEYS.map((key) => {

@@ -44,6 +44,11 @@ model Attendee {
   name        String
   email       String?
   phone       String?
+  company     String?
+  position    String?
+  industry    String?
+  state       String?
+  privacyAt   DateTime?
   createdAt   DateTime  @default(now())
   completedAt DateTime?
   redeemedAt  DateTime?
