@@ -3,6 +3,7 @@ import SiteHeader from "@/components/landing/SiteHeader";
 import Hero from "@/components/landing/Hero";
 import EventDescription from "@/components/landing/EventDescription";
 import Speakers from "@/components/landing/Speakers";
+import Venue from "@/components/landing/Venue";
 import Registration from "@/components/landing/Registration";
 import Sponsors from "@/components/landing/Sponsors";
 import SiteFooter from "@/components/landing/SiteFooter";
@@ -35,6 +36,7 @@ export default async function HomePage() {
         <Hero />
         <EventDescription />
         <Speakers />
+        <Venue />
         <Registration stations={stations} />
         <Sponsors />
       </main>

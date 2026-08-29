@@ -1,5 +1,5 @@
 import FesterLogo from "@/components/FesterLogo";
-import { EVENT } from "@/lib/event";
+import { EVENT, VENUE } from "@/lib/event";
 
 /**
  * Ruta del key visual oficial. Cuando marketing suba la imagen a /public
@@ -62,7 +62,7 @@ export default function Hero() {
             </span>
             <span className="inline-flex items-center gap-2">
               <span aria-hidden>📍</span>
-              {EVENT.city}
+              {VENUE.name}, {EVENT.city}
             </span>
           </div>
 

@@ -18,9 +18,10 @@ export const EVENT = {
 } as const;
 
 export const NAV_LINKS = [
-  { href: "#evento", label: "Encuentro Fester 2026" },
+  { href: "#evento", label: "Encuentro 2026" },
   { href: "#descripcion", label: "Descripción" },
   { href: "#ponentes", label: "Ponentes" },
+  { href: "#sede", label: "Sede" },
   { href: "#registro", label: "Registro" },
   { href: "#patrocinadores", label: "Patrocinadores" },
   { href: "#contacto", label: "Contacto" },
@@ -78,6 +79,28 @@ export const SPEAKERS: Speaker[] = [
   { name: "Ing. Sofía Vargas", role: "Especialista en Impermeabilización" },
   { name: "Arq. Eduardo Salazar", role: "Director de Proyectos Estratégicos" },
 ];
+
+export const VENUE = {
+  name: "Frontón Bucareli",
+  street: "Bucareli 118, Col. Centro",
+  area: "Cuauhtémoc, 06040, CDMX",
+  /**
+   * Coordenadas aproximadas del recinto: sirven para centrar el mapa.
+   * Confirmalas con el equipo del evento antes de publicar.
+   */
+  lat: 19.4304,
+  lng: -99.1486,
+  features: [
+    { emoji: "🏛️", copy: "Recinto histórico de más de 100 años restaurado y adaptado para eventos." },
+    { emoji: "🅿️", copy: "Estacionamiento cercano y acceso a transporte público." },
+    { emoji: "♿", copy: "Instalaciones accesibles y áreas de networking." },
+  ],
+} as const;
+
+/** Liga de navegación: se arma con la dirección para que el destino sea exacto. */
+export const VENUE_DIRECTIONS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+  `${VENUE.name}, ${VENUE.street}, ${VENUE.area}`,
+)}`;
 
 export const BENEFITS = [
   { emoji: "🎟️", title: "Acceso a todas", copy: "las conferencias" },

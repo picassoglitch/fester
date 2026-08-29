@@ -1,6 +1,6 @@
 import Link from "next/link";
 import FesterLogo from "@/components/FesterLogo";
-import { CONTACT, EVENT, NAV_LINKS } from "@/lib/event";
+import { CONTACT, EVENT, NAV_LINKS, VENUE } from "@/lib/event";
 
 export default function SiteFooter() {
   return (
@@ -12,7 +12,9 @@ export default function SiteFooter() {
           <p className="mt-4 text-sm text-white/60">
             {EVENT.name} {EVENT.year}
             <br />
-            {EVENT.dateLabel} · {EVENT.city}
+            {EVENT.dateLabel}
+            <br />
+            {VENUE.name} · {EVENT.city}
           </p>
         </div>
 
