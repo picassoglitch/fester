@@ -1,38 +1,38 @@
+import Image from "next/image";
 import { EVENT } from "@/lib/event";
 
-/**
- * Key visual del evento. El archivo va en /public con este nombre exacto.
- * Si todavia no esta, el hero cae al degradado azul y no se rompe nada.
- */
-const HERO_IMAGE = "/hero-encuentro-fester-2026.jpg";
+/** Key visual del evento (public/hero-encuentro-fester-2026.png). */
+const HERO_IMAGE = "/hero-encuentro-fester-2026.png";
 
 export default function Hero() {
   return (
     <section
       id="evento"
-      className="relative isolate flex min-h-[28rem] items-center overflow-hidden lg:min-h-[34rem]"
+      className="relative isolate flex min-h-[30rem] items-center overflow-hidden lg:min-h-[44rem]"
     >
-      {/* Respaldo por si la imagen aun no esta subida. */}
+      {/* Fondo azul Fester: sostiene el lado del titulo y empata con la imagen. */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-30 bg-[radial-gradient(80rem_50rem_at_70%_10%,#1b57a5_0%,#0b2f66_45%,#04162e_100%)]"
+        className="absolute inset-0 -z-30 bg-[radial-gradient(70rem_45rem_at_20%_10%,#123a75_0%,#0a2a58_45%,#04162e_100%)]"
       />
 
-      {/* Key visual a todo lo ancho: la foto cae del lado derecho. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-20 bg-cover bg-right bg-no-repeat"
-        style={{ backgroundImage: `url(${HERO_IMAGE})` }}
-      />
+      {/* Key visual: pegado a la derecha en escritorio, de fondo completo en movil. */}
+      <div className="absolute inset-y-0 right-0 -z-20 w-full lg:w-[62%]">
+        <Image
+          src={HERO_IMAGE}
+          alt="Asistentes recorriendo el Encuentro Fester entre conferencias, demostraciones y stands"
+          fill
+          sizes="(max-width: 1024px) 100vw, 62vw"
+          loading="eager"
+          fetchPriority="high"
+          className="object-cover object-center"
+        />
+      </div>
 
-      {/*
-       * Degradado azul sobre la imagen para que el titulo se lea:
-       * horizontal en escritorio (deja libre la foto de la derecha) y
-       * parejo en movil, donde el texto cae encima de la imagen.
-       */}
+      {/* Fundido de la imagen hacia el azul, para que el titulo se lea. */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 hidden bg-[linear-gradient(95deg,#04162e_0%,#04162e_34%,rgba(5,27,56,0.82)_48%,rgba(6,32,66,0.25)_66%,transparent_82%)] lg:block"
+        className="absolute inset-0 -z-10 hidden bg-[linear-gradient(90deg,#04162e_0%,#04162e_41%,rgba(4,22,46,0.8)_48%,rgba(4,22,46,0.3)_57%,transparent_68%)] lg:block"
       />
       <div
         aria-hidden
@@ -40,8 +40,8 @@ export default function Hero() {
       />
 
       <div className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-20">
-        <div className="bracket max-w-xl">
-          <h1 className="text-[3rem] font-black uppercase leading-[0.86] tracking-tight sm:text-6xl lg:text-[4.75rem]">
+        <div className="bracket max-w-lg">
+          <h1 className="text-[3rem] font-black uppercase leading-[0.86] tracking-tight sm:text-6xl lg:text-[4.5rem]">
             <span className="block">Encuentro</span>
             <span className="block">Fester {EVENT.year}</span>
           </h1>
