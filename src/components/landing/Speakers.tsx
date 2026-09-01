@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SPEAKERS } from "@/lib/event";
 
 function initials(name: string): string {
@@ -25,6 +25,33 @@ function LinkedInIcon() {
 export default function Speakers() {
   const trackRef = useRef<HTMLUListElement>(null);
   const [page, setPage] = useState(0);
+  const [pages, setPages] = useState(1);
+
+  /**
+   * En pantallas anchas caben las cinco tarjetas y no hay nada que recorrer:
+   * ahi las flechas y los puntos sobran, porque no harian nada al pulsarlos.
+   */
+  const measure = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const card = track.querySelector("li");
+    const step = card ? card.clientWidth + 16 : track.clientWidth;
+    const overflow = track.scrollWidth - track.clientWidth;
+    setPages(overflow > 1 && step > 0 ? Math.ceil(overflow / step) + 1 : 1);
+    setPage(step > 0 ? Math.round(track.scrollLeft / step) : 0);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    const track = trackRef.current;
+    if (!track || typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [measure]);
 
   const scrollByCards = useCallback((direction: 1 | -1) => {
     const track = trackRef.current;
@@ -34,13 +61,7 @@ export default function Speakers() {
     track.scrollBy({ left: direction * step, behavior: "smooth" });
   }, []);
 
-  const onScroll = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const card = track.querySelector("li");
-    const step = card ? card.clientWidth + 16 : 1;
-    setPage(Math.round(track.scrollLeft / step));
-  }, []);
+  const hasCarousel = pages > 1;
 
   return (
     <section id="conferencistas" className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
@@ -60,8 +81,9 @@ export default function Speakers() {
 
         <div className="relative min-w-0">
           <ul
+            id="lista-conferencistas"
             ref={trackRef}
-            onScroll={onScroll}
+            onScroll={measure}
             className="flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {SPEAKERS.map((speaker) => (
@@ -89,34 +111,40 @@ export default function Speakers() {
             ))}
           </ul>
 
-          {/* Flechas sobre los extremos del carrusel, como en el diseño. */}
-          <button
-            type="button"
-            aria-label="Conferencistas anteriores"
-            onClick={() => scrollByCards(-1)}
-            className="absolute left-1 top-[45%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-sky/30 bg-ink/90 text-lg text-white/80 transition hover:text-white lg:-left-5"
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            aria-label="Conferencistas siguientes"
-            onClick={() => scrollByCards(1)}
-            className="absolute right-1 top-[45%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-sky/30 bg-ink/90 text-lg text-white/80 transition hover:text-white lg:-right-5"
-          >
-            ›
-          </button>
+          {/* Flechas y puntos: solo cuando hay tarjetas fuera de vista. */}
+          {hasCarousel && (
+            <>
+              <button
+                type="button"
+                aria-label="Conferencistas anteriores"
+                aria-controls="lista-conferencistas"
+                onClick={() => scrollByCards(-1)}
+                className="absolute left-1 top-[45%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-sky/30 bg-ink/90 text-lg text-white/80 transition hover:text-white lg:-left-5"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                aria-label="Conferencistas siguientes"
+                aria-controls="lista-conferencistas"
+                onClick={() => scrollByCards(1)}
+                className="absolute right-1 top-[45%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-sky/30 bg-ink/90 text-lg text-white/80 transition hover:text-white lg:-right-5"
+              >
+                ›
+              </button>
 
-          <div className="mt-4 flex items-center justify-center gap-1.5">
-            {SPEAKERS.map((speaker, index) => (
-              <span
-                key={speaker.name}
-                className={`h-1.5 rounded-full transition-all ${
-                  index === page ? "w-5 bg-brand" : "w-1.5 bg-white/25"
-                }`}
-              />
-            ))}
-          </div>
+              <div className="mt-4 flex items-center justify-center gap-1.5">
+                {Array.from({ length: pages }).map((_, index) => (
+                  <span
+                    key={index}
+                    className={`h-1.5 rounded-full transition-all ${
+                      index === page ? "w-5 bg-brand" : "w-1.5 bg-white/25"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </section>

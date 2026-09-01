@@ -14,29 +14,33 @@ export default function FesterLogo({ className = "h-9" }: { className?: string }
     >
       <ellipse cx="80" cy="32" rx="78" ry="30" fill="#e2001a" />
       <ellipse cx="80" cy="32" rx="72" ry="24.5" fill="none" stroke="#ffffff" strokeWidth="2" />
+      {/*
+       * La palabra y la ® van en un mismo <text> centrado: asi la marca
+       * registrada queda siempre pegada a la "r" y el conjunto no se
+       * descuadra, sin depender de las metricas de la fuente.
+       */}
       <text
         x="80"
         y="41"
         textAnchor="middle"
         fill="#ffffff"
         fontFamily="Georgia, 'Times New Roman', serif"
-        fontSize="30"
+        fontSize="28"
         fontStyle="italic"
         fontWeight="700"
         letterSpacing="0.5"
       >
         Fester
-      </text>
-      {/* Marca registrada: dentro del ovalo, pegada a la palabra, como en el arte oficial. */}
-      <text
-        x="136"
-        y="29"
-        fill="#ffffff"
-        fontFamily="ui-sans-serif, system-ui, sans-serif"
-        fontSize="11"
-        fontWeight="600"
-      >
-        ®
+        <tspan
+          fontFamily="ui-sans-serif, system-ui, sans-serif"
+          fontSize="12"
+          fontStyle="normal"
+          fontWeight="400"
+          dx="2"
+          dy="-11"
+        >
+          ®
+        </tspan>
       </text>
     </svg>
   );
