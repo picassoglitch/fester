@@ -1,5 +1,5 @@
 /**
- * Marca Fester dibujada en SVG (ovalo rojo + logotipo blanco).
+ * Marca Fester dibujada en SVG (ovalo rojo + logotipo blanco + ®).
  * Es una reconstruccion tipografica: si marketing entrega el SVG oficial,
  * basta con sustituir el contenido de este componente.
  */
@@ -8,7 +8,7 @@ export default function FesterLogo({ className = "h-9" }: { className?: string }
     <svg
       viewBox="0 0 160 64"
       role="img"
-      aria-label="Fester"
+      aria-label="Fester, marca registrada"
       className={className}
       style={{ width: "auto" }}
     >
@@ -27,7 +27,15 @@ export default function FesterLogo({ className = "h-9" }: { className?: string }
       >
         Fester
       </text>
-      <text x="140" y="24" fill="#ffffff" fontFamily="inherit" fontSize="9">
+      {/* Marca registrada: dentro del ovalo, pegada a la palabra, como en el arte oficial. */}
+      <text
+        x="136"
+        y="29"
+        fill="#ffffff"
+        fontFamily="ui-sans-serif, system-ui, sans-serif"
+        fontSize="11"
+        fontWeight="600"
+      >
         ®
       </text>
     </svg>

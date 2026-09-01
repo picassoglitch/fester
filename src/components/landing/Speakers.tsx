@@ -43,10 +43,10 @@ export default function Speakers() {
   }, []);
 
   return (
-    <section id="ponentes" className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
+    <section id="conferencistas" className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-20">
       <div className="grid gap-8 lg:grid-cols-[0.65fr_2fr] lg:items-center">
         <div>
-          <p className="eyebrow">Ponentes</p>
+          <p className="eyebrow">Conferencistas</p>
           <h2 className="mt-4 text-3xl font-black uppercase leading-[0.95] sm:text-4xl">
             Conoce a
             <br />
@@ -92,7 +92,7 @@ export default function Speakers() {
           {/* Flechas sobre los extremos del carrusel, como en el diseño. */}
           <button
             type="button"
-            aria-label="Ponentes anteriores"
+            aria-label="Conferencistas anteriores"
             onClick={() => scrollByCards(-1)}
             className="absolute left-1 top-[45%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-sky/30 bg-ink/90 text-lg text-white/80 transition hover:text-white lg:-left-5"
           >
@@ -100,7 +100,7 @@ export default function Speakers() {
           </button>
           <button
             type="button"
-            aria-label="Ponentes siguientes"
+            aria-label="Conferencistas siguientes"
             onClick={() => scrollByCards(1)}
             className="absolute right-1 top-[45%] z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-sky/30 bg-ink/90 text-lg text-white/80 transition hover:text-white lg:-right-5"
           >

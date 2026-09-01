@@ -20,41 +20,39 @@ export const EVENT = {
 export const NAV_LINKS = [
   { href: "#evento", label: "Encuentro Fester 2026" },
   { href: "#descripcion", label: "Descripción" },
-  { href: "#ponentes", label: "Ponentes" },
-  { href: "#sede", label: "Sede" },
+  { href: "#conferencistas", label: "Conferencistas" },
   { href: "#registro", label: "Registro" },
-  { href: "#patrocinadores", label: "Patrocinadores" },
   { href: "#contacto", label: "Contacto" },
 ] as const;
 
 export const DESCRIPTION = {
   title: "Descripción del evento",
   lead:
-    "El Encuentro Fester 2026 reúne en un solo día a especialistas, constructores y distribuidores para mostrar cómo se resuelve una obra completa: del piso al techo, con soluciones probadas de impermeabilización, adhesivos y protección de superficies.",
+    "El Encuentro Fester 2026 reúne en un solo día a profesionales de la construcción, aplicadores y estudiantes para vivir, de principio a fin, cómo se resuelve una obra completa —del piso al techo— con las soluciones en las que ya confían miles de especialistas en México.",
   paragraphs: [
-    "Durante la jornada vas a recorrer demostraciones en vivo, casos reales de obra residencial, comercial e industrial y las novedades de tecnología Fester que llegan este año al mercado mexicano.",
-    "Es un espacio pensado para llevarte respuestas aplicables: qué sistema usar en cada etapa, cómo garantizar la durabilidad y con quién apoyarte cuando el proyecto se complica.",
+    "Más que una exposición, es una jornada de capacitación práctica: vas a recorrer demostraciones en vivo, aplicar los sistemas Fester con tus propias manos y resolver dudas directamente con el equipo técnico de la marca. Cada estación está diseñada para que te lleves respuestas aplicables, no folletos.",
+    "Y mientras aprendes, ganas. Completa tu recorrido por las estaciones del evento y desbloquea recompensas exclusivas: entre más vives el Encuentro, más te llevas. Todo tu paso queda registrado en tu pase digital con código QR.",
   ],
   highlights: [
     {
+      emoji: "🎓",
+      title: "Capacitación práctica",
+      copy: "Aplica los sistemas Fester tú mismo en demostraciones en vivo y llévate criterio técnico para tu próxima obra.",
+    },
+    {
       emoji: "🎤",
-      title: "Conferencias con especialistas",
-      copy: "Contenido técnico y comercial a cargo del equipo Fester y de invitados de la industria.",
+      title: "Conferencistas de la industria",
+      copy: "Contenido técnico y comercial a cargo del equipo Fester y de especialistas invitados del sector construcción.",
     },
     {
-      emoji: "🧰",
-      title: "Demostraciones en vivo",
-      copy: "Aplicación real de sistemas de impermeabilización, recubrimientos y anclajes.",
-    },
-    {
-      emoji: "🏗️",
-      title: "Soluciones por tipo de obra",
-      copy: "Casos de éxito en proyectos residenciales, comerciales e industriales.",
+      emoji: "🎁",
+      title: "Recompensas por participar",
+      copy: "Completa las estaciones del recorrido y desbloquea beneficios exclusivos. Entre más vives el evento, más te llevas.",
     },
     {
       emoji: "🤝",
       title: "Networking dirigido",
-      copy: "Contacto directo con distribuidores, aplicadores y equipo técnico de la marca.",
+      copy: "Contacto directo con distribuidores, aplicadores y el equipo técnico de Fester en un mismo lugar.",
     },
   ],
   facts: [
@@ -80,40 +78,10 @@ export const SPEAKERS: Speaker[] = [
   { name: "Arq. Eduardo Salazar", role: "Director de Proyectos Estratégicos" },
 ];
 
-export const VENUE = {
-  name: "Frontón Bucareli",
-  street: "Bucareli 118, Col. Centro",
-  area: "Cuauhtémoc, 06040, CDMX",
-  /**
-   * Coordenadas aproximadas del recinto: sirven para centrar el mapa.
-   * Confirmalas con el equipo del evento antes de publicar.
-   */
-  lat: 19.4304,
-  lng: -99.1486,
-  features: [
-    { emoji: "🏛️", copy: "Recinto histórico de más de 100 años restaurado y adaptado para eventos." },
-    { emoji: "🅿️", copy: "Estacionamiento cercano y acceso a transporte público." },
-    { emoji: "♿", copy: "Instalaciones accesibles y áreas de networking." },
-  ],
-} as const;
-
-/** Liga de navegación: se arma con la dirección para que el destino sea exacto. */
-export const VENUE_DIRECTIONS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-  `${VENUE.name}, ${VENUE.street}, ${VENUE.area}`,
-)}`;
-
 export const BENEFITS = [
   { emoji: "🎟️", title: "Acceso a todas", copy: "las conferencias" },
   { emoji: "🎁", title: "Kit de", copy: "bienvenida" },
   { emoji: "🔗", title: "Networking con", copy: "profesionales" },
-] as const;
-
-export const SPONSORS = [
-  { name: "Fester", note: "Anfitrión" },
-  { name: "Henkel", note: "Grupo" },
-  { name: "Loctite", note: "Marca aliada" },
-  { name: "Ceresit", note: "Marca aliada" },
-  { name: "Teroson", note: "Marca aliada" },
 ] as const;
 
 export const CONTACT = {
