@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { logout } from "@/app/actions/session";
 import ScanConsole from "@/components/ScanConsole";
+import AutoRefresh from "@/components/AutoRefresh";
+import FesterLogo from "@/components/FesterLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +17,11 @@ export default async function PrizesPage() {
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-6">
-      <header className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Entrega de premios</h1>
+      <AutoRefresh seconds={30} />
+      <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-sky/12 pb-4">
+        <FesterLogo className="h-7" />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg font-bold leading-tight">Entrega de premios</h1>
           <p className="text-xs text-white/50">Sesión de {session.name}</p>
         </div>
         <div className="flex items-center gap-3 text-xs">

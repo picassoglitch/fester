@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Scanner from "@/components/Scanner";
 import { recordScan, redeemPrize, type ScanOutcome } from "@/app/actions/scan";
 import { normalizeCode } from "@/lib/codes";
@@ -26,6 +27,7 @@ export default function ScanConsole({
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
   const [manual, setManual] = useState("");
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     if (mode !== "estacion" || stations.length === 0) return;
@@ -48,9 +50,11 @@ export default function ScanConsole({
           mode === "premio" ? await redeemPrize(code) : await recordScan(code, stationId);
         setOutcome(result);
         setManual("");
+        // Refresca los contadores del servidor: el escaneo acaba de moverlos.
+        if (result.ok) router.refresh();
       });
     },
-    [mode, stationId],
+    [mode, stationId, router],
   );
 
   useEffect(() => {
