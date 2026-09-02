@@ -13,7 +13,7 @@ export const EVENT = {
   dateLabel: "5 de Noviembre 2026",
   dateShort: "5 de Noviembre",
   city: "Ciudad de México",
-  scheduleLabel: "09:00 a 17:00 h",
+  scheduleLabel: "14:00 a 18:00 h",
   registrationDeadline: "Cupo limitado",
 } as const;
 

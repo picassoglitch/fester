@@ -5,9 +5,9 @@ const prisma = new PrismaClient();
 
 const DEFAULT_STATIONS = [
   { name: "Registro", emoji: "🎟️" },
-  { name: "Cata", emoji: "🍷" },
-  { name: "Cabina de fotos", emoji: "📸" },
+  { name: "Experiencia inmersiva", emoji: "🥽" },
   { name: "Juegos", emoji: "🎯" },
+  { name: "Comida", emoji: "🍽️" },
   { name: "Zona lounge", emoji: "🛋️" },
   { name: "Cierre", emoji: "🏁" },
 ];
