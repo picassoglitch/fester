@@ -58,6 +58,13 @@ body {
   backdrop-filter: blur(10px);
 }
 
+/* Tarjeta de las secciones de la landing: navy un tono mas claro con borde azul fino. */
+@utility panel {
+  border-radius: 0.9rem;
+  border: 1px solid rgba(92, 168, 255, 0.18);
+  background: linear-gradient(180deg, rgba(15, 58, 114, 0.5), rgba(10, 36, 71, 0.8));
+}
+
 @utility field {
   width: 100%;
   border-radius: 0.9rem;
@@ -101,6 +108,21 @@ body {
 
 .field-light option {
   color: #0a2447;
+}
+
+/* Los <select> claros llevan su propia flecha y muestran el placeholder en gris
+   mientras no se ha elegido nada (el valor vacio los deja :invalid). */
+select.field-light {
+  appearance: none;
+  padding-right: 2.75rem;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a2447' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 1rem 1rem;
+  background-position: right 1rem center;
+}
+
+select.field-light:invalid {
+  color: #6b7f9c;
 }
 
 @utility btn {

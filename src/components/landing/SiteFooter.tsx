@@ -1,24 +1,42 @@
 import Link from "next/link";
 import FesterLogo from "@/components/FesterLogo";
-import { CONTACT, EVENT, NAV_LINKS } from "@/lib/event";
+import { CONTACT, EVENT, PRIVACY } from "@/lib/event";
 
 export default function SiteFooter() {
   return (
     <footer id="contacto" className="border-t border-sky/15 bg-ink/80">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-14 sm:grid-cols-2 lg:grid-cols-4">
-        <div>
-          <FesterLogo className="h-9" />
-          <p className="mt-3 text-xs uppercase tracking-[0.2em] text-white/50">{EVENT.claim}</p>
-          <p className="mt-4 text-sm text-white/60">
-            {EVENT.name} {EVENT.year}
-            <br />
-            {EVENT.dateLabel} · {EVENT.city}
-          </p>
-        </div>
+      <div className="mx-auto w-full max-w-6xl px-4 py-12">
+        <h2 className="text-xs font-bold uppercase tracking-[0.25em] text-white/85">
+          {PRIVACY.title}
+        </h2>
+        <p className="mt-3 max-w-4xl text-xs leading-relaxed text-white/60">
+          {PRIVACY.text}{" "}
+          <a
+            href={PRIVACY.linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2 hover:text-white"
+          >
+            {PRIVACY.linkLabel}
+          </a>
+        </p>
+      </div>
 
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-brand">Contacto</h3>
-          <ul className="mt-4 space-y-2 text-sm text-white/70">
+      <div className="border-t border-white/10">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <FesterLogo className="h-9" />
+            <div className="text-sm text-white/70">
+              <p className="font-bold uppercase tracking-wide text-white">
+                {EVENT.name} {EVENT.year}
+              </p>
+              <p>
+                {EVENT.dateLabel} · {EVENT.city}
+              </p>
+            </div>
+          </div>
+
+          <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/70">
             <li>
               <a href={`mailto:${CONTACT.email}`} className="hover:text-white">
                 {CONTACT.email}
@@ -29,26 +47,6 @@ export default function SiteFooter() {
                 {CONTACT.phone}
               </a>
             </li>
-            <li className="text-white/45">{CONTACT.scheduleLabel}</li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-brand">Secciones</h3>
-          <ul className="mt-4 space-y-2 text-sm text-white/70">
-            {NAV_LINKS.map((link) => (
-              <li key={link.href}>
-                <a href={link.href} className="hover:text-white">
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-brand">Tu pase</h3>
-          <ul className="mt-4 space-y-2 text-sm text-white/70">
             <li>
               <Link href="/pase" className="hover:text-white">
                 Ya tengo un pase
@@ -60,14 +58,11 @@ export default function SiteFooter() {
               </Link>
             </li>
           </ul>
-          <a href="#registro" className="btn btn-primary mt-5 w-full uppercase tracking-wide">
-            Regístrate
-          </a>
         </div>
-      </div>
 
-      <div className="border-t border-white/10 py-5 text-center text-xs text-white/40">
-        © {EVENT.year} Fester · Henkel Capital, S.A. de C.V. Todos los derechos reservados.
+        <div className="border-t border-white/10 py-5 text-center text-xs text-white/40">
+          © {EVENT.year} Fester · Henkel Capital, S.A. de C.V. Todos los derechos reservados.
+        </div>
       </div>
     </footer>
   );

@@ -48,6 +48,8 @@ model Attendee {
   position    String?
   industry    String?
   state       String?
+  city        String?
+  referral    String?
   privacyAt   DateTime?
   createdAt   DateTime  @default(now())
   completedAt DateTime?

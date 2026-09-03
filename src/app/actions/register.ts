@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { generateCode } from "@/lib/codes";
-import { INDUSTRIES, POSITIONS, STATES } from "@/lib/event";
+import { INDUSTRIES, POSITIONS, REFERRAL_SOURCES } from "@/lib/event";
 
 export type RegisterState = { error?: string };
 
@@ -21,7 +21,8 @@ export async function registerAttendee(
   const phone = pick(formData, "phone");
   const position = pick(formData, "position");
   const industry = pick(formData, "industry");
-  const state = pick(formData, "state");
+  const city = pick(formData, "city");
+  const referral = pick(formData, "referral");
   const privacy = formData.get("privacy") !== null;
 
   if (name.length < 2) return { error: "Escribe tu nombre completo." };
@@ -42,8 +43,10 @@ export async function registerAttendee(
   if (!INDUSTRIES.includes(industry as (typeof INDUSTRIES)[number])) {
     return { error: "Selecciona el giro de tu empresa." };
   }
-  if (!STATES.includes(state as (typeof STATES)[number])) {
-    return { error: "Selecciona tu estado." };
+  if (city.length < 2) return { error: "Escribe tu ciudad." };
+  if (city.length > 80) return { error: "El nombre de la ciudad es demasiado largo." };
+  if (!REFERRAL_SOURCES.includes(referral as (typeof REFERRAL_SOURCES)[number])) {
+    return { error: "Cuéntanos cómo te enteraste del evento." };
   }
   if (!privacy) return { error: "Necesitamos que aceptes el aviso de privacidad." };
 
@@ -77,7 +80,8 @@ export async function registerAttendee(
       company,
       position,
       industry,
-      state,
+      city,
+      referral,
       privacyAt: new Date(),
     },
   });

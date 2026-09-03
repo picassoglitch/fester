@@ -87,6 +87,9 @@ export default async function AttendeeJourneyPage({
       : []),
   ].sort((a, b) => a.at.getTime() - b.at.getTime());
 
+  // Los registros anteriores al formulario actual guardaron estado en vez de ciudad.
+  const place = attendee.city ?? attendee.state;
+
   return (
     <div className="space-y-5">
       <Link href="/admin/asistentes" className="text-sm text-white/50 hover:underline">
@@ -106,8 +109,11 @@ export default async function AttendeeJourneyPage({
           </p>
           <p className="mt-1 text-sm text-white/45">
             {attendee.industry ?? "giro sin capturar"}
-            {attendee.state ? ` · ${attendee.state}` : ""}
+            {place ? ` · ${place}` : ""}
           </p>
+          {attendee.referral && (
+            <p className="mt-1 text-sm text-white/45">Se enteró por: {attendee.referral}</p>
+          )}
           <p className="mt-1 text-sm text-white/45">
             Registro {formatDateTime(attendee.createdAt)}
             {attendee.privacyAt ? " · aviso de privacidad aceptado" : ""}

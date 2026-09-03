@@ -1,40 +1,29 @@
-import { prisma } from "@/lib/db";
 import SiteHeader from "@/components/landing/SiteHeader";
 import Hero from "@/components/landing/Hero";
-import EventDescription from "@/components/landing/EventDescription";
+import About from "@/components/landing/About";
+import Agenda from "@/components/landing/Agenda";
 import Speakers from "@/components/landing/Speakers";
+import Venue from "@/components/landing/Venue";
 import Registration from "@/components/landing/Registration";
+import Faq from "@/components/landing/Faq";
 import SiteFooter from "@/components/landing/SiteFooter";
 
-export const dynamic = "force-dynamic";
-
 /**
- * Las estaciones son un extra del recorrido: si la base no responde,
- * la landing del evento debe seguir en pie.
+ * La landing no consulta la base: todo su contenido vive en src/lib/event.ts,
+ * asi que se genera estatica y sigue en pie aunque la base no responda.
  */
-async function activeStations() {
-  try {
-    return await prisma.station.findMany({
-      where: { active: true },
-      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-      select: { id: true, name: true, emoji: true },
-    });
-  } catch {
-    return [];
-  }
-}
-
-export default async function HomePage() {
-  const stations = await activeStations();
-
+export default function HomePage() {
   return (
     <>
       <SiteHeader />
       <main>
         <Hero />
-        <EventDescription />
+        <About />
+        <Agenda />
         <Speakers />
-        <Registration stations={stations} />
+        <Venue />
+        <Registration />
+        <Faq />
       </main>
       <SiteFooter />
     </>
