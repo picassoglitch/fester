@@ -53,9 +53,9 @@ export default function About() {
             ))}
           </ul>
 
-          <p className="mt-5 flex items-center gap-3 rounded-lg border border-white/15 bg-navy/50 px-5 py-4 text-sm font-semibold text-gold">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gold/60">
-              <Icon name="user" className="h-4 w-4" />
+          <p className="mt-5 flex items-center gap-3 rounded-lg bg-gold px-5 py-4 text-base font-black uppercase leading-tight tracking-wide text-navy shadow-[0_14px_34px_-14px_rgba(245,179,1,0.9)] sm:text-lg">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-gold">
+              <Icon name="user" className="h-5 w-5" />
             </span>
             {FEATURES.notice}
           </p>

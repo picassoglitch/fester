@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Icon from "@/components/landing/Icon";
 import { EVENT } from "@/lib/event";
 
 /**
@@ -35,14 +36,17 @@ export default function Hero() {
         className="h-auto w-full lg:hidden"
       />
 
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-3 px-4 py-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-4 py-8 sm:flex-row sm:justify-center">
         <a
           href="#registro"
           className="btn btn-primary w-full max-w-sm justify-between px-7 py-4 text-lg uppercase tracking-wide sm:w-auto sm:min-w-[18rem]"
         >
           Regístrate <span aria-hidden>→</span>
         </a>
-        <p className="text-sm text-white/60">{EVENT.registrationDeadline} · Entrada sin costo</p>
+        <p className="inline-flex items-center gap-2 rounded-full border-2 border-gold px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-gold">
+          <Icon name="user" className="h-4 w-4" />
+          {EVENT.registrationDeadline} · Entrada sin costo
+        </p>
       </div>
     </section>
   );
