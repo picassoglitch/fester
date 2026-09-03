@@ -48,7 +48,9 @@ model Attendee {
   position    String?
   industry    String?
   state       String?
+  /// Ciudad capturada por la version anterior del formulario; hoy se pide estado.
   city        String?
+  age         Int?
   referral    String?
   privacyAt   DateTime?
   createdAt   DateTime  @default(now())

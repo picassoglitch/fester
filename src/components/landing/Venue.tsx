@@ -4,12 +4,12 @@ import { DIRECTIONS, VENUE } from "@/lib/event";
 
 export default function Venue() {
   return (
-    <section id="sede" className="border-y border-sky/10 bg-ink-soft/35 blueprint">
+    <section id="sede" className="border-y border-white/10 bg-ink-soft/40 blueprint">
       <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-14 sm:py-20 lg:grid-cols-[2fr_3fr]">
         <div>
-          <SectionTitle icon="pin">{VENUE.title}</SectionTitle>
+          <SectionTitle>{VENUE.title}</SectionTitle>
           <div className="panel mt-6 flex flex-col items-start gap-5 p-6 sm:flex-row sm:items-center sm:p-7">
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-sky/30 bg-navy/50 text-sky">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-brand text-white">
               <Icon name="pin" className="h-8 w-8" />
             </span>
             <div className="min-w-0">
@@ -18,27 +18,26 @@ export default function Venue() {
                 <br />
                 {VENUE.city}
               </p>
-              <p className="mt-1.5 text-sm text-white/60">{VENUE.address}</p>
               <a
                 href={VENUE.mapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-primary mt-5 px-6 py-3 text-sm uppercase tracking-wide"
+                className="btn btn-light mt-5 px-6 py-3 text-sm uppercase tracking-wide"
               >
-                {VENUE.ctaLabel} <Icon name="external" className="h-4 w-4" />
+                {VENUE.ctaLabel} <Icon name="arrow" className="h-4 w-4" />
               </a>
             </div>
           </div>
         </div>
 
         <div>
-          <SectionTitle icon="car">{DIRECTIONS.title}</SectionTitle>
+          <SectionTitle as="h3">{DIRECTIONS.title}</SectionTitle>
           <ul className="mt-6 grid gap-4 sm:grid-cols-3">
             {DIRECTIONS.items.map((item) => (
-              <li key={item.title} className="panel flex flex-col p-5">
-                <Icon name={item.icon} className="h-9 w-9 text-sky" />
-                <h3 className="mt-4 text-sm font-black uppercase tracking-wide">{item.title}</h3>
-                <p className="mt-2 text-xs leading-relaxed text-white/65">{item.copy}</p>
+              <li key={item.title} className="panel flex flex-col items-center p-5 text-center">
+                <Icon name={item.icon} className="h-9 w-9 text-white" />
+                <h4 className="mt-4 text-sm font-black uppercase tracking-wide">{item.title}</h4>
+                <p className="mt-2 text-xs leading-relaxed text-white/75">{item.copy}</p>
               </li>
             ))}
           </ul>

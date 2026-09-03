@@ -19,7 +19,7 @@ function initials(name: string): string {
 function Portrait({ speaker }: { speaker: Speaker }) {
   if (speaker.photo) {
     return (
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-ink">
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-navy">
         <Image
           src={speaker.photo}
           alt={speaker.name}
@@ -33,9 +33,9 @@ function Portrait({ speaker }: { speaker: Speaker }) {
   return (
     <div
       aria-hidden
-      className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-gradient-to-b from-navy to-ink"
+      className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-gradient-to-b from-ink to-navy"
     >
-      <Icon name="user" className="absolute -bottom-6 h-40 w-40 text-sky/10" />
+      <Icon name="user" className="absolute -bottom-6 h-40 w-40 text-white/10" />
       <span className="text-4xl font-black text-white/80">{initials(speaker.name)}</span>
     </div>
   );
@@ -44,7 +44,7 @@ function Portrait({ speaker }: { speaker: Speaker }) {
 export default function Speakers() {
   return (
     <section id="conferencistas" className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-20">
-      <SectionTitle icon="users">{SPEAKERS_SECTION.title}</SectionTitle>
+      <SectionTitle>{SPEAKERS_SECTION.title}</SectionTitle>
 
       <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {SPEAKERS.map((speaker) => (
@@ -55,7 +55,18 @@ export default function Speakers() {
                 {speaker.name}
               </h3>
               <p className="mt-1.5 text-xs font-semibold leading-snug text-sky">{speaker.role}</p>
-              <p className="mt-4 text-sm leading-relaxed text-white/65">{speaker.bio}</p>
+              {speaker.linkedin && (
+                <a
+                  href={speaker.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`LinkedIn de ${speaker.name}`}
+                  className="mt-3 inline-flex h-7 w-7 items-center justify-center rounded bg-white text-navy"
+                >
+                  <Icon name="linkedin" className="h-4 w-4" />
+                </a>
+              )}
+              <p className="mt-4 text-sm leading-relaxed text-white/75">{speaker.bio}</p>
               <p className="mt-5 border-l-2 border-brand pl-3 text-sm font-semibold leading-snug text-white">
                 {speaker.talk}
               </p>

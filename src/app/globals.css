@@ -5,16 +5,17 @@
  * Azul profundo + rojo Fester + blanco, tal cual el key visual del evento.
  */
 @theme {
-  --color-ink: #04162e;
-  --color-ink-soft: #0a2447;
-  --color-navy: #0f3a72;
-  --color-navy-light: #1b57a5;
+  /* Azul Fester: tomado del fondo plano del Master Graphic (#004F92). */
+  --color-ink: #004f92;
+  --color-ink-soft: #003b70;
+  --color-navy: #002a52;
+  --color-navy-light: #1e6fc0;
   --color-brand: #e2001a;
   --color-brand-dark: #a80014;
-  --color-sky: #5ca8ff;
+  --color-sky: #9fd0ff;
   --color-gold: #f5b301;
   --color-success: #23c77f;
-  --color-alert: #ff6b7a;
+  --color-alert: #ff8a96;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -36,40 +37,40 @@ html {
 
 body {
   background-image:
-    radial-gradient(65rem 45rem at 12% -10%, rgba(27, 87, 165, 0.55), transparent 65%),
-    radial-gradient(50rem 35rem at 95% 0%, rgba(226, 0, 26, 0.18), transparent 60%),
-    linear-gradient(180deg, #071e3d 0%, #04162e 55%, #030f22 100%);
+    radial-gradient(70rem 40rem at 15% -10%, rgba(255, 255, 255, 0.12), transparent 65%),
+    radial-gradient(50rem 35rem at 95% 0%, rgba(226, 0, 26, 0.16), transparent 60%),
+    linear-gradient(180deg, #00559c 0%, #004f92 45%, #003b70 100%);
   background-attachment: fixed;
   min-height: 100dvh;
 }
 
-/* Trama tipo plano de obra que aparece detras de las secciones oscuras. */
+/* Trama tipo plano de obra que aparece detras de las bandas de la landing. */
 @utility blueprint {
   background-image:
-    linear-gradient(rgba(92, 168, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(92, 168, 255, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 3.5rem 3.5rem;
 }
 
 @utility card {
   border-radius: 1.25rem;
-  border: 1px solid rgba(92, 168, 255, 0.16);
-  background: rgba(10, 36, 71, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 42, 82, 0.72);
   backdrop-filter: blur(10px);
 }
 
-/* Tarjeta de las secciones de la landing: navy un tono mas claro con borde azul fino. */
+/* Tarjeta de las secciones de la landing: un tono mas profundo del azul con borde fino. */
 @utility panel {
   border-radius: 0.9rem;
-  border: 1px solid rgba(92, 168, 255, 0.18);
-  background: linear-gradient(180deg, rgba(15, 58, 114, 0.5), rgba(10, 36, 71, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(180deg, rgba(0, 38, 78, 0.55), rgba(0, 30, 64, 0.85));
 }
 
 @utility field {
   width: 100%;
   border-radius: 0.9rem;
-  border: 1px solid rgba(92, 168, 255, 0.22);
-  background: rgba(4, 22, 46, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 30, 64, 0.7);
   padding: 0.85rem 1rem;
   font-size: 1rem;
   color: #eef4ff;
@@ -93,7 +94,7 @@ body {
   background: #ffffff;
   padding: 0.85rem 1rem;
   font-size: 0.95rem;
-  color: #0a2447;
+  color: #002a52;
   outline: none;
 }
 
@@ -107,7 +108,7 @@ body {
 }
 
 .field-light option {
-  color: #0a2447;
+  color: #002a52;
 }
 
 /* Los <select> claros llevan su propia flecha y muestran el placeholder en gris
@@ -115,7 +116,7 @@ body {
 select.field-light {
   appearance: none;
   padding-right: 2.75rem;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a2447' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23002a52' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-size: 1rem 1rem;
   background-position: right 1rem center;
@@ -123,6 +124,23 @@ select.field-light {
 
 select.field-light:invalid {
   color: #6b7f9c;
+}
+
+/* El campo "Edad" se ve como los demas: sin flechitas del control numerico. */
+input[type="number"].field-light {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"].field-light::-webkit-outer-spin-button,
+input[type="number"].field-light::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.field-light:disabled {
+  background: #e6ecf4;
+  color: #002a52;
 }
 
 @utility btn {
@@ -156,9 +174,16 @@ select.field-light:invalid {
 }
 
 @utility btn-ghost {
-  border: 1px solid rgba(92, 168, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.05);
   color: #eef4ff;
+}
+
+/* Boton blanco con texto rojo ("Cómo llegar" en el mockup). */
+@utility btn-light {
+  background: #ffffff;
+  color: var(--color-brand);
+  box-shadow: 0 12px 30px -16px rgba(0, 0, 0, 0.6);
 }
 
 @utility btn-outline {

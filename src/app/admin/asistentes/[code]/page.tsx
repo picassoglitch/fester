@@ -110,6 +110,7 @@ export default async function AttendeeJourneyPage({
           <p className="mt-1 text-sm text-white/45">
             {attendee.industry ?? "giro sin capturar"}
             {place ? ` · ${place}` : ""}
+            {attendee.age ? ` · ${attendee.age} años` : ""}
           </p>
           {attendee.referral && (
             <p className="mt-1 text-sm text-white/45">Se enteró por: {attendee.referral}</p>

@@ -3,7 +3,14 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { generateCode } from "@/lib/codes";
-import { INDUSTRIES, POSITIONS, REFERRAL_SOURCES } from "@/lib/event";
+import {
+  AGE_LIMITS,
+  INDEPENDENT_LABEL,
+  INDUSTRIES,
+  POSITIONS,
+  REFERRAL_SOURCES,
+  STATES,
+} from "@/lib/event";
 
 export type RegisterState = { error?: string };
 
@@ -16,18 +23,23 @@ export async function registerAttendee(
   formData: FormData,
 ): Promise<RegisterState> {
   const name = pick(formData, "name");
-  const company = pick(formData, "company");
+  // Quien trabaja por su cuenta marca la casilla y "Empresa" se guarda como "Independiente".
+  const independent = formData.get("independent") !== null;
+  const company = independent ? INDEPENDENT_LABEL : pick(formData, "company");
   const email = pick(formData, "email");
   const phone = pick(formData, "phone");
   const position = pick(formData, "position");
   const industry = pick(formData, "industry");
-  const city = pick(formData, "city");
+  const state = pick(formData, "state");
+  const ageRaw = pick(formData, "age");
   const referral = pick(formData, "referral");
   const privacy = formData.get("privacy") !== null;
 
   if (name.length < 2) return { error: "Escribe tu nombre completo." };
   if (name.length > 80) return { error: "El nombre es demasiado largo." };
-  if (company.length < 2) return { error: "Escribe el nombre de tu empresa." };
+  if (company.length < 2) {
+    return { error: "Escribe el nombre de tu empresa o marca que eres independiente." };
+  }
   if (company.length > 100) return { error: "El nombre de la empresa es demasiado largo." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return { error: "El correo no parece válido." };
@@ -43,8 +55,13 @@ export async function registerAttendee(
   if (!INDUSTRIES.includes(industry as (typeof INDUSTRIES)[number])) {
     return { error: "Selecciona el giro de tu empresa." };
   }
-  if (city.length < 2) return { error: "Escribe tu ciudad." };
-  if (city.length > 80) return { error: "El nombre de la ciudad es demasiado largo." };
+  if (!STATES.includes(state as (typeof STATES)[number])) {
+    return { error: "Selecciona tu estado." };
+  }
+  const age = Number.parseInt(ageRaw, 10);
+  if (!/^\d{1,3}$/.test(ageRaw) || age < AGE_LIMITS.min || age > AGE_LIMITS.max) {
+    return { error: `Escribe tu edad (entre ${AGE_LIMITS.min} y ${AGE_LIMITS.max} años).` };
+  }
   if (!REFERRAL_SOURCES.includes(referral as (typeof REFERRAL_SOURCES)[number])) {
     return { error: "Cuéntanos cómo te enteraste del evento." };
   }
@@ -80,7 +97,8 @@ export async function registerAttendee(
       company,
       position,
       industry,
-      city,
+      state,
+      age,
       referral,
       privacyAt: new Date(),
     },
