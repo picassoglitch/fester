@@ -5,6 +5,7 @@
  */
 
 import type { IconName } from "@/components/landing/Icon";
+import type { JourneyArtName } from "@/components/landing/JourneyArt";
 
 export const EVENT = {
   brand: "Fester",
@@ -199,18 +200,21 @@ export const REGISTRATION = {
 /* --- Tu recorrido: como ser parte del evento (infografia de marca) --- */
 
 export type JourneyStep = {
-  icon: IconName;
+  art: JourneyArtName;
   title: string;
   copy: string;
+  /** Linea roja corta debajo de la descripcion, como en la infografia. */
+  divider?: boolean;
   bullets?: readonly string[];
   chips?: readonly { icon: IconName; label: string }[];
 };
 
 const JOURNEY_STEPS: readonly JourneyStep[] = [
   {
-    icon: "clipboard",
+    art: "register",
     title: "Regístrate en la página oficial del evento",
     copy: "Completa tu registro con tus datos para asegurar tu lugar.",
+    divider: true,
     bullets: [
       "El registro es indispensable para el acceso.",
       "El registro es personal y no transferible.",
@@ -219,12 +223,13 @@ const JOURNEY_STEPS: readonly JourneyStep[] = [
     ],
   },
   {
-    icon: "mailopen",
+    art: "confirm",
     title: "Recibe tu confirmación + QR único",
     copy: "Una vez completado el registro, recibirás la confirmación de tu asistencia junto con un QR único y personal que utilizarás durante todo el evento.",
+    divider: true,
   },
   {
-    icon: "phoneqr",
+    art: "access",
     title: "Ingresa al evento y activa tu pasaporte digital",
     copy: "Al llegar, escanearemos tu QR para darte acceso y activar tu pasaporte digital.",
     bullets: [
@@ -235,9 +240,10 @@ const JOURNEY_STEPS: readonly JourneyStep[] = [
     ],
   },
   {
-    icon: "groupstar",
+    art: "participate",
     title: "Participa en las actividades",
     copy: "Utiliza tu QR para acceder y registrar tu participación en las diferentes experiencias:",
+    divider: true,
     chips: [
       { icon: "mic", label: "Conferencias" },
       { icon: "gamepad", label: "Juegos" },
