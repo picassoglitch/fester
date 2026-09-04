@@ -318,8 +318,9 @@ export const FAQ = { title: "Preguntas frecuentes", items: FAQ_ITEMS } as const;
 export const PRIVACY = {
   title: "Aviso de privacidad",
   text: "En Fester, S.A. de C.V. valoramos tu privacidad. Tus datos personales serán utilizados únicamente para fines del evento, comunicación relacionada y mejora de la experiencia. No compartimos tu información con terceros sin tu consentimiento.",
-  linkLabel: "Consulta nuestro aviso de privacidad completo en www.fester.com.mx",
-  linkUrl: "https://www.fester.com.mx/",
+  linkLabel: "Consulta nuestro aviso de privacidad completo.",
+  /** Pagina interna con la declaracion de proteccion de datos oficial. */
+  href: "/aviso-de-privacidad",
 } as const;
 
 export const CONTACT = {

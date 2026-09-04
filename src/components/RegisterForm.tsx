@@ -10,6 +10,7 @@ import {
   INDUSTRIES,
   OTHER_OPTION,
   POSITIONS,
+  PRIVACY,
   REFERRAL_SOURCES,
   STATES,
 } from "@/lib/event";
@@ -257,7 +258,12 @@ export default function RegisterForm() {
           />
           <span>
             Acepto el{" "}
-            <a href="#contacto" className="underline underline-offset-2">
+            <a
+              href={PRIVACY.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2"
+            >
               aviso de privacidad
             </a>{" "}
             y el tratamiento de mis datos personales. <Required />
