@@ -15,7 +15,7 @@ export default function Faq() {
         {FAQ.items.map((item) => (
           <details key={item.question} className="group panel self-start">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
-              <span className="text-sm font-bold leading-snug">{item.question}</span>
+              <span className="font-display text-lg font-semibold leading-tight">{item.question}</span>
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/30 text-white transition-transform duration-200 group-open:rotate-45">
                 <Icon name="plus" className="h-4 w-4" />
               </span>

@@ -13,7 +13,7 @@ export default function SectionTitle({
 }) {
   return (
     <Heading
-      className={`flex items-center gap-4 text-2xl font-black uppercase leading-none tracking-tight sm:text-3xl ${className}`}
+      className={`font-display flex items-center gap-4 text-3xl font-bold uppercase leading-none tracking-wide sm:text-4xl ${className}`}
     >
       <span>{children}</span>
       <span aria-hidden className="h-0.5 w-10 shrink-0 bg-brand" />

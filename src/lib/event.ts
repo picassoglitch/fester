@@ -8,7 +8,9 @@ import type { IconName } from "@/components/landing/Icon";
 
 export const EVENT = {
   brand: "Fester",
-  claim: "El Socio que Nunca Falla®",
+  claim: "Líder en soluciones para la industria de la construcción",
+  /** El claim partido en dos lineas para el encabezado. */
+  claimLines: ["Líder en soluciones para la", "industria de la construcción"],
   /** Nombre del evento tal como aparece en el diseño aprobado. */
   name: "Encuentro Fester",
   year: "2026",
@@ -19,13 +21,16 @@ export const EVENT = {
   registrationDeadline: "Cupo limitado",
 } as const;
 
-export const NAV_LINKS = [
+/** La seccion de speakers se oculta hasta que marketing confirme la lista. */
+export const SHOW_SPEAKERS = false;
+
+export const NAV_LINKS: readonly { href: string; label: string }[] = [
   { href: "#evento", label: "Encuentro Fester 2026" },
   { href: "#descripcion", label: "Descripción" },
-  { href: "#conferencistas", label: "Conferencistas" },
+  ...(SHOW_SPEAKERS ? [{ href: "#conferencistas", label: "Conferencistas" }] : []),
   { href: "#registro", label: "Registro" },
   { href: "#contacto", label: "Contacto" },
-] as const;
+];
 
 /* --- ¿Qué es Encuentro Fester? (copy aprobado por marca) --- */
 
@@ -84,34 +89,30 @@ export const FEATURES = {
 
 /* --- Agenda destacada --- */
 
-export type AgendaItem = { time: string; title: string; copy: string; icon: IconName };
+export type AgendaItem = { title: string; copy: string; icon: IconName };
 
 /**
  * Los cuatro bloques siguen el mapeo de marca (areas de capacitacion,
- * influencers y conferencistas, experiencia inmersiva, sorpresas). Los
- * horarios vienen del mockup aprobado.
+ * influencers y conferencistas, experiencia inmersiva, sorpresas). Sin
+ * horarios, por indicacion de marca.
  */
 const AGENDA_ITEMS: readonly AgendaItem[] = [
     {
-      time: "11:00 am – 3:30 pm",
       title: "Áreas de capacitación",
       copy: "Información de producto · Técnicas de aplicación.",
       icon: "kiosk",
     },
     {
-      time: "11:30 am",
       title: "Influencers y conferencistas",
       copy: "Conoce las ideas que están transformando la construcción: experiencia y visión sobre innovación, tecnología y nuevas tendencias.",
       icon: "bulb",
     },
     {
-      time: "1:30 pm",
       title: "Experiencia inmersiva",
       copy: "Fester + Google: descubre cómo Cool Roof utiliza innovación y tecnología para transformar la manera en que protegemos y habitamos nuestros hogares.",
       icon: "vr",
     },
     {
-      time: "3:30 pm",
       title: "Sorpresas y recompensas",
       copy: "Porque vivir EL ENCUENTRO también tiene sus recompensas: sorpresas, experiencias especiales y regalos exclusivos.",
       icon: "gift",
@@ -195,15 +196,63 @@ export const REGISTRATION = {
   lead: "Regístrate sin costo y recibe tu pase digital con código QR. Cupo limitado.",
 } as const;
 
-/** Leyendas que marca pidio incorporar junto al formulario. */
-export const CONDITIONS = {
-  title: "Condiciones de acceso",
-  items: [
-    "Cupo limitado y nos reservamos el derecho de admisión.",
-    "Para el ingreso deberás presentar una identificación distinta al INE (por ejemplo, licencia de conducir, credencial de trabajo u otra).",
-    "El registro no es transferible a otra persona.",
-    "Es indispensable contar con registro previo para el acceso al evento.",
-  ],
+/* --- Tu recorrido: como ser parte del evento (infografia de marca) --- */
+
+export type JourneyStep = {
+  icon: IconName;
+  title: string;
+  copy: string;
+  bullets?: readonly string[];
+  chips?: readonly { icon: IconName; label: string }[];
+};
+
+const JOURNEY_STEPS: readonly JourneyStep[] = [
+  {
+    icon: "clipboard",
+    title: "Regístrate en la página oficial del evento",
+    copy: "Completa tu registro con tus datos para asegurar tu lugar.",
+    bullets: [
+      "El registro es indispensable para el acceso.",
+      "El registro es personal y no transferible.",
+      "Cupo limitado.",
+      "Para ingresar deberás presentar una identificación oficial.",
+    ],
+  },
+  {
+    icon: "mailopen",
+    title: "Recibe tu confirmación + QR único",
+    copy: "Una vez completado el registro, recibirás la confirmación de tu asistencia junto con un QR único y personal que utilizarás durante todo el evento.",
+  },
+  {
+    icon: "phoneqr",
+    title: "Ingresa al evento y activa tu pasaporte digital",
+    copy: "Al llegar, escanearemos tu QR para darte acceso y activar tu pasaporte digital.",
+    bullets: [
+      "Podrás llevar el tracking de tu recorrido por las diferentes experiencias del evento.",
+      "El objetivo será completar cada una de las actividades disponibles.",
+      "En el mismo QR acumularás puntos al participar en las dinámicas.",
+      "Los puntos podrán utilizarse para el canje de promocionales.",
+    ],
+  },
+  {
+    icon: "groupstar",
+    title: "Participa en las actividades",
+    copy: "Utiliza tu QR para acceder y registrar tu participación en las diferentes experiencias:",
+    chips: [
+      { icon: "mic", label: "Conferencias" },
+      { icon: "gamepad", label: "Juegos" },
+      { icon: "vr", label: "Experiencia inmersiva" },
+      { icon: "training", label: "Capacitaciones" },
+    ],
+  },
+];
+
+export const JOURNEY = {
+  eyebrow: "Tu recorrido",
+  title: "¿Cómo ser parte de Encuentro Fester?",
+  lead: "Te acompañamos paso a paso desde tu registro hasta tu participación en las experiencias del evento.",
+  steps: JOURNEY_STEPS,
+  footer: "Tu QR será tu acceso, tu pasaporte digital y tu llave para sumar puntos durante el evento.",
 } as const;
 
 /* --- Preguntas frecuentes --- */
@@ -313,6 +362,9 @@ export const REFERRAL_SOURCES = [
 
 /** Valor que se guarda en "Empresa" cuando la persona trabaja por su cuenta. */
 export const INDEPENDENT_LABEL = "Independiente";
+
+/** Opcion de los catalogos que abre un campo de texto para que la persona escriba su respuesta. */
+export const OTHER_OPTION = "Otro";
 
 /** Rango aceptado para el campo "Edad". */
 export const AGE_LIMITS = { min: 15, max: 99 } as const;

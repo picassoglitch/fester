@@ -4,9 +4,11 @@ import About from "@/components/landing/About";
 import Agenda from "@/components/landing/Agenda";
 import Speakers from "@/components/landing/Speakers";
 import Venue from "@/components/landing/Venue";
+import Journey from "@/components/landing/Journey";
 import Registration from "@/components/landing/Registration";
 import Faq from "@/components/landing/Faq";
 import SiteFooter from "@/components/landing/SiteFooter";
+import { SHOW_SPEAKERS } from "@/lib/event";
 
 /**
  * La landing no consulta la base: todo su contenido vive en src/lib/event.ts,
@@ -20,8 +22,9 @@ export default function HomePage() {
         <Hero />
         <About />
         <Agenda />
-        <Speakers />
+        {SHOW_SPEAKERS && <Speakers />}
         <Venue />
+        <Journey />
         <Registration />
         <Faq />
       </main>

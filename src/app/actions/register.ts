@@ -7,6 +7,7 @@ import {
   AGE_LIMITS,
   INDEPENDENT_LABEL,
   INDUSTRIES,
+  OTHER_OPTION,
   POSITIONS,
   REFERRAL_SOURCES,
   STATES,
@@ -16,6 +17,17 @@ export type RegisterState = { error?: string };
 
 function pick(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
+}
+
+/**
+ * Cuando en un catalogo se elige "Otro", la persona escribe su respuesta y se
+ * guarda como "Otro: <texto>" para que siga siendo filtrable.
+ */
+function withDetail(value: string, detail: string): string | { error: string } {
+  if (value !== OTHER_OPTION) return value;
+  if (detail.length < 2) return { error: "Escribe tu respuesta en el campo de \"Otro\"." };
+  if (detail.length > 60) return { error: "La respuesta de \"Otro\" es demasiado larga." };
+  return `${OTHER_OPTION}: ${detail}`;
 }
 
 export async function registerAttendee(
@@ -28,11 +40,11 @@ export async function registerAttendee(
   const company = independent ? INDEPENDENT_LABEL : pick(formData, "company");
   const email = pick(formData, "email");
   const phone = pick(formData, "phone");
-  const position = pick(formData, "position");
-  const industry = pick(formData, "industry");
+  const positionChoice = pick(formData, "position");
+  const industryChoice = pick(formData, "industry");
   const state = pick(formData, "state");
   const ageRaw = pick(formData, "age");
-  const referral = pick(formData, "referral");
+  const referralChoice = pick(formData, "referral");
   const privacy = formData.get("privacy") !== null;
 
   if (name.length < 2) return { error: "Escribe tu nombre completo." };
@@ -49,12 +61,16 @@ export async function registerAttendee(
   }
   // Los catalogos vienen de un <select>: validamos contra la lista para no
   // guardar valores manipulados desde el cliente.
-  if (!POSITIONS.includes(position as (typeof POSITIONS)[number])) {
+  if (!POSITIONS.includes(positionChoice as (typeof POSITIONS)[number])) {
     return { error: "Selecciona tu puesto o cargo." };
   }
-  if (!INDUSTRIES.includes(industry as (typeof INDUSTRIES)[number])) {
+  const position = withDetail(positionChoice, pick(formData, "positionOther"));
+  if (typeof position !== "string") return position;
+  if (!INDUSTRIES.includes(industryChoice as (typeof INDUSTRIES)[number])) {
     return { error: "Selecciona el giro de tu empresa." };
   }
+  const industry = withDetail(industryChoice, pick(formData, "industryOther"));
+  if (typeof industry !== "string") return industry;
   if (!STATES.includes(state as (typeof STATES)[number])) {
     return { error: "Selecciona tu estado." };
   }
@@ -62,9 +78,11 @@ export async function registerAttendee(
   if (!/^\d{1,3}$/.test(ageRaw) || age < AGE_LIMITS.min || age > AGE_LIMITS.max) {
     return { error: `Escribe tu edad (entre ${AGE_LIMITS.min} y ${AGE_LIMITS.max} años).` };
   }
-  if (!REFERRAL_SOURCES.includes(referral as (typeof REFERRAL_SOURCES)[number])) {
+  if (!REFERRAL_SOURCES.includes(referralChoice as (typeof REFERRAL_SOURCES)[number])) {
     return { error: "Cuéntanos cómo te enteraste del evento." };
   }
+  const referral = withDetail(referralChoice, pick(formData, "referralOther"));
+  if (typeof referral !== "string") return referral;
   if (!privacy) return { error: "Necesitamos que aceptes el aviso de privacidad." };
 
   const existing = await prisma.attendee.findFirst({

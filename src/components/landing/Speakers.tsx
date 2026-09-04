@@ -51,7 +51,7 @@ export default function Speakers() {
           <li key={speaker.name} className="panel flex flex-col overflow-hidden">
             <Portrait speaker={speaker} />
             <div className="flex flex-1 flex-col p-5 sm:p-6">
-              <h3 className="text-xl font-black uppercase leading-tight tracking-tight">
+              <h3 className="font-display text-2xl font-bold uppercase leading-none tracking-wide">
                 {speaker.name}
               </h3>
               <p className="mt-1.5 text-xs font-semibold leading-snug text-sky">{speaker.role}</p>

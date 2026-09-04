@@ -1,6 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { Barlow_Condensed } from "next/font/google";
 import { EVENT } from "@/lib/event";
 import "./globals.css";
+
+/** Condensada para titulos, como en el mockup aprobado. El cuerpo sigue en la fuente del sistema. */
+const display = Barlow_Condensed({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-barlow",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -19,7 +28,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
+    <html lang="es" className={display.variable}>
       <body className="font-sans antialiased">{children}</body>
     </html>
   );

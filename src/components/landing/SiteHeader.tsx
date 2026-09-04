@@ -25,11 +25,11 @@ export default function SiteHeader() {
     >
       <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-3">
         <a href="#evento" className="flex items-center gap-3" onClick={() => setOpen(false)}>
-          <FesterLogo className="h-8" />
-          <span className="hidden whitespace-nowrap text-[0.65rem] leading-tight text-white/70 sm:block">
-            El Socio
+          <FesterLogo className="h-11" />
+          <span className="hidden whitespace-nowrap text-[0.65rem] leading-tight text-white/80 sm:block">
+            {EVENT.claimLines[0]}
             <br />
-            que Nunca Falla<span className="align-super text-[0.5rem]">®</span>
+            {EVENT.claimLines[1]}
           </span>
         </a>
 

@@ -2,6 +2,10 @@ import Icon from "@/components/landing/Icon";
 import SectionTitle from "@/components/landing/SectionTitle";
 import { AGENDA } from "@/lib/event";
 
+/**
+ * Cuatro bloques sin horario: texto a la izquierda e icono a la derecha,
+ * centrado verticalmente, para que los iconos queden alineados entre tarjetas.
+ */
 export default function Agenda() {
   return (
     <section id="agenda" className="border-y border-white/10 bg-ink-soft/40 blueprint">
@@ -10,16 +14,18 @@ export default function Agenda() {
 
         <ol className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {AGENDA.items.map((item) => (
-            <li key={item.title} className="panel flex flex-col p-5">
-              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky">
-                <Icon name="clock" className="h-4 w-4" />
-                <time>{item.time}</time>
-              </p>
-              <h3 className="mt-3 text-base font-black uppercase leading-tight tracking-wide">
-                {item.title}
-              </h3>
-              <p className="mt-2 text-xs leading-relaxed text-white/75">{item.copy}</p>
-              <Icon name={item.icon} className="mt-6 h-10 w-10 self-end text-white/80" />
+            <li key={item.title} className="panel flex items-center gap-4 p-5">
+              <div className="min-w-0 flex-1">
+                <h3 className="font-display text-xl font-bold uppercase leading-none tracking-wide">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-white/75">{item.copy}</p>
+              </div>
+              <Icon
+                name={item.icon}
+                className="h-12 w-12 shrink-0 text-white/90"
+                strokeWidth={1.25}
+              />
             </li>
           ))}
         </ol>

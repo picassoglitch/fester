@@ -13,7 +13,7 @@ export default function Venue() {
               <Icon name="pin" className="h-8 w-8" />
             </span>
             <div className="min-w-0">
-              <p className="text-2xl font-black uppercase leading-tight tracking-tight">
+              <p className="font-display text-3xl font-bold uppercase leading-none tracking-wide">
                 {VENUE.name},
                 <br />
                 {VENUE.city}
@@ -36,7 +36,7 @@ export default function Venue() {
             {DIRECTIONS.items.map((item) => (
               <li key={item.title} className="panel flex flex-col items-center p-5 text-center">
                 <Icon name={item.icon} className="h-9 w-9 text-white" />
-                <h4 className="mt-4 text-sm font-black uppercase tracking-wide">{item.title}</h4>
+                <h4 className="font-display mt-4 text-xl font-bold uppercase leading-none tracking-wide">{item.title}</h4>
                 <p className="mt-2 text-xs leading-relaxed text-white/75">{item.copy}</p>
               </li>
             ))}

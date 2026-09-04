@@ -6,9 +6,9 @@ import { registerAttendee, type RegisterState } from "@/app/actions/register";
 import Icon from "@/components/landing/Icon";
 import {
   AGE_LIMITS,
-  CONDITIONS,
   INDEPENDENT_LABEL,
   INDUSTRIES,
+  OTHER_OPTION,
   POSITIONS,
   REFERRAL_SOURCES,
   STATES,
@@ -33,9 +33,71 @@ function Required() {
 }
 
 /**
+ * Lista desplegable de catalogo. Al elegir "Otro" aparece un campo de texto
+ * (name = `${name}Other`) para que la persona escriba su respuesta.
+ */
+function CatalogSelect({
+  id,
+  name,
+  label,
+  placeholder,
+  options,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  placeholder: string;
+  options: readonly string[];
+}) {
+  const [value, setValue] = useState("");
+  const other = value === OTHER_OPTION;
+
+  return (
+    <div>
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <select
+        id={id}
+        name={name}
+        className="field-light"
+        required
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+      >
+        <option value="" disabled>
+          {placeholder}
+        </option>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      {other && (
+        <>
+          <label htmlFor={`${id}-other`} className="sr-only">
+            {label}: especifica
+          </label>
+          <input
+            id={`${id}-other`}
+            name={`${name}Other`}
+            className="field-light mt-2"
+            placeholder="Escribe tu respuesta*"
+            required
+            maxLength={60}
+            autoFocus
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
  * Formulario del mockup con los ajustes de marca: nueve campos en tres
- * columnas, opcion de independiente, condiciones de acceso antes de enviar,
- * aviso de privacidad a la izquierda y el boton rojo a la derecha.
+ * columnas, opcion de independiente, texto libre al elegir "Otro", aviso de
+ * privacidad a la izquierda y el boton rojo a la derecha.
  */
 export default function RegisterForm() {
   const [state, action] = useActionState<RegisterState, FormData>(registerAttendee, {});
@@ -86,21 +148,13 @@ export default function RegisterForm() {
           </label>
         </div>
 
-        <div>
-          <label htmlFor="industry" className="sr-only">
-            Giro de la empresa
-          </label>
-          <select id="industry" name="industry" className="field-light" required defaultValue="">
-            <option value="" disabled>
-              Giro de la empresa*
-            </option>
-            {INDUSTRIES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CatalogSelect
+          id="industry"
+          name="industry"
+          label="Giro de la empresa"
+          placeholder="Giro de la empresa*"
+          options={INDUSTRIES}
+        />
 
         <div>
           <label htmlFor="email" className="sr-only">
@@ -136,37 +190,21 @@ export default function RegisterForm() {
           />
         </div>
 
-        <div>
-          <label htmlFor="referral" className="sr-only">
-            ¿Cómo te enteraste del evento?
-          </label>
-          <select id="referral" name="referral" className="field-light" required defaultValue="">
-            <option value="" disabled>
-              ¿Cómo te enteraste del evento?*
-            </option>
-            {REFERRAL_SOURCES.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CatalogSelect
+          id="referral"
+          name="referral"
+          label="¿Cómo te enteraste del evento?"
+          placeholder="¿Cómo te enteraste del evento?*"
+          options={REFERRAL_SOURCES}
+        />
 
-        <div>
-          <label htmlFor="position" className="sr-only">
-            Puesto o cargo
-          </label>
-          <select id="position" name="position" className="field-light" required defaultValue="">
-            <option value="" disabled>
-              Puesto / Cargo*
-            </option>
-            {POSITIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </div>
+        <CatalogSelect
+          id="position"
+          name="position"
+          label="Puesto o cargo"
+          placeholder="Puesto / Cargo*"
+          options={POSITIONS}
+        />
 
         <div>
           <label htmlFor="state" className="sr-only">
@@ -207,21 +245,6 @@ export default function RegisterForm() {
           {state.error}
         </p>
       )}
-
-      <div className="rounded-lg border border-white/15 bg-navy/50 p-5">
-        <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-gold">
-          <Icon name="idcard" className="h-5 w-5" />
-          {CONDITIONS.title}
-        </h3>
-        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-          {CONDITIONS.items.map((item) => (
-            <li key={item} className="flex items-start gap-2 text-sm leading-snug text-white/85">
-              <Icon name="check" className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-              {item}
-            </li>
-          ))}
-        </ul>
-      </div>
 
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <label className="flex items-start gap-2.5 text-xs leading-relaxed text-white/80 sm:max-w-md">

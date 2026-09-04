@@ -43,7 +43,7 @@ export default function Hero() {
         >
           Regístrate <span aria-hidden>→</span>
         </a>
-        <p className="inline-flex items-center gap-2 rounded-full border-2 border-gold px-5 py-2.5 text-sm font-bold uppercase tracking-wide text-gold">
+        <p className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-gold px-5 py-2.5 text-center text-xs font-bold uppercase tracking-wide text-gold sm:text-sm">
           <Icon name="user" className="h-4 w-4" />
           {EVENT.registrationDeadline} · Entrada sin costo
         </p>

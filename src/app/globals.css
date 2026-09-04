@@ -19,6 +19,11 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* Titulos en Barlow Condensed (cargada en app/layout.tsx); el cuerpo sigue en la fuente del sistema. */
+@theme inline {
+  --font-display: var(--font-barlow), "Arial Narrow", "Roboto Condensed", ui-sans-serif, sans-serif;
+}
+
 :root {
   color-scheme: dark;
 }

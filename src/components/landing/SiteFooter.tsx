@@ -11,7 +11,7 @@ export default function SiteFooter() {
           <Icon name="lock" className="h-6 w-6" />
         </span>
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-[0.25em] text-white">
+          <h2 className="font-display text-lg font-semibold uppercase tracking-[0.2em] text-white">
             {PRIVACY.title}
           </h2>
           <p className="mt-3 max-w-4xl text-sm leading-relaxed text-white/75">
