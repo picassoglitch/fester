@@ -1,34 +1,53 @@
+import Image from "next/image";
 import Icon from "@/components/landing/Icon";
 import { ABOUT, FEATURES } from "@/lib/event";
 
 /**
  * "¿Qué es Encuentro Fester?" + "Todo lo que encontrarás", con la misma
- * composicion del mockup: icono en circulo rojo junto al titulo, y en cada
- * recuadro el icono grande a la izquierda del titulo con el texto debajo.
+ * composicion del mockup: icono en circulo rojo junto al titulo, la fachada
+ * Fester cerrando el recuadro por abajo, y en cada tarjeta el icono junto al
+ * titulo, la foto debajo y el texto al final.
  * Conserva el id #descripcion para que el menu siga apuntando aqui.
  */
 export default function About() {
   return (
-    <section id="descripcion" className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-20">
+    <section
+      id="descripcion"
+      className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-20"
+    >
       <div className="grid gap-8 lg:grid-cols-[3fr_7fr] lg:gap-10">
-        <div className="panel relative overflow-hidden p-6 sm:p-8">
-          <div className="flex items-center gap-4">
-            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-brand text-white">
-              <Icon name="building" className="h-9 w-9" strokeWidth={1.4} />
-            </span>
-            <h2 className="font-display text-3xl font-bold uppercase leading-[0.95] tracking-wide sm:text-4xl">
-              {ABOUT.title}
-            </h2>
-          </div>
-          <p className="mt-6 text-lg font-semibold leading-snug text-white">{ABOUT.lead}</p>
-          <p className="mt-4 text-base leading-relaxed text-white/80">{ABOUT.body}</p>
-          <p className="mt-5 border-t border-white/15 pt-4 text-sm font-medium leading-relaxed text-white/90">
-            {ABOUT.closing}
-          </p>
-          <Icon
-            name="building"
-            className="pointer-events-none absolute -bottom-8 -right-6 h-44 w-44 text-white/[0.06]"
+        <div className="panel relative overflow-hidden p-6 pb-56 sm:p-8 sm:pb-72 lg:pb-64">
+          {/* La foto trae su propio cielo azul, por eso puede ir de fondo sin veladura; el degradado solo asegura la lectura del texto. */}
+          <Image
+            src={ABOUT.image.src}
+            alt={ABOUT.image.alt}
+            fill
+            sizes="(min-width: 1024px) 30vw, 100vw"
+            className="pointer-events-none object-cover object-bottom"
           />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-3/5 bg-gradient-to-b from-[#00264e]/90 via-[#00264e]/60 to-transparent"
+          />
+          <div className="relative">
+            <div className="flex items-center gap-4">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-brand text-white">
+                <Icon name="building" className="h-9 w-9" strokeWidth={1.4} />
+              </span>
+              <h2 className="font-display text-3xl font-bold uppercase leading-[0.95] tracking-wide sm:text-4xl">
+                {ABOUT.title}
+              </h2>
+            </div>
+            <p className="mt-6 text-lg font-semibold leading-snug text-white">
+              {ABOUT.lead}
+            </p>
+            <p className="mt-4 text-base leading-relaxed text-white/80">
+              {ABOUT.body}
+            </p>
+            <p className="mt-5 border-t border-white/15 pt-4 text-sm font-medium leading-relaxed text-white/90">
+              {ABOUT.closing}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-col">
@@ -50,11 +69,25 @@ export default function About() {
                     {item.title}
                   </h4>
                 </div>
+                <div className="relative mt-4 aspect-[7/6] overflow-hidden rounded-lg border border-white/15">
+                  <Image
+                    src={item.image.src}
+                    alt={item.image.alt}
+                    fill
+                    sizes="(min-width: 1024px) 22vw, (min-width: 640px) 30vw, 100vw"
+                    className="object-cover"
+                  />
+                </div>
                 {item.lead && (
-                  <p className="mt-4 text-sm font-semibold leading-snug text-white">{item.lead}</p>
+                  <p className="mt-4 text-sm font-semibold leading-snug text-white">
+                    {item.lead}
+                  </p>
                 )}
                 {item.paragraphs.map((paragraph) => (
-                  <p key={paragraph} className="mt-2 text-xs leading-relaxed text-white/75">
+                  <p
+                    key={paragraph}
+                    className="mt-2 text-xs leading-relaxed text-white/75"
+                  >
                     {paragraph}
                   </p>
                 ))}

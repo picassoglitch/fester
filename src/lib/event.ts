@@ -36,6 +36,8 @@ export const NAV_LINKS: readonly { href: string; label: string }[] = [
 
 export const ABOUT = {
   title: "¿Qué es Encuentro Fester?",
+  /** Fachada Fester que cierra el recuadro por abajo, como en el mockup. */
+  image: { src: "/que-es-encuentro-fester.jpg", alt: "Edificio corporativo Fester al anochecer" },
   lead: "Fester te invita a una experiencia para quienes están transformando la forma de construir.",
   body: "Ven y vive una experiencia única donde podrás aprender, experimentar, descubrir soluciones, conocer nuevas tecnologías, tendencias e innovaciones.",
   closing: "Capacitaciones, influencers referentes del giro de la construcción y grandes sorpresas.",
@@ -44,6 +46,8 @@ export const ABOUT = {
 export type Feature = {
   icon: IconName;
   title: string;
+  /** Foto del recuadro (public/), va entre el titulo y el texto. */
+  image: { src: string; alt: string };
   /** Frase de apertura en negritas; opcional cuando el texto es una sola oracion. */
   lead?: string;
   paragraphs: readonly string[];
@@ -57,6 +61,10 @@ const FEATURE_ITEMS: readonly Feature[] = [
     {
       icon: "mic",
       title: "Influencers y conferencistas",
+      image: {
+        src: "/influencers-y-conferencistas.jpg",
+        alt: "Conferencista con micrófono frente al público en un evento Fester",
+      },
       lead: "Conoce las ideas que están transformando la construcción.",
       paragraphs: [
         "Compartirán su experiencia y visión sobre innovación, tecnología y las nuevas tendencias que están redefiniendo la forma de construir.",
@@ -66,6 +74,10 @@ const FEATURE_ITEMS: readonly Feature[] = [
     {
       icon: "vr",
       title: "Experiencia inmersiva",
+      image: {
+        src: "/experiencia-inmersiva.jpg",
+        alt: "Asistente con visor de realidad virtual interactuando con una pantalla Fester",
+      },
       paragraphs: [
         "Vive una experiencia inmersiva de Fester + Google y descubre cómo Cool Roof utiliza innovación y tecnología para transformar la manera en que protegemos y habitamos nuestros hogares.",
       ],
@@ -73,6 +85,10 @@ const FEATURE_ITEMS: readonly Feature[] = [
     {
       icon: "gift",
       title: "Sorpresas y recompensas",
+      image: {
+        src: "/sorpresas-y-recompensas.jpg",
+        alt: "Bolsa, gorra y termos con el logotipo Fester",
+      },
       lead: "Porque vivir EL ENCUENTRO también tiene sus recompensas.",
       paragraphs: [
         "Prepárate para descubrir sorpresas, experiencias especiales y regalos exclusivos que harán de tu visita una experiencia inolvidable.",
