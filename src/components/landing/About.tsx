@@ -44,9 +44,6 @@ export default function About() {
             <p className="mt-4 text-base leading-relaxed text-white/80">
               {ABOUT.body}
             </p>
-            <p className="mt-5 border-t border-white/15 pt-4 text-sm font-medium leading-relaxed text-white/90">
-              {ABOUT.closing}
-            </p>
           </div>
         </div>
 
