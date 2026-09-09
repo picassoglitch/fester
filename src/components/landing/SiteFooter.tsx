@@ -16,14 +16,9 @@ export default function SiteFooter() {
           </h2>
           <p className="mt-3 max-w-4xl text-sm leading-relaxed text-white/75">
             {PRIVACY.text}{" "}
-            <a
-              href={PRIVACY.linkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline underline-offset-2 hover:text-white"
-            >
+            <Link href={PRIVACY.linkUrl} className="underline underline-offset-2 hover:text-white">
               {PRIVACY.linkLabel}
-            </a>
+            </Link>
           </p>
         </div>
       </div>

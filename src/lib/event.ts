@@ -325,11 +325,14 @@ export const FAQ = { title: "Preguntas frecuentes", items: FAQ_ITEMS } as const;
 
 /* --- Aviso de privacidad y contacto --- */
 
+/** Ruta interna con el aviso completo (src/app/aviso-de-privacidad/page.tsx). */
+export const PRIVACY_PATH = "/aviso-de-privacidad";
+
 export const PRIVACY = {
   title: "Aviso de privacidad",
-  text: "En Fester, S.A. de C.V. valoramos tu privacidad. Tus datos personales serán utilizados únicamente para fines del evento, comunicación relacionada y mejora de la experiencia. No compartimos tu información con terceros sin tu consentimiento.",
-  linkLabel: "Consulta nuestro aviso de privacidad completo en www.fester.com.mx",
-  linkUrl: "https://www.fester.com.mx/",
+  text: "Henkel Capital, S.A. de C.V. (Fester) es responsable de tus datos personales. Los utilizamos únicamente para tu registro y acceso al evento, la comunicación relacionada y la mejora de la experiencia. No compartimos tu información con terceros sin tu consentimiento.",
+  linkLabel: "Consulta el aviso de privacidad completo",
+  linkUrl: PRIVACY_PATH,
 } as const;
 
 export const CONTACT = {
