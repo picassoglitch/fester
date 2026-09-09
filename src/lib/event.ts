@@ -38,9 +38,9 @@ export const ABOUT = {
   title: "¿Qué es Encuentro Fester?",
   /** Fachada Fester que cierra el recuadro por abajo, como en el mockup. */
   image: { src: "/que-es-encuentro-fester.jpg", alt: "Edificio corporativo Fester al anochecer" },
-  lead: "Fester te invita a una experiencia para quienes están transformando la forma de construir.",
-  body: "Ven y vive una experiencia única donde podrás aprender, experimentar, descubrir soluciones, conocer nuevas tecnologías, tendencias e innovaciones.",
-  closing: "Capacitaciones, influencers referentes del giro de la construcción y grandes sorpresas.",
+  /** Marca pidio dejar solo este texto en el recuadro (ajuste del 9 de septiembre). */
+  lead: "Vive y descubre el futuro de la construcción.",
+  body: "Conoce nuevas soluciones, tecnologías, tendencias e innovaciones que están transformando la industria.",
 } as const;
 
 export type Feature = {
@@ -89,9 +89,8 @@ const FEATURE_ITEMS: readonly Feature[] = [
         src: "/sorpresas-y-recompensas.jpg",
         alt: "Bolsa, gorra y termos con el logotipo Fester",
       },
-      lead: "Porque vivir EL ENCUENTRO también tiene sus recompensas.",
       paragraphs: [
-        "Prepárate para descubrir sorpresas, experiencias especiales y regalos exclusivos que harán de tu visita una experiencia inolvidable.",
+        "Prepárate para descubrir sorpresas y regalos exclusivos que harán de tu visita un ENCUENTRO inolvidable.",
         "Ven, participa y déjate sorprender.",
       ],
     },
