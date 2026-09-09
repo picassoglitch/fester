@@ -129,7 +129,7 @@ const AGENDA_ITEMS: readonly AgendaItem[] = [
     },
     {
       title: "Sorpresas y recompensas",
-      copy: "Porque vivir EL ENCUENTRO también tiene sus recompensas: sorpresas, experiencias especiales y regalos exclusivos.",
+      copy: "Prepárate para descubrir sorpresas y regalos exclusivos que harán de tu visita un ENCUENTRO inolvidable. Ven, participa y déjate sorprender.",
       icon: "gift",
     },
 ];
