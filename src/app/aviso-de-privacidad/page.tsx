@@ -101,8 +101,11 @@ function Block({ block, sectionNumber }: { block: PrivacyBlock; sectionNumber?: 
 export default function PrivacyNoticePage() {
   let sectionNumber = 0;
 
+  // Un solo contenedor: con varios elementos al nivel raiz, Next intenta
+  // llevar cada uno a la vista al navegar y el pie gana, dejando la pagina
+  // scrolleada hasta abajo.
   return (
-    <>
+    <div>
       <header className="sticky top-0 z-50 border-b border-sky/15 bg-ink/90 backdrop-blur">
         <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/" className="flex items-center gap-3">
@@ -173,6 +176,6 @@ export default function PrivacyNoticePage() {
       <footer className="border-t border-white/10 py-5 text-center text-xs text-white/50">
         © {EVENT.year} Fester · {PRIVACY_NOTICE.controller} Todos los derechos reservados.
       </footer>
-    </>
+    </div>
   );
 }
