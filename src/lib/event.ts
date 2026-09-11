@@ -73,7 +73,11 @@ const FEATURE_ITEMS: readonly Feature[] = [
     {
       icon: "kiosk",
       title: "Áreas de capacitación",
-      /** Marca pidio este recuadro en segunda posicion, sin punto final (11 de septiembre). Aun sin foto. */
+      /** Marca pidio este recuadro en segunda posicion, sin punto final (11 de septiembre). */
+      image: {
+        src: "/capacitacion.jpeg",
+        alt: "Capacitación práctica de producto Fester con asistentes en el área de demostración",
+      },
       paragraphs: ["Información de producto · Técnicas de aplicación"],
     },
     {
