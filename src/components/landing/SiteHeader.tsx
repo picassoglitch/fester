@@ -24,13 +24,8 @@ export default function SiteHeader() {
       }`}
     >
       <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-3">
-        <a href="#evento" className="flex items-center gap-3" onClick={() => setOpen(false)}>
+        <a href="#evento" className="flex items-center" onClick={() => setOpen(false)}>
           <FesterLogo className="h-[4.4rem]" />
-          <span className="hidden whitespace-nowrap text-[0.65rem] leading-tight text-white/80 sm:block">
-            {EVENT.claimLines[0]}
-            <br />
-            {EVENT.claimLines[1]}
-          </span>
         </a>
 
         <nav className="ml-auto hidden items-center gap-1 xl:flex">
