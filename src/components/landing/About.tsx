@@ -6,8 +6,8 @@ import { ABOUT, FEATURES } from "@/lib/event";
  * "¿Qué es Encuentro Fester?" + "Todo lo que encontrarás", con la misma
  * composicion del mockup: icono en circulo rojo junto al titulo, la fachada
  * Fester cerrando el recuadro por abajo, y en cada tarjeta el icono junto al
- * titulo, la foto debajo (si la hay) y el texto al final. Cuatro tarjetas en
- * dos columnas para que las fotos conserven tamano.
+ * titulo, la foto debajo (si la hay) y el texto al final. Las cuatro tarjetas
+ * van en una sola fila en escritorio.
  * Conserva el id #descripcion para que el menu siga apuntando aqui.
  */
 export default function About() {
@@ -53,17 +53,17 @@ export default function About() {
             {FEATURES.title}
           </h3>
 
-          <ul className="mt-5 grid gap-4 sm:grid-cols-2">
+          <ul className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {FEATURES.items.map((item) => (
               <li key={item.title} className="panel p-5">
-                {/* Icono junto al titulo como en el mockup; en anchos medios se apila para que el titulo no se corte. */}
-                <div className="flex items-center gap-3 sm:flex-col sm:items-start lg:flex-row lg:items-center">
+                {/* Icono junto al titulo solo en movil; con cuatro tarjetas por fila se apila para que el titulo no se corte. */}
+                <div className="flex items-center gap-3 sm:flex-col sm:items-start">
                   <Icon
                     name={item.icon}
-                    className="h-14 w-14 shrink-0 text-white"
+                    className="h-14 w-14 shrink-0 text-white lg:h-12 lg:w-12"
                     strokeWidth={1.25}
                   />
-                  <h4 className="font-display min-w-0 text-xl font-bold uppercase leading-none tracking-wide">
+                  <h4 className="font-display min-w-0 text-xl font-bold uppercase leading-none tracking-wide lg:text-lg">
                     {item.title}
                   </h4>
                 </div>
@@ -73,7 +73,7 @@ export default function About() {
                       src={item.image.src}
                       alt={item.image.alt}
                       fill
-                      sizes="(min-width: 1024px) 34vw, (min-width: 640px) 45vw, 100vw"
+                      sizes="(min-width: 1024px) 17vw, (min-width: 640px) 45vw, 100vw"
                       className="object-cover"
                     />
                   </div>
