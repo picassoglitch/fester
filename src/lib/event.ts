@@ -8,9 +8,8 @@ import type { IconName } from "@/components/landing/Icon";
 
 export const EVENT = {
   brand: "Fester",
+  /** Marca pidio quitar el claim junto al logo del encabezado (11 de septiembre). */
   claim: "Líder en soluciones para la industria de la construcción",
-  /** El claim partido en dos lineas para el encabezado. */
-  claimLines: ["Líder en soluciones para la", "industria de la construcción"],
   /** Nombre del evento tal como aparece en el diseño aprobado. */
   name: "Encuentro Fester",
   year: "2026",
@@ -40,21 +39,21 @@ export const ABOUT = {
   image: { src: "/que-es-encuentro-fester.jpg", alt: "Edificio corporativo Fester al anochecer" },
   /** Marca pidio dejar solo este texto en el recuadro (ajuste del 9 de septiembre). */
   lead: "Vive y descubre el futuro de la construcción.",
-  body: "Conoce nuevas soluciones, tecnologías, tendencias e innovaciones que están transformando la industria.",
+  body: "Conoce las soluciones, tecnologías, tendencias e innovaciones que están transformando la industria.",
 } as const;
 
 export type Feature = {
   icon: IconName;
   title: string;
-  /** Foto del recuadro (public/), va entre el titulo y el texto. */
-  image: { src: string; alt: string };
+  /** Foto del recuadro (public/), va entre el titulo y el texto. Sin foto, el texto sigue al titulo. */
+  image?: { src: string; alt: string };
   /** Frase de apertura en negritas; opcional cuando el texto es una sola oracion. */
   lead?: string;
   paragraphs: readonly string[];
 };
 
 /**
- * Los tres recuadros. Marca pidio sustituir los textos tal cual: se pueden
+ * Los cuatro recuadros. Marca pidio sustituir los textos tal cual: se pueden
  * ajustar saltos de linea, no el sentido del mensaje.
  */
 const FEATURE_ITEMS: readonly Feature[] = [
@@ -70,6 +69,12 @@ const FEATURE_ITEMS: readonly Feature[] = [
         "Compartirán su experiencia y visión sobre innovación, tecnología y las nuevas tendencias que están redefiniendo la forma de construir.",
         "Una oportunidad para aprender de quienes están marcando el rumbo y descubrir qué viene para el futuro de la industria.",
       ],
+    },
+    {
+      icon: "kiosk",
+      title: "Áreas de capacitación",
+      /** Marca pidio este recuadro en segunda posicion, sin punto final (11 de septiembre). Aun sin foto. */
+      paragraphs: ["Información de producto · Técnicas de aplicación"],
     },
     {
       icon: "vr",
@@ -101,40 +106,6 @@ export const FEATURES = {
   items: FEATURE_ITEMS,
   notice: "Cupo limitado. Regístrate con anticipación.",
 } as const;
-
-/* --- Agenda destacada --- */
-
-export type AgendaItem = { title: string; copy: string; icon: IconName };
-
-/**
- * Los cuatro bloques siguen el mapeo de marca (areas de capacitacion,
- * influencers y conferencistas, experiencia inmersiva, sorpresas). Sin
- * horarios, por indicacion de marca.
- */
-const AGENDA_ITEMS: readonly AgendaItem[] = [
-    {
-      title: "Áreas de capacitación",
-      copy: "Información de producto · Técnicas de aplicación.",
-      icon: "kiosk",
-    },
-    {
-      title: "Influencers y conferencistas",
-      copy: "Conoce las ideas que están transformando la construcción: experiencia y visión sobre innovación, tecnología y nuevas tendencias.",
-      icon: "bulb",
-    },
-    {
-      title: "Experiencia inmersiva",
-      copy: "Fester + Google: descubre cómo Cool Roof utiliza innovación y tecnología para transformar la manera en que protegemos y habitamos nuestros hogares.",
-      icon: "vr",
-    },
-    {
-      title: "Sorpresas y recompensas",
-      copy: "Prepárate para descubrir sorpresas y regalos exclusivos que harán de tu visita un ENCUENTRO inolvidable. Ven, participa y déjate sorprender.",
-      icon: "gift",
-    },
-];
-
-export const AGENDA = { title: "Agenda destacada", items: AGENDA_ITEMS } as const;
 
 /* --- Speakers e invitados --- */
 
@@ -198,7 +169,7 @@ const DIRECTION_ITEMS: readonly Direction[] = [
     {
       icon: "phone",
       title: "Apps de transporte",
-      copy: "Uber, Didi y Cabify. Deja y recoge en la puerta principal.",
+      copy: "Uber y Didi. Deja y recoge en la puerta principal.",
     },
 ];
 

@@ -6,7 +6,8 @@ import { ABOUT, FEATURES } from "@/lib/event";
  * "¿Qué es Encuentro Fester?" + "Todo lo que encontrarás", con la misma
  * composicion del mockup: icono en circulo rojo junto al titulo, la fachada
  * Fester cerrando el recuadro por abajo, y en cada tarjeta el icono junto al
- * titulo, la foto debajo y el texto al final.
+ * titulo, la foto debajo (si la hay) y el texto al final. Cuatro tarjetas en
+ * dos columnas para que las fotos conserven tamano.
  * Conserva el id #descripcion para que el menu siga apuntando aqui.
  */
 export default function About() {
@@ -52,7 +53,7 @@ export default function About() {
             {FEATURES.title}
           </h3>
 
-          <ul className="mt-5 grid gap-4 sm:grid-cols-3">
+          <ul className="mt-5 grid gap-4 sm:grid-cols-2">
             {FEATURES.items.map((item) => (
               <li key={item.title} className="panel p-5">
                 {/* Icono junto al titulo como en el mockup; en anchos medios se apila para que el titulo no se corte. */}
@@ -66,15 +67,17 @@ export default function About() {
                     {item.title}
                   </h4>
                 </div>
-                <div className="relative mt-4 aspect-[7/6] overflow-hidden rounded-lg border border-white/15">
-                  <Image
-                    src={item.image.src}
-                    alt={item.image.alt}
-                    fill
-                    sizes="(min-width: 1024px) 22vw, (min-width: 640px) 30vw, 100vw"
-                    className="object-cover"
-                  />
-                </div>
+                {item.image && (
+                  <div className="relative mt-4 aspect-[7/6] overflow-hidden rounded-lg border border-white/15">
+                    <Image
+                      src={item.image.src}
+                      alt={item.image.alt}
+                      fill
+                      sizes="(min-width: 1024px) 34vw, (min-width: 640px) 45vw, 100vw"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
                 {item.lead && (
                   <p className="mt-4 text-sm font-semibold leading-snug text-white">
                     {item.lead}

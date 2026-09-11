@@ -1,7 +1,6 @@
 import SiteHeader from "@/components/landing/SiteHeader";
 import Hero from "@/components/landing/Hero";
 import About from "@/components/landing/About";
-import Agenda from "@/components/landing/Agenda";
 import Speakers from "@/components/landing/Speakers";
 import Venue from "@/components/landing/Venue";
 import Journey from "@/components/landing/Journey";
@@ -21,7 +20,6 @@ export default function HomePage() {
       <main>
         <Hero />
         <About />
-        <Agenda />
         {SHOW_SPEAKERS && <Speakers />}
         <Venue />
         <Journey />
