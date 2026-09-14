@@ -7,7 +7,8 @@ import { ABOUT, FEATURES } from "@/lib/event";
  * composicion del mockup: icono en circulo rojo junto al titulo, la fachada
  * Fester cerrando el recuadro por abajo, y en cada tarjeta el icono junto al
  * titulo, la foto debajo (si la hay) y el texto al final. Cuatro tarjetas en
- * dos columnas para que las fotos conserven tamano.
+ * dos columnas; las fotos van apaisadas (16:10) para que el bloque no
+ * alargue de mas el recuadro de la izquierda.
  * Conserva el id #descripcion para que el menu siga apuntando aqui.
  */
 export default function About() {
@@ -68,7 +69,7 @@ export default function About() {
                   </h4>
                 </div>
                 {item.image && (
-                  <div className="relative mt-4 aspect-[7/6] overflow-hidden rounded-lg border border-white/15">
+                  <div className="relative mt-4 aspect-[16/10] overflow-hidden rounded-lg border border-white/15">
                     <Image
                       src={item.image.src}
                       alt={item.image.alt}

@@ -78,7 +78,11 @@ const FEATURE_ITEMS: readonly Feature[] = [
         src: "/capacitacion.jpeg",
         alt: "Capacitación práctica de producto Fester con asistentes en el área de demostración",
       },
-      paragraphs: ["Información de producto · Técnicas de aplicación"],
+      lead: "Aprende directamente de los especialistas Fester.",
+      paragraphs: [
+        "Información de producto · Técnicas de aplicación",
+        "Sesiones prácticas para conocer a fondo cada solución y aplicarla correctamente en obra.",
+      ],
     },
     {
       icon: "vr",
