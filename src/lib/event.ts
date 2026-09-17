@@ -35,6 +35,20 @@ export const CONTACT = {
 } as const;
 
 /**
+ * Dominio verificado en Resend. Los correos del evento salen de aqui: Resend
+ * rechaza cualquier remitente de un dominio que no tenga verificado, y el
+ * correo institucional (@fester.com.mx) es de otro dominio.
+ */
+export const MAIL_DOMAIN = "encuentrofester.com.mx";
+
+/**
+ * Remitente por defecto. El buzon no necesita existir para enviar, por eso es
+ * un no-reply: las respuestas se redirigen con reply-to al correo de soporte.
+ * Se puede sobreescribir con RESEND_FROM.
+ */
+export const DEFAULT_MAIL_FROM = `${EVENT.name} <no-reply@${MAIL_DOMAIN}>`;
+
+/**
  * Buzon de soporte del Encuentro. Se define con NEXT_PUBLIC_SUPPORT_EMAIL en el
  * entorno (Vercel) el dia que el buzon exista; mientras tanto todo cae en el
  * correo del evento para que nadie escriba a una direccion muerta.
