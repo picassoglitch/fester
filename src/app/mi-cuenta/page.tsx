@@ -40,7 +40,7 @@ export default async function AccountPage({
         <p className="mt-2 text-sm text-white/60">
           {progress
             ? "Tu registro está confirmado. Este es tu acceso al evento."
-            : "Entra con el correo que usaste al registrarte y te enviamos un código."}
+            : "Entra con el correo que usaste al registrarte o con el código de tu pase."}
         </p>
       </header>
 
