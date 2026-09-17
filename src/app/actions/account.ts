@@ -6,6 +6,7 @@ import {
   getAttendeeSession,
   setAttendeeSessionCookie,
 } from "@/lib/auth";
+import { isValidCode, normalizeCode } from "@/lib/codes";
 import { prisma } from "@/lib/db";
 import { passEmail } from "@/lib/emails";
 import { sendMail } from "@/lib/mail";
@@ -20,7 +21,12 @@ export type AccountState = {
   notice?: string;
   stage?: "email" | "code";
   email?: string;
+  /** El correo no tiene registro: la pantalla ofrece crear el pase. */
+  notFound?: boolean;
 };
+
+/** Entrada alterna: el codigo impreso en el pase, sin pasar por el correo. */
+export type PassCodeState = { error?: string };
 
 function pick(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -41,7 +47,8 @@ export async function accessAccount(
     return {
       stage: "email",
       email,
-      error: "No encontramos un registro con ese correo. Regístrate para crear tu pase.",
+      notFound: true,
+      error: "No encontramos ningún registro con ese correo.",
     };
   }
 
@@ -75,6 +82,28 @@ export async function accessAccount(
   });
 
   redirect(`/pase/${attendee.code}`);
+}
+
+/**
+ * Abre el pase con el codigo que la persona trae a la mano (el del QR). No abre
+ * sesion: el codigo prueba que tiene el pase, no que el correo sea suyo, y la
+ * pagina del pase ya funciona con el codigo solo.
+ */
+export async function openPassWithCode(
+  _prev: PassCodeState,
+  formData: FormData,
+): Promise<PassCodeState> {
+  const code = normalizeCode(pick(formData, "code"));
+  if (!isValidCode(code)) {
+    return { error: "Escribe el código de tu pase, como el que aparece bajo tu QR." };
+  }
+
+  const attendee = await prisma.attendee.findUnique({ where: { code }, select: { id: true } });
+  if (!attendee) {
+    return { error: "Ese código no existe. Revísalo o entra con tu correo." };
+  }
+
+  redirect(`/pase/${code}`);
 }
 
 /** Reenvia el pase al correo de la sesion abierta. */
