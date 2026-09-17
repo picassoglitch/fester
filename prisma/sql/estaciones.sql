@@ -1,5 +1,6 @@
 -- Estaciones de escaneo de Encuentro Fester 2026.
--- Pegar tal cual en el SQL Editor de Supabase y ejecutar.
+-- Pegar tal cual en la consola SQL de la base (la de DATABASE_URL) y ejecutar.
+-- Es Postgres estandar (13+): no depende del proveedor.
 --
 -- Deja activas exactamente estas seis: Registro + Kiosko 1 a 5.
 -- Es idempotente: se puede correr las veces que haga falta.
