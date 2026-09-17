@@ -5,11 +5,11 @@ const prisma = new PrismaClient();
 
 const DEFAULT_STATIONS = [
   { name: "Registro", emoji: "🎟️" },
-  { name: "Kiosco 1", emoji: "1️⃣" },
-  { name: "Kiosco 2", emoji: "2️⃣" },
-  { name: "Kiosco 3", emoji: "3️⃣" },
-  { name: "Kiosco 4", emoji: "4️⃣" },
-  { name: "Kiosco 5", emoji: "5️⃣" },
+  { name: "Kiosko 1", emoji: "1️⃣" },
+  { name: "Kiosko 2", emoji: "2️⃣" },
+  { name: "Kiosko 3", emoji: "3️⃣" },
+  { name: "Kiosko 4", emoji: "4️⃣" },
+  { name: "Kiosko 5", emoji: "5️⃣" },
 ];
 
 async function main() {
