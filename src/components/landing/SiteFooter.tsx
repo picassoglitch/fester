@@ -1,7 +1,7 @@
 import Link from "next/link";
 import FesterLogo from "@/components/FesterLogo";
 import Icon from "@/components/landing/Icon";
-import { CONTACT, EVENT, PRIVACY } from "@/lib/event";
+import { CONTACT, EVENT, PRIVACY, hasSupportMailbox, supportEmail } from "@/lib/event";
 
 export default function SiteFooter() {
   return (
@@ -37,28 +37,49 @@ export default function SiteFooter() {
             </div>
           </div>
 
-          <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/75">
-            <li>
-              <a href={`mailto:${CONTACT.email}`} className="hover:text-white">
+          <div className="flex flex-col gap-3 text-sm text-white/75 sm:items-end">
+            <p>
+              <span className="text-white/50">Contacto: </span>
+              <a
+                href={`mailto:${CONTACT.email}`}
+                className="font-semibold text-white underline underline-offset-4 hover:text-brand"
+              >
                 {CONTACT.email}
               </a>
-            </li>
-            <li>
-              <a href={`tel:${CONTACT.phone.replace(/\s/g, "")}`} className="hover:text-white">
-                {CONTACT.phone}
-              </a>
-            </li>
-            <li>
-              <Link href="/pase" className="hover:text-white">
-                Ya tengo un pase
-              </Link>
-            </li>
-            <li>
-              <Link href="/staff" className="hover:text-white">
-                Acceso staff
-              </Link>
-            </li>
-          </ul>
+              {/* El buzon de soporte se anuncia solo cuando ya existe. */}
+              {hasSupportMailbox() && (
+                <span className="block">
+                  <span className="text-white/50">Soporte: </span>
+                  <a
+                    href={`mailto:${supportEmail()}`}
+                    className="font-semibold text-white underline underline-offset-4 hover:text-brand"
+                  >
+                    {supportEmail()}
+                  </a>
+                </span>
+              )}
+              <span className="block text-xs text-white/50 sm:text-right">
+                {CONTACT.scheduleLabel}
+              </span>
+            </p>
+            <ul className="flex flex-wrap gap-x-6 gap-y-2">
+              <li>
+                <Link href="/mi-cuenta" className="hover:text-white">
+                  Mi cuenta
+                </Link>
+              </li>
+              <li>
+                <Link href="/pase" className="hover:text-white">
+                  Ya tengo un pase
+                </Link>
+              </li>
+              <li>
+                <Link href="/staff" className="hover:text-white">
+                  Acceso staff
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <div className="border-t border-white/10 py-5 text-center text-xs text-white/50">

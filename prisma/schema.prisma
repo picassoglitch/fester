@@ -13,6 +13,13 @@ enum Role {
   ADMIN
 }
 
+/// Para que se sepa si el codigo de 6 digitos es de un registro nuevo o de
+/// alguien que vuelve a abrir su pase.
+enum VerificationPurpose {
+  REGISTER
+  LOGIN
+}
+
 model Staff {
   id        String   @id @default(cuid())
   name      String
@@ -53,6 +60,8 @@ model Attendee {
   age         Int?
   referral    String?
   privacyAt   DateTime?
+  /// Momento en que la persona confirmo el codigo enviado a su correo.
+  emailVerifiedAt DateTime?
   createdAt   DateTime  @default(now())
   completedAt DateTime?
   redeemedAt  DateTime?
@@ -80,4 +89,21 @@ model Scan {
   @@unique([attendeeId, stationId])
   @@index([createdAt])
   @@index([stationId])
+}
+
+/// Codigo de 6 digitos que se envia por correo antes de crear un pase
+/// (REGISTER) o de abrir la cuenta de quien ya se registro (LOGIN).
+/// Solo se guarda el HMAC del codigo, nunca el codigo en claro.
+model EmailVerification {
+  id         String              @id @default(cuid())
+  email      String
+  purpose    VerificationPurpose @default(REGISTER)
+  codeHash   String
+  attempts   Int                 @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime            @default(now())
+
+  @@index([email, purpose])
+  @@index([expiresAt])
 }
