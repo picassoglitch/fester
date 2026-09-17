@@ -14,11 +14,11 @@ const prisma = new PrismaClient();
 
 const ESTACIONES = [
   { name: "Registro", emoji: "🎟️" },
-  { name: "Experiencia inmersiva", emoji: "🥽" },
-  { name: "Juegos", emoji: "🎯" },
-  { name: "Comida", emoji: "🍽️" },
-  { name: "Zona lounge", emoji: "🛋️" },
-  { name: "Cierre", emoji: "🏁" },
+  { name: "Kiosko 1", emoji: "1️⃣" },
+  { name: "Kiosko 2", emoji: "2️⃣" },
+  { name: "Kiosko 3", emoji: "3️⃣" },
+  { name: "Kiosko 4", emoji: "4️⃣" },
+  { name: "Kiosko 5", emoji: "5️⃣" },
 ];
 
 async function main() {
