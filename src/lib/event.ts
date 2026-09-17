@@ -20,6 +20,34 @@ export const EVENT = {
   registrationDeadline: "Cupo limitado",
 } as const;
 
+/* --- Contacto --- */
+
+/**
+ * Marca pidio quitar el telefono generico del pie (17 de septiembre).
+ *
+ * `email` es el correo institucional del evento (Fester): es el remitente de
+ * los correos que manda la app y el contacto general de la landing. El soporte
+ * del Encuentro va aparte, en `supportEmail()`.
+ */
+export const CONTACT = {
+  email: "encuentro@fester.com.mx",
+  scheduleLabel: "Lunes a viernes, 9:00 a 18:00 h",
+} as const;
+
+/**
+ * Buzon de soporte del Encuentro. Se define con NEXT_PUBLIC_SUPPORT_EMAIL en el
+ * entorno (Vercel) el dia que el buzon exista; mientras tanto todo cae en el
+ * correo del evento para que nadie escriba a una direccion muerta.
+ */
+export function supportEmail(): string {
+  return process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || CONTACT.email;
+}
+
+/** true cuando soporte ya tiene su propio buzon: el pie solo lo anuncia entonces. */
+export function hasSupportMailbox(): boolean {
+  return supportEmail() !== CONTACT.email;
+}
+
 /** La seccion de speakers se oculta hasta que marketing confirme la lista. */
 export const SHOW_SPEAKERS = false;
 
@@ -281,7 +309,7 @@ const FAQ_ITEMS: readonly FaqItem[] = [
     {
       question: "No me llegó el correo, ¿qué hago?",
       answer:
-        "Revisa las carpetas de spam y promociones y espera un minuto antes de pedir otro código. Si ya te habías registrado, entra a \"Mi cuenta\" con tu correo y reenvía tu pase; si aun así no llega, escríbenos a encuentro@fester.com.mx.",
+        `Revisa las carpetas de spam y promociones y espera un minuto antes de pedir otro código. Si ya te habías registrado, entra a "Mi cuenta" con tu correo y reenvía tu pase; si aun así no llega, escríbenos a ${supportEmail()}.`,
     },
     {
       question: "Ya me registré, ¿cómo vuelvo a ver mi pase?",
@@ -316,7 +344,7 @@ const FAQ_ITEMS: readonly FaqItem[] = [
 
 export const FAQ = { title: "Preguntas frecuentes", items: FAQ_ITEMS } as const;
 
-/* --- Aviso de privacidad y contacto --- */
+/* --- Aviso de privacidad --- */
 
 /** Ruta interna con el aviso completo (src/app/aviso-de-privacidad/page.tsx). */
 export const PRIVACY_PATH = "/aviso-de-privacidad";
@@ -326,16 +354,6 @@ export const PRIVACY = {
   text: "Henkel Capital, S.A. de C.V. (Fester) es responsable de tus datos personales. Los utilizamos únicamente para tu registro y acceso al evento, la comunicación relacionada y la mejora de la experiencia. No compartimos tu información con terceros sin tu consentimiento.",
   linkLabel: "Consulta el aviso de privacidad completo",
   linkUrl: PRIVACY_PATH,
-} as const;
-
-/**
- * Marca pidio quitar el telefono generico del pie (17 de septiembre): el unico
- * canal de contacto del evento es este correo, que ademas es el remitente y el
- * reply-to de los correos que envia la app.
- */
-export const CONTACT = {
-  email: "encuentro@fester.com.mx",
-  scheduleLabel: "Lunes a viernes, 9:00 a 18:00 h",
 } as const;
 
 /* --- Opciones del formulario de registro --- */

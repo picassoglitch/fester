@@ -1,7 +1,7 @@
 import Link from "next/link";
 import FesterLogo from "@/components/FesterLogo";
 import Icon from "@/components/landing/Icon";
-import { CONTACT, EVENT, PRIVACY } from "@/lib/event";
+import { CONTACT, EVENT, PRIVACY, hasSupportMailbox, supportEmail } from "@/lib/event";
 
 export default function SiteFooter() {
   return (
@@ -39,13 +39,25 @@ export default function SiteFooter() {
 
           <div className="flex flex-col gap-3 text-sm text-white/75 sm:items-end">
             <p>
-              <span className="text-white/50">Soporte: </span>
+              <span className="text-white/50">Contacto: </span>
               <a
                 href={`mailto:${CONTACT.email}`}
                 className="font-semibold text-white underline underline-offset-4 hover:text-brand"
               >
                 {CONTACT.email}
               </a>
+              {/* El buzon de soporte se anuncia solo cuando ya existe. */}
+              {hasSupportMailbox() && (
+                <span className="block">
+                  <span className="text-white/50">Soporte: </span>
+                  <a
+                    href={`mailto:${supportEmail()}`}
+                    className="font-semibold text-white underline underline-offset-4 hover:text-brand"
+                  >
+                    {supportEmail()}
+                  </a>
+                </span>
+              )}
               <span className="block text-xs text-white/50 sm:text-right">
                 {CONTACT.scheduleLabel}
               </span>

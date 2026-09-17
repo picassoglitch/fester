@@ -10,7 +10,7 @@
  * produccion se devuelve un error para no dejar pasar a nadie sin validar.
  */
 
-import { CONTACT } from "@/lib/event";
+import { CONTACT, supportEmail } from "@/lib/event";
 
 const ENDPOINT = "https://api.resend.com/emails";
 
@@ -28,9 +28,9 @@ export function mailFrom(): string {
   return process.env.RESEND_FROM || `Encuentro Fester <${CONTACT.email}>`;
 }
 
-/** A donde llegan las respuestas de la gente: el correo de soporte del evento. */
+/** A donde llegan las respuestas de la gente: el buzon de soporte del evento. */
 export function mailReplyTo(): string {
-  return process.env.RESEND_REPLY_TO || CONTACT.email;
+  return process.env.RESEND_REPLY_TO || supportEmail();
 }
 
 export async function sendMail(message: MailMessage): Promise<MailResult> {

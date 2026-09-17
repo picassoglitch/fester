@@ -5,7 +5,7 @@ import AccountLogin from "@/components/AccountLogin";
 import FesterLogo from "@/components/FesterLogo";
 import { getAttendeeProgress } from "@/lib/attendee";
 import { clearAttendeeSessionCookie, getAttendeeSession } from "@/lib/auth";
-import { CONTACT } from "@/lib/event";
+import { supportEmail } from "@/lib/event";
 import { formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -51,7 +51,7 @@ export default async function AccountPage({
       )}
       {enviado === "no" && (
         <p className="rounded-lg border border-alert/50 bg-alert/15 px-4 py-3 text-sm text-white">
-          No pudimos reenviar el correo. Escríbenos a {CONTACT.email}.
+          No pudimos reenviar el correo. Escríbenos a {supportEmail()}.
         </p>
       )}
 
@@ -103,8 +103,8 @@ export default async function AccountPage({
 
       <p className="text-center text-xs text-white/40">
         ¿Necesitas ayuda?{" "}
-        <a href={`mailto:${CONTACT.email}`} className="underline underline-offset-4">
-          {CONTACT.email}
+        <a href={`mailto:${supportEmail()}`} className="underline underline-offset-4">
+          {supportEmail()}
         </a>
       </p>
     </main>

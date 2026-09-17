@@ -4,7 +4,7 @@
  * es lo que se ve bien en movil y en escritorio.
  */
 
-import { CONTACT, EVENT, VENUE } from "@/lib/event";
+import { CONTACT, EVENT, VENUE, supportEmail } from "@/lib/event";
 import type { MailMessage } from "@/lib/mail";
 import { appUrl } from "@/lib/site";
 
@@ -35,7 +35,7 @@ function layout(title: string, body: string): string {
     <tr><td style="padding:28px;">${body}</td></tr>
     <tr>
       <td style="background:#f3f5f8;padding:18px 28px;font-size:12px;line-height:1.6;color:#5b6b80;">
-        ¿Dudas? Escríbenos a <a href="mailto:${CONTACT.email}" style="color:${NAVY};">${CONTACT.email}</a>.<br>
+        ¿Dudas? Escríbenos a <a href="mailto:${supportEmail()}" style="color:${NAVY};">${supportEmail()}</a>.<br>
         ${CONTACT.scheduleLabel}.<br>
         © ${year} Fester · Henkel Capital, S.A. de C.V.
       </td>
@@ -64,7 +64,7 @@ export function verificationEmail(params: {
      <p style="margin:0;font-size:13px;line-height:1.6;color:#5b6b80;">El código vence en 15 minutos y solo sirve una vez. Si no fuiste tú, puedes ignorar este correo.</p>`,
   );
 
-  const text = `${intro}\n\n${params.code}\n\nEl codigo vence en 15 minutos y solo sirve una vez.\nSi no fuiste tu, ignora este correo.\n\n${EVENT.name} ${EVENT.year} · ${CONTACT.email}`;
+  const text = `${intro}\n\n${params.code}\n\nEl codigo vence en 15 minutos y solo sirve una vez.\nSi no fuiste tu, ignora este correo.\n\n${EVENT.name} ${EVENT.year} · ${supportEmail()}`;
 
   return { to: params.to, subject: `${params.code} es tu código de ${EVENT.name}`, html, text };
 }
@@ -100,7 +100,7 @@ Donde: ${VENUE.name}, ${EVENT.city}
 
 Para ingresar necesitas tu pase y una identificacion oficial.
 Si pierdes este correo, recupera tu pase en ${base}/mi-cuenta
-Dudas: ${CONTACT.email}`;
+Dudas: ${supportEmail()}`;
 
   return {
     to: params.to,
