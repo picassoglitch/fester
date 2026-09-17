@@ -220,21 +220,22 @@ const JOURNEY_STEPS: readonly JourneyStep[] = [
   {
     icon: "phoneqr",
     title: "Ingresa al evento y activa tu pasaporte digital",
-    copy: "Al llegar, escanearemos tu QR para darte acceso y activar tu pasaporte digital.",
+    copy: "Al llegar, escanearemos tu QR en el registro para darte acceso y activar tu pasaporte digital.",
     bullets: [
-      "Podrás llevar el tracking de tu recorrido por las diferentes experiencias del evento.",
-      "El objetivo será completar cada una de las actividades disponibles.",
-      "En el mismo QR acumularás puntos al participar en las dinámicas.",
+      "Podrás llevar el tracking de tu recorrido por los kioscos del evento.",
+      "El objetivo será visitar los cinco kioscos y completar tu pasaporte.",
+      "En cada kiosco escanearás el mismo QR para sumar puntos.",
       "Los puntos podrán utilizarse para el canje de promocionales.",
     ],
   },
   {
     icon: "groupstar",
-    title: "Participa en las actividades",
-    copy: "Utiliza tu QR para acceder y registrar tu participación en las diferentes experiencias:",
+    title: "Recorre los kioscos y disfruta el evento",
+    copy: "Escanea tu QR en los cinco kioscos para sumar puntos y aprovecha todo lo que hay alrededor:",
     chips: [
       { icon: "mic", label: "Conferencias" },
       { icon: "gamepad", label: "Juegos" },
+      { icon: "camera", label: "Photo booth" },
       { icon: "vr", label: "Experiencia inmersiva" },
       { icon: "training", label: "Capacitaciones" },
     ],
@@ -246,7 +247,7 @@ export const JOURNEY = {
   title: "¿Cómo ser parte de Encuentro Fester?",
   lead: "Te acompañamos paso a paso desde tu registro hasta tu participación en las experiencias del evento.",
   steps: JOURNEY_STEPS,
-  footer: "Tu QR será tu acceso, tu pasaporte digital y tu llave para sumar puntos durante el evento.",
+  footer: "Tu QR será tu acceso, tu pasaporte digital y tu llave para sumar puntos en cada kiosco.",
 } as const;
 
 /* --- Preguntas frecuentes --- */
