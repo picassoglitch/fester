@@ -94,7 +94,11 @@ export default async function AttendeesPage({
         <h1 className="text-2xl font-bold">
           Asistentes <span className="text-base font-normal text-white/45">({total})</span>
         </h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {/* El Excel trae todo: datos del registro y avance por estacion. */}
+          <a href="/api/admin/export/excel" className="btn btn-primary px-4 py-2 text-sm">
+            Excel completo
+          </a>
           <a href="/api/admin/export/asistentes" className="btn btn-ghost px-4 py-2 text-sm">
             CSV asistentes
           </a>

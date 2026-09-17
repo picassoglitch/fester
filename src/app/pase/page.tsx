@@ -55,6 +55,13 @@ export default function RecoverPassPage() {
         </button>
       </form>
 
+      <p className="text-center text-sm text-white/60">
+        ¿No recuerdas tu código?{" "}
+        <Link href="/mi-cuenta" className="underline underline-offset-4 hover:text-white">
+          Entra con tu correo
+        </Link>
+      </p>
+
       <Link href="/" className="text-center text-sm text-white/50 underline underline-offset-4">
         No tengo pase, quiero registrarme
       </Link>

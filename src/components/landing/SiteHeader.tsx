@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import FesterLogo from "@/components/FesterLogo";
 import { EVENT, NAV_LINKS } from "@/lib/event";
@@ -38,6 +39,13 @@ export default function SiteHeader() {
               {link.label}
             </a>
           ))}
+          {/* Quien ya se registro entra con su correo y recupera su pase. */}
+          <Link
+            href="/mi-cuenta"
+            className="btn btn-ghost ml-2 px-4 py-2.5 text-xs uppercase"
+          >
+            Mi cuenta
+          </Link>
           <a href="#registro" className="btn btn-primary ml-2 px-5 py-2.5 text-xs uppercase">
             Regístrate
           </a>
@@ -73,6 +81,15 @@ export default function SiteHeader() {
                 </a>
               </li>
             ))}
+            <li>
+              <Link
+                href="/mi-cuenta"
+                onClick={() => setOpen(false)}
+                className="block py-2.5 text-sm font-semibold uppercase tracking-wide text-white/80"
+              >
+                Mi cuenta
+              </Link>
+            </li>
           </ul>
           <p className="mt-2 border-t border-white/10 pt-3 text-xs text-white/45">
             {EVENT.dateLabel} · {EVENT.city}

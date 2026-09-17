@@ -1,8 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { setAttendeeSessionCookie } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateCode } from "@/lib/codes";
+import { passEmail } from "@/lib/emails";
+import { sendMail } from "@/lib/mail";
+import { confirmEmailCode, issueEmailCode, normalizeEmail } from "@/lib/verification";
 import {
   AGE_LIMITS,
   INDEPENDENT_LABEL,
@@ -13,7 +17,16 @@ import {
   STATES,
 } from "@/lib/event";
 
-export type RegisterState = { error?: string };
+/**
+ * El registro tiene dos pasos: primero los datos y despues el codigo que
+ * enviamos al correo. `stage` le dice al formulario cual mostrar.
+ */
+export type RegisterState = {
+  error?: string;
+  notice?: string;
+  stage?: "form" | "verify";
+  email?: string;
+};
 
 function pick(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -85,12 +98,55 @@ export async function registerAttendee(
   if (typeof referral !== "string") return referral;
   if (!privacy) return { error: "Necesitamos que aceptes el aviso de privacidad." };
 
+  const address = normalizeEmail(email);
+  const verifying = pick(formData, "stage") === "verify";
+  const intent = pick(formData, "intent");
+  const typedCode = pick(formData, "verificationCode");
+
+  // Paso 1: los datos estan bien, pero nadie entra sin comprobar el correo.
+  if (!verifying || intent === "resend") {
+    const issued = await issueEmailCode(address, "REGISTER");
+    if (!issued.ok) {
+      // Con el cooldown el codigo anterior sigue vigente: mejor mandarla a
+      // escribirlo que dejarla esperando en el paso de los datos.
+      const stage = verifying || issued.reason === "cooldown" ? "verify" : "form";
+      return { stage, email: address, error: issued.error };
+    }
+    return {
+      stage: "verify",
+      email: address,
+      notice: `Te enviamos un código de 6 dígitos a ${address}.`,
+    };
+  }
+
+  // Paso 2: el codigo del correo.
+  if (!typedCode) {
+    return { stage: "verify", email: address, error: "Escribe el código que te enviamos." };
+  }
+  const confirmed = await confirmEmailCode(address, "REGISTER", typedCode);
+  if (!confirmed.ok) return { stage: "verify", email: address, error: confirmed.error };
+
   const existing = await prisma.attendee.findFirst({
-    where: { email: email.toLowerCase() },
-    select: { code: true },
+    where: { email: address },
+    select: { id: true, code: true, name: true },
   });
-  // Si ya se registro con ese correo, lo devolvemos a su pase en vez de duplicarlo.
-  if (existing) redirect(`/pase/${existing.code}`);
+
+  // Si ya se registro con ese correo, lo devolvemos a su pase en vez de
+  // duplicarlo; el codigo que acaba de confirmar prueba que el correo es suyo.
+  if (existing) {
+    await prisma.attendee.update({
+      where: { id: existing.id },
+      data: { emailVerifiedAt: new Date() },
+    });
+    await sendMail(passEmail({ to: address, name: existing.name, code: existing.code }));
+    await setAttendeeSessionCookie({
+      id: existing.id,
+      code: existing.code,
+      name: existing.name,
+      email: address,
+    });
+    redirect(`/pase/${existing.code}`);
+  }
 
   let code = "";
   for (let attempt = 0; attempt < 8; attempt++) {
@@ -104,13 +160,15 @@ export async function registerAttendee(
       break;
     }
   }
-  if (!code) return { error: "No pudimos generar tu código. Intenta de nuevo." };
+  if (!code) {
+    return { stage: "verify", email: address, error: "No pudimos generar tu código. Intenta de nuevo." };
+  }
 
-  await prisma.attendee.create({
+  const attendee = await prisma.attendee.create({
     data: {
       code,
       name,
-      email: email.toLowerCase(),
+      email: address,
       phone,
       company,
       position,
@@ -119,8 +177,17 @@ export async function registerAttendee(
       age,
       referral,
       privacyAt: new Date(),
+      emailVerifiedAt: new Date(),
     },
+    select: { id: true },
   });
+
+  // El pase ya existe: si el correo de confirmacion falla, se avisa en el log
+  // pero no se bloquea a la persona, que va directo a su pase.
+  const delivered = await sendMail(passEmail({ to: address, name, code }));
+  if (!delivered.ok) console.error(`[registro] No se pudo enviar el pase ${code}: ${delivered.error}`);
+
+  await setAttendeeSessionCookie({ id: attendee.id, code, name, email: address });
 
   redirect(`/pase/${code}`);
 }

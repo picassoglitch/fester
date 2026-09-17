@@ -274,6 +274,21 @@ const FAQ_ITEMS: readonly FaqItem[] = [
         "Sí, el cupo es limitado y nos reservamos el derecho de admisión. Te recomendamos registrarte con anticipación para asegurar tu lugar.",
     },
     {
+      question: "¿Por qué me piden un código de verificación?",
+      answer:
+        "Para confirmar que el correo es tuyo y que tu pase llegue a la bandeja correcta. Al enviar el formulario te mandamos un código de 6 dígitos; en cuanto lo escribes generamos tu pase con QR.",
+    },
+    {
+      question: "No me llegó el correo, ¿qué hago?",
+      answer:
+        "Revisa las carpetas de spam y promociones y espera un minuto antes de pedir otro código. Si ya te habías registrado, entra a \"Mi cuenta\" con tu correo y reenvía tu pase; si aun así no llega, escríbenos a encuentro@fester.com.mx.",
+    },
+    {
+      question: "Ya me registré, ¿cómo vuelvo a ver mi pase?",
+      answer:
+        "Entra a \"Mi cuenta\" desde el menú, escribe el correo con el que te registraste y te enviamos un código para abrir tu sesión. Ahí puedes ver tu QR, tu avance y reenviarte el pase por correo.",
+    },
+    {
       question: "¿Qué necesito presentar para ingresar?",
       answer:
         "Tu pase con código QR, que obtienes al terminar el registro, y una identificación distinta al INE (licencia de conducir, credencial de trabajo u otra).",
@@ -313,9 +328,13 @@ export const PRIVACY = {
   linkUrl: PRIVACY_PATH,
 } as const;
 
+/**
+ * Marca pidio quitar el telefono generico del pie (17 de septiembre): el unico
+ * canal de contacto del evento es este correo, que ademas es el remitente y el
+ * reply-to de los correos que envia la app.
+ */
 export const CONTACT = {
   email: "encuentro@fester.com.mx",
-  phone: "800 111 0000",
   scheduleLabel: "Lunes a viernes, 9:00 a 18:00 h",
 } as const;
 
