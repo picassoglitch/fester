@@ -12,15 +12,26 @@ const DEFAULT_STATIONS = [
   { name: "Kiosko 5", emoji: "5️⃣" },
 ];
 
+/** Sin ADMIN_PIN se genera uno al azar: este repo es publico y un PIN fijo en
+ *  el codigo es un PIN conocido por cualquiera. */
+function randomPin(): string {
+  return String(Math.floor(Math.random() * 1_000_000)).padStart(6, "0");
+}
+
 async function main() {
-  const pin = process.env.ADMIN_PIN || "482913";
+  const configured = (process.env.ADMIN_PIN ?? "").trim();
+  const pin = /^\d{4,8}$/.test(configured) ? configured : randomPin();
 
   const admins = await prisma.staff.count({ where: { role: "ADMIN" } });
   if (admins === 0) {
     await prisma.staff.create({
       data: { name: "Administrador", pinHash: await bcrypt.hash(pin, 10), role: "ADMIN" },
     });
-    console.log(`Admin creado. PIN: ${pin}`);
+    console.log(
+      configured
+        ? "Admin creado con el PIN de ADMIN_PIN."
+        : `Admin creado. PIN generado: ${pin} (guárdalo o define ADMIN_PIN).`,
+    );
   } else {
     console.log("Ya existe un admin, no se creó otro.");
   }
