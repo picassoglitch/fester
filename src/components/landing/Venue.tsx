@@ -14,7 +14,7 @@ export default function Venue() {
             </span>
             <div className="min-w-0">
               <p className="font-display text-3xl font-bold uppercase leading-none tracking-wide">
-                {VENUE.name},
+                {VENUE.name},{" "}
                 <br />
                 {VENUE.city}
               </p>
