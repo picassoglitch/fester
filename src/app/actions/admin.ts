@@ -119,10 +119,18 @@ export async function createStaff(_prev: ActionState, formData: FormData): Promi
 }
 
 export async function toggleStaff(formData: FormData) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const person = await prisma.staff.findUnique({ where: { id }, select: { active: true } });
+  const person = await prisma.staff.findUnique({ where: { id }, select: { active: true, role: true } });
   if (!person) return;
+
+  // Nadie se queda sin panel: ni la propia cuenta ni el ultimo admin activo.
+  if (person.active) {
+    const lastAdmin =
+      person.role === "ADMIN" &&
+      (await prisma.staff.count({ where: { role: "ADMIN", active: true } })) <= 1;
+    if (id === session.id || lastAdmin) redirect("/admin/staff?aviso=desactivar");
+  }
 
   // sessionVersion sube: la sesion abierta de quien se desactiva deja de valer.
   await prisma.staff.update({
