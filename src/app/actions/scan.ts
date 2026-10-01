@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
-import { getAttendeeProgress, syncCompletion, type AttendeeProgress } from "@/lib/attendee";
+import { getStaffAttendeeProgress, syncCompletion, type StaffAttendeeProgress } from "@/lib/attendee";
 import { normalizeCode } from "@/lib/codes";
 
 export type ScanOutcome =
@@ -13,7 +13,7 @@ export type ScanOutcome =
       ok: true;
       status: "nuevo" | "repetido" | "premio";
       message: string;
-      attendee: AttendeeProgress;
+      attendee: StaffAttendeeProgress;
     };
 
 export async function lookupAttendee(rawCode: string): Promise<ScanOutcome> {
@@ -21,7 +21,7 @@ export async function lookupAttendee(rawCode: string): Promise<ScanOutcome> {
   const code = normalizeCode(rawCode);
   if (!code) return { ok: false, error: "Código vacío." };
 
-  const attendee = await getAttendeeProgress(code);
+  const attendee = await getStaffAttendeeProgress(code);
   if (!attendee) return { ok: false, error: `El código ${code} no existe.` };
 
   return { ok: true, status: "repetido", message: "Pase encontrado", attendee };
@@ -58,7 +58,7 @@ export async function recordScan(rawCode: string, stationId: string): Promise<Sc
     }
   }
 
-  const progress = await getAttendeeProgress(code);
+  const progress = await getStaffAttendeeProgress(code);
   if (!progress) return { ok: false, error: "No pudimos leer el avance del pase." };
 
   if (repetido) {
@@ -101,7 +101,7 @@ export async function redeemPrize(rawCode: string): Promise<ScanOutcome> {
     });
   }
 
-  const progress = await getAttendeeProgress(code);
+  const progress = await getStaffAttendeeProgress(code);
   if (!progress) return { ok: false, error: "No pudimos leer el pase." };
 
   return {

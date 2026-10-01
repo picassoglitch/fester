@@ -8,6 +8,7 @@ export type StationProgress = {
   visitedAt: string | null;
 };
 
+/** Detalle completo del pase. Solo para la cuenta del asistente y el admin. */
 export type AttendeeProgress = {
   id: string;
   code: string;
@@ -24,31 +25,82 @@ export type AttendeeProgress = {
   stations: StationProgress[];
 };
 
-export async function getAttendeeProgress(code: string): Promise<AttendeeProgress | null> {
-  const attendee = await prisma.attendee.findUnique({
-    where: { code },
-    include: {
-      redeemedBy: { select: { name: true } },
-      scans: { select: { stationId: true, createdAt: true } },
-    },
-  });
-  if (!attendee) return null;
+/** Lo que ve el staff al escanear: sin correo ni telefono. */
+export type StaffAttendeeProgress = Omit<AttendeeProgress, "id" | "email" | "phone" | "createdAt">;
 
-  const stations = await prisma.station.findMany({
-    where: { active: true },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-  });
+/**
+ * Lo unico que puede salir sin sesion (pagina y API del pase). El codigo viaja
+ * en QRs y capturas de pantalla, asi que aqui no van nombre completo, correo,
+ * telefono, ids internos ni el nombre del staff que entrego el premio.
+ */
+export type PublicStationProgress = {
+  key: number;
+  name: string;
+  emoji: string;
+  order: number;
+  visitedAt: string | null;
+};
 
-  const scanByStation = new Map(attendee.scans.map((s) => [s.stationId, s.createdAt]));
-  const progress: StationProgress[] = stations.map((station) => ({
+export type PublicPassProgress = {
+  code: string;
+  firstName: string;
+  completedAt: string | null;
+  redeemedAt: string | null;
+  stars: number;
+  total: number;
+  pending: number;
+  stations: PublicStationProgress[];
+};
+
+async function loadStationProgress(attendeeId: string): Promise<StationProgress[]> {
+  const [stations, scans] = await Promise.all([
+    prisma.station.findMany({
+      where: { active: true },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, emoji: true, order: true },
+    }),
+    prisma.scan.findMany({
+      where: { attendeeId },
+      select: { stationId: true, createdAt: true },
+    }),
+  ]);
+  const scanByStation = new Map(scans.map((s) => [s.stationId, s.createdAt]));
+  return stations.map((station) => ({
     id: station.id,
     name: station.name,
     emoji: station.emoji,
     order: station.order,
     visitedAt: scanByStation.get(station.id)?.toISOString() ?? null,
   }));
+}
 
-  const stars = progress.filter((s) => s.visitedAt).length;
+function countStars(stations: { visitedAt: string | null }[]) {
+  const stars = stations.filter((s) => s.visitedAt).length;
+  return { stars, total: stations.length, pending: stations.length - stars };
+}
+
+export function firstNameOf(name: string): string {
+  return name.trim().split(/\s+/)[0] ?? "";
+}
+
+export async function getAttendeeProgress(code: string): Promise<AttendeeProgress | null> {
+  const attendee = await prisma.attendee.findUnique({
+    where: { code },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      email: true,
+      phone: true,
+      createdAt: true,
+      completedAt: true,
+      redeemedAt: true,
+      redeemedBy: { select: { name: true } },
+    },
+  });
+  if (!attendee) return null;
+
+  const stations = await loadStationProgress(attendee.id);
 
   return {
     id: attendee.id,
@@ -60,10 +112,69 @@ export async function getAttendeeProgress(code: string): Promise<AttendeeProgres
     completedAt: attendee.completedAt?.toISOString() ?? null,
     redeemedAt: attendee.redeemedAt?.toISOString() ?? null,
     redeemedByName: attendee.redeemedBy?.name ?? null,
-    stars,
-    total: progress.length,
-    pending: progress.length - stars,
-    stations: progress,
+    ...countStars(stations),
+    stations,
+  };
+}
+
+export async function getStaffAttendeeProgress(code: string): Promise<StaffAttendeeProgress | null> {
+  const attendee = await prisma.attendee.findUnique({
+    where: { code },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      completedAt: true,
+      redeemedAt: true,
+      redeemedBy: { select: { name: true } },
+    },
+  });
+  if (!attendee) return null;
+
+  const stations = await loadStationProgress(attendee.id);
+
+  return {
+    code: attendee.code,
+    name: attendee.name,
+    completedAt: attendee.completedAt?.toISOString() ?? null,
+    redeemedAt: attendee.redeemedAt?.toISOString() ?? null,
+    redeemedByName: attendee.redeemedBy?.name ?? null,
+    ...countStars(stations),
+    stations,
+  };
+}
+
+export async function getPublicPassProgress(code: string): Promise<PublicPassProgress | null> {
+  const attendee = await prisma.attendee.findUnique({
+    where: { code },
+    select: { id: true, code: true, name: true, completedAt: true, redeemedAt: true },
+  });
+  if (!attendee) return null;
+
+  const stations = await loadStationProgress(attendee.id);
+
+  return toPublicPass(attendee, stations);
+}
+
+/** Separado del loader para poder probar que la forma publica no filtra campos. */
+export function toPublicPass(
+  attendee: { code: string; name: string; completedAt: Date | null; redeemedAt: Date | null },
+  stations: StationProgress[],
+): PublicPassProgress {
+  const publicStations = stations.map((station, index) => ({
+    key: index,
+    name: station.name,
+    emoji: station.emoji,
+    order: station.order,
+    visitedAt: station.visitedAt,
+  }));
+  return {
+    code: attendee.code,
+    firstName: firstNameOf(attendee.name),
+    completedAt: attendee.completedAt?.toISOString() ?? null,
+    redeemedAt: attendee.redeemedAt?.toISOString() ?? null,
+    ...countStars(publicStations),
+    stations: publicStations,
   };
 }
 
