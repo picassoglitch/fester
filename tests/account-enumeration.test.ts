@@ -12,7 +12,9 @@ vi.mock("@/lib/auth", () => ({
   setAttendeeSessionCookie: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({ prisma: { attendee: { findFirst } } }));
-vi.mock("@/lib/mail", () => ({ sendMail: vi.fn() }));
+const sendMail = vi.fn();
+vi.mock("@/lib/mail", () => ({ sendMail }));
+vi.mock("@/lib/throttle", () => ({ clientIpHash: vi.fn(async () => "iphash") }));
 vi.mock("@/lib/verification", async (orig) => ({
   ...(await orig<typeof import("@/lib/verification")>()),
   issueEmailCode,
@@ -42,11 +44,12 @@ describe("accessAccount", () => {
     findFirst.mockResolvedValueOnce({ id: "a1", code: "ABC123", name: "Ana" });
     const known = await run("registrada@example.com");
     expect(issueEmailCode).toHaveBeenCalledTimes(1);
-    expect(issueEmailCode).toHaveBeenCalledWith("registrada@example.com", "LOGIN");
+    expect(issueEmailCode).toHaveBeenCalledWith("registrada@example.com", "LOGIN", "iphash");
 
     findFirst.mockResolvedValueOnce(null);
     const unknown = await run("nadie@example.com");
     expect(issueEmailCode).toHaveBeenCalledTimes(1);
+    expect(sendMail).not.toHaveBeenCalled();
 
     const { email: _a, ...knownRest } = known;
     const { email: _b, ...unknownRest } = unknown;

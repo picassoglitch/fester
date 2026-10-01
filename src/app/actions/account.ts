@@ -11,6 +11,7 @@ import { isValidCode, normalizeCode } from "@/lib/codes";
 import { prisma } from "@/lib/db";
 import { passEmail } from "@/lib/emails";
 import { sendMail } from "@/lib/mail";
+import { clientIpHash } from "@/lib/throttle";
 import { confirmEmailCode, isValidEmail, issueEmailCode, normalizeEmail } from "@/lib/verification";
 
 /**
@@ -57,9 +58,11 @@ export async function accessAccount(
     // El correo sale despues de responder: el tiempo de respuesta no depende de
     // Resend ni de si el correo existe. Cooldown y limite por hora tambien se
     // callan (un correo sin registro nunca los toparia) y solo se registran.
+    // headers() se lee aqui: dentro de after() ya no hay peticion.
+    const ipHash = await clientIpHash();
     if (attendee) {
       after(async () => {
-        const issued = await issueEmailCode(email, "LOGIN");
+        const issued = await issueEmailCode(email, "LOGIN", ipHash);
         if (!issued.ok) {
           console.warn(JSON.stringify({ event: "login_code_not_sent", reason: issued.reason }));
         }
