@@ -107,3 +107,14 @@ model EmailVerification {
   @@index([email, purpose])
   @@index([expiresAt])
 }
+
+/// Contadores de intentos (login con PIN, envio de codigos, correo de prueba).
+/// La llave lleva el HMAC de la IP o el id del staff, nunca la IP en claro.
+model AuthThrottle {
+  key         String    @id
+  failures    Int       @default(0)
+  windowStart DateTime  @default(now())
+  lockedUntil DateTime?
+  lockLevel   Int       @default(0)
+  updatedAt   DateTime  @updatedAt
+}

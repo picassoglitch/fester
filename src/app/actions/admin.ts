@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { syncCompletion } from "@/lib/attendee";
+import { newPinError } from "@/lib/pin";
 
 export type ActionState = { error?: string; ok?: string };
 
@@ -103,7 +104,8 @@ export async function createStaff(_prev: ActionState, formData: FormData): Promi
   const role = String(formData.get("role") ?? "STAFF") === "ADMIN" ? "ADMIN" : "STAFF";
 
   if (name.length < 2) return { error: "Escribe el nombre de la persona." };
-  if (!/^\d{4,8}$/.test(pin)) return { error: "El PIN debe tener entre 4 y 8 dígitos." };
+  const pinError = newPinError(pin, role);
+  if (pinError) return { error: pinError };
 
   // Los PIN identifican por si solos, asi que no puede haber dos iguales.
   const everyone = await prisma.staff.findMany({ select: { pinHash: true } });
@@ -130,7 +132,10 @@ export async function resetStaffPin(_prev: ActionState, formData: FormData): Pro
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const pin = String(formData.get("pin") ?? "").trim();
-  if (!/^\d{4,8}$/.test(pin)) return { error: "El PIN debe tener entre 4 y 8 dígitos." };
+  const target = await prisma.staff.findUnique({ where: { id }, select: { role: true } });
+  if (!target) return { error: "No encontramos a esa persona." };
+  const pinError = newPinError(pin, target.role);
+  if (pinError) return { error: pinError };
 
   const others = await prisma.staff.findMany({
     where: { id: { not: id } },

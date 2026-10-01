@@ -23,9 +23,9 @@ export function StaffForm() {
         <input
           name="pin"
           className="field sm:w-36 sm:text-center"
-          placeholder="PIN"
+          placeholder="PIN (6–8)"
           inputMode="numeric"
-          pattern="\d{4,8}"
+          pattern="\d{6,8}"
           maxLength={8}
           required
         />
@@ -54,9 +54,9 @@ export function ResetPinForm({ id }: { id: string }) {
       <input
         name="pin"
         className="field w-32 text-center"
-        placeholder="Nuevo PIN"
+        placeholder="Nuevo PIN (6–8)"
         inputMode="numeric"
-        pattern="\d{4,8}"
+        pattern="\d{6,8}"
         maxLength={8}
         required
       />
