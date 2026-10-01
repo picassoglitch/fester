@@ -277,7 +277,7 @@ const JOURNEY_STEPS: readonly JourneyStep[] = [
     chips: [
       { icon: "mic", label: "Conferencias" },
       { icon: "gamepad", label: "Juegos" },
-      { icon: "camera", label: "Photo booth" },
+      { icon: "camera", label: "Cabina de fotos" },
       { icon: "vr", label: "Experiencia inmersiva" },
       { icon: "training", label: "Capacitaciones" },
     ],

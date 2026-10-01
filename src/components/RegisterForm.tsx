@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
+import { clearCustomValidity, handleInvalid } from "@/lib/validity";
 import { useFormStatus } from "react-dom";
 import { registerAttendee, type RegisterState } from "@/app/actions/register";
 import Icon from "@/components/landing/Icon";
@@ -174,19 +175,31 @@ export default function RegisterForm() {
   // "Editar mis datos" regresa al paso 1 sin perder lo capturado.
   const [editing, setEditing] = useState(false);
   const verifying = state.stage === "verify" && !editing;
+  // El error del servidor se oculta en cuanto la persona corrige un campo.
+  const [errorDismissed, setErrorDismissed] = useState(false);
 
   // Cada respuesta del servidor manda un objeto nuevo: al llegar al paso 2 se
   // cierra la edicion para que se vea el campo del codigo.
   useEffect(() => {
     if (state.stage === "verify") setEditing(false);
+    setErrorDismissed(false);
   }, [state]);
 
   function set<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((current) => ({ ...current, [key]: value }));
+    setErrorDismissed(true);
   }
 
+  const error = errorDismissed ? undefined : state.error;
+
   return (
-    <form action={action} className="space-y-5">
+    <form
+      action={action}
+      className="space-y-5"
+      onInvalidCapture={handleInvalid}
+      onInputCapture={clearCustomValidity}
+      onChangeCapture={clearCustomValidity}
+    >
       {verifying ? (
         // En el paso 2 los datos viajan como campos ocultos: el navegador no
         // valida un input oculto y el servidor los revisa otra vez.
@@ -375,15 +388,15 @@ export default function RegisterForm() {
         </div>
       )}
 
-      {state.notice && !state.error && (
+      {state.notice && !error && (
         <p className="rounded-lg border border-success/50 bg-success/15 px-4 py-3 text-sm font-medium text-white">
           {state.notice}
         </p>
       )}
 
-      {state.error && (
+      {error && (
         <p className="rounded-lg border border-alert/50 bg-alert/15 px-4 py-3 text-sm font-medium text-white">
-          {state.error}
+          {error}
         </p>
       )}
 
