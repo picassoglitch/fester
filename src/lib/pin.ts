@@ -25,3 +25,17 @@ export function newPinError(pin: string, role: "STAFF" | "ADMIN"): string | null
     ? null
     : `El PIN debe tener entre ${STAFF_PIN_MIN} y ${PIN_MAX} dígitos.`;
 }
+
+/**
+ * PIN del admin que crea el seed. Sin valor por defecto: un PIN fijo en el repo
+ * seria publico para cualquier entorno sembrado sin ADMIN_PIN.
+ */
+export function resolveSeedAdminPin(value: string | undefined): string {
+  const pin = (value ?? "").trim();
+  if (newPinError(pin, "ADMIN")) {
+    throw new Error(
+      `Falta ADMIN_PIN (${ADMIN_PIN_LENGTH} dígitos) en el entorno; el seed no crea un admin con un PIN por defecto.`,
+    );
+  }
+  return pin;
+}
