@@ -1,62 +1,91 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { CONTACT, EVENT, supportEmail } from "@/lib/event";
+import { EVENT } from "@/lib/event";
 import { mailFrom, mailReplyTo, sendMail } from "@/lib/mail";
 import { appUrl } from "@/lib/site";
+import { consumeRateLimit } from "@/lib/throttle";
 
 export const dynamic = "force-dynamic";
 
+const MAIL_TEST_LIMIT = 5;
+const MAIL_TEST_WINDOW_MS = 60 * 60_000;
+
 /**
- * Diagnostico del correo, solo para admin.
+ * Correo de prueba, solo para admin. Existe porque cuando Resend rechaza un
+ * envio la persona que se registra solo ve "no pudimos enviar el correo"; el
+ * motivo completo queda en los logs del servidor ([mail] …).
  *
- * GET /api/admin/correo             -> como quedo la configuracion en este despliegue
- * GET /api/admin/correo?to=x@y.mx   -> ademas manda un correo de prueba y devuelve
- *                                      tal cual lo que contesto Resend
+ * Solo POST con JSON y Origin propio: un GET que manda correo se podia
+ * disparar desde otro sitio con la cookie Lax. No expone nada de la API key.
  *
- * Existe porque cuando Resend rechaza un envio la persona que se registra solo
- * ve "no pudimos enviar el correo": el motivo real (dominio sin verificar, API
- * key de otro entorno, remitente que no cuadra) queda en los logs del servidor
- * y asi se puede leer sin entrar a buscarlos.
+ *   curl -X POST https://<dominio>/api/admin/correo \
+ *     -H "Origin: https://<dominio>" -H "Content-Type: application/json" \
+ *     -b "fester_session=<TOKEN>" -d '{"to":"tucorreo@dominio.com"}'
  */
-export async function GET(request: Request) {
+export function GET() {
+  return NextResponse.json(
+    { error: "method_not_allowed" },
+    { status: 405, headers: { Allow: "POST" } },
+  );
+}
+
+function sameOrigin(request: Request): boolean {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+  const allowed = new Set([new URL(request.url).origin]);
+  try {
+    allowed.add(new URL(appUrl()).origin);
+  } catch {
+    /* NEXT_PUBLIC_APP_URL mal formada: solo vale el origen de la peticion */
+  }
+  return allowed.has(origin);
+}
+
+export async function POST(request: Request) {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const apiKey = process.env.RESEND_API_KEY ?? "";
-  const config = {
-    // Nunca la llave: solo si llego y con que forma, que es lo que suele fallar.
-    resendApiKey: apiKey
-      ? { presente: true, largo: apiKey.length, empiezaCon: apiKey.slice(0, 3) }
-      : { presente: false },
-    from: mailFrom(),
-    replyTo: mailReplyTo(),
-    correoDelEvento: CONTACT.email,
-    correoDeSoporte: supportEmail(),
-    appUrl: appUrl(),
-    entorno: process.env.VERCEL_ENV ?? process.env.NODE_ENV,
-  };
-
-  const to = new URL(request.url).searchParams.get("to")?.trim() ?? "";
-  if (!to) {
-    return NextResponse.json({
-      config,
-      ayuda: "Agrega ?to=tucorreo@dominio.com para mandar un correo de prueba.",
-    });
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!sameOrigin(request) || !contentType.toLowerCase().startsWith("application/json")) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
+  let to = "";
+  try {
+    const body = (await request.json()) as { to?: unknown };
+    to = typeof body.to === "string" ? body.to.trim() : "";
+  } catch {
+    return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
-    return NextResponse.json({ config, error: "El correo de prueba no es válido." }, { status: 400 });
+    return NextResponse.json({ error: "El correo de prueba no es válido." }, { status: 400 });
   }
 
-  const result = await sendMail({
+  const limit = await consumeRateLimit(`mail-test:${session.id}`, MAIL_TEST_LIMIT, MAIL_TEST_WINDOW_MS);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Demasiados correos de prueba. Intenta en una hora." },
+      { status: 429 },
+    );
+  }
+
+  const entorno = process.env.VERCEL_ENV ?? process.env.NODE_ENV;
+  const sent = await sendMail({
     to,
     subject: `Prueba de envío · ${EVENT.name} ${EVENT.year}`,
     html: `<p>Si estás leyendo esto, el envío de correos del sitio funciona.</p>
-           <p style="color:#5b6b80;font-size:13px;">Enviado desde ${config.appUrl} (${config.entorno}).</p>`,
-    text: `Si estas leyendo esto, el envio de correos del sitio funciona.\nEnviado desde ${config.appUrl} (${config.entorno}).`,
+           <p style="color:#5b6b80;font-size:13px;">Enviado desde ${appUrl()} (${entorno}).</p>`,
+    text: `Si estas leyendo esto, el envio de correos del sitio funciona.\nEnviado desde ${appUrl()} (${entorno}).`,
   });
 
-  return NextResponse.json({ config, resultado: result }, { status: result.ok ? 200 : 502 });
+  const resultado = sent.ok
+    ? { ok: true }
+    : { ok: false, ...(sent.status ? { status: sent.status } : {}), error: sent.error };
+
+  return NextResponse.json(
+    { ok: sent.ok, resultado, from: mailFrom(), replyTo: mailReplyTo(), entorno },
+    { status: sent.ok ? 200 : 502 },
+  );
 }
