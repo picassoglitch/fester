@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import {
   clearAttendeeSessionCookie,
   getAttendeeSession,
@@ -21,9 +22,14 @@ export type AccountState = {
   notice?: string;
   stage?: "email" | "code";
   email?: string;
-  /** El correo no tiene registro: la pantalla ofrece crear el pase. */
-  notFound?: boolean;
 };
+
+/**
+ * Misma respuesta exista o no el correo: decir "no hay registro" permitia
+ * averiguar quien se inscribio al evento.
+ */
+const GENERIC_CODE_NOTICE =
+  "Si ese correo tiene un registro, te enviamos un código de 6 dígitos. Revisa tu bandeja y tu carpeta de spam.";
 
 /** Entrada alterna: el codigo impreso en el pase, sin pasar por el correo. */
 export type PassCodeState = { error?: string };
@@ -43,32 +49,32 @@ export async function accessAccount(
     where: { email },
     select: { id: true, code: true, name: true },
   });
-  if (!attendee) {
-    return {
-      stage: "email",
-      email,
-      notFound: true,
-      error: "No encontramos ningún registro con ese correo.",
-    };
-  }
-
   const verifying = pick(formData, "stage") === "code";
   const intent = pick(formData, "intent");
   const typedCode = pick(formData, "verificationCode");
 
   if (!verifying || intent === "resend") {
-    const issued = await issueEmailCode(email, "LOGIN");
-    if (!issued.ok) {
-      const stage = verifying || issued.reason === "cooldown" ? "code" : "email";
-      return { stage, email, error: issued.error };
+    // El correo sale despues de responder: el tiempo de respuesta no depende de
+    // Resend ni de si el correo existe. Cooldown y limite por hora tambien se
+    // callan (un correo sin registro nunca los toparia) y solo se registran.
+    if (attendee) {
+      after(async () => {
+        const issued = await issueEmailCode(email, "LOGIN");
+        if (!issued.ok) {
+          console.warn(JSON.stringify({ event: "login_code_not_sent", reason: issued.reason }));
+        }
+      });
     }
-    return { stage: "code", email, notice: `Te enviamos un código de 6 dígitos a ${email}.` };
+    return { stage: "code", email, notice: GENERIC_CODE_NOTICE };
   }
 
   if (!typedCode) return { stage: "code", email, error: "Escribe el código que te enviamos." };
 
+  // Sin registro no hay codigo guardado: confirmEmailCode responde "venció o
+  // ya se usó", igual que con un codigo viejo.
   const confirmed = await confirmEmailCode(email, "LOGIN", typedCode);
   if (!confirmed.ok) return { stage: "code", email, error: confirmed.error };
+  if (!attendee) return { stage: "code", email, error: "El código venció o ya se usó. Pide uno nuevo." };
 
   await prisma.attendee.update({
     where: { id: attendee.id },
