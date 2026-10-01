@@ -34,7 +34,12 @@ export async function loginWithPin(_prev: LoginState, formData: FormData): Promi
   if (result.status === "failed") return { error: "PIN incorrecto." };
 
   const matched = result.value;
-  await setSessionCookie({ id: matched.id, name: matched.name, role: matched.role });
+  await setSessionCookie({
+    id: matched.id,
+    name: matched.name,
+    role: matched.role,
+    sessionVersion: matched.sessionVersion,
+  });
 
   const safeNext = next.startsWith("/") ? next : "/staff/escanear";
   redirect(matched.role === "ADMIN" && safeNext === "/staff/escanear" ? "/admin" : safeNext);

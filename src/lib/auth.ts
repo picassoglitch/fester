@@ -13,6 +13,8 @@ export type Session = {
   id: string;
   name: string;
   role: "STAFF" | "ADMIN";
+  /** Staff.sessionVersion al firmar. Si cambia en la base, la sesion muere. */
+  sessionVersion: number;
 };
 
 /** Sesion de quien ya se registro y vuelve a abrir su pase. */
@@ -32,7 +34,12 @@ export function getSecret(): Uint8Array {
 }
 
 export async function createSessionToken(session: Session): Promise<string> {
-  return new SignJWT({ name: session.name, role: session.role, scope: "staff" })
+  return new SignJWT({
+    name: session.name,
+    role: session.role,
+    scope: "staff",
+    sv: session.sessionVersion,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(session.id)
     .setIssuedAt()
@@ -47,10 +54,13 @@ export async function verifySessionToken(token: string): Promise<Session | null>
     // Los dos tipos de sesion se firman con el mismo secreto: sin esta linea,
     // una cookie de asistente serviria como sesion de staff.
     if (payload.scope === "attendee") return null;
+    // Los tokens de antes de sessionVersion no sirven: todos entran otra vez.
+    if (typeof payload.sv !== "number") return null;
     return {
       id: payload.sub,
       name: String(payload.name ?? ""),
       role: payload.role === "ADMIN" ? "ADMIN" : "STAFF",
+      sessionVersion: payload.sv,
     };
   } catch {
     return null;
@@ -74,11 +84,33 @@ export async function clearSessionCookie() {
   store.delete(SESSION_COOKIE);
 }
 
+/**
+ * Revision autoritativa de la sesion de staff: la firma no basta, porque
+ * desactivar a alguien, cambiarle el PIN o el rol debe cerrar su sesion.
+ * proxy.ts solo verifica la firma (sin base); aqui se consulta Staff.
+ */
 export async function getSession(): Promise<Session | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  return verifySessionToken(token);
+  return checkSessionToken(token);
+}
+
+export async function checkSessionToken(token: string): Promise<Session | null> {
+  const claims = await verifySessionToken(token);
+  if (!claims) return null;
+
+  // Import diferido: auth.ts tambien lo usa proxy.ts, que no debe cargar Prisma.
+  const { prisma } = await import("@/lib/db");
+  const staff = await prisma.staff.findUnique({
+    where: { id: claims.id },
+    select: { name: true, role: true, active: true, sessionVersion: true },
+  });
+  if (!staff || !staff.active) return null;
+  if (staff.sessionVersion !== claims.sessionVersion) return null;
+  if (staff.role !== claims.role) return null;
+
+  return { id: claims.id, name: staff.name, role: staff.role, sessionVersion: staff.sessionVersion };
 }
 
 export async function requireSession(): Promise<Session> {

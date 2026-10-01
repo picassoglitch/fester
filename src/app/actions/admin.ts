@@ -124,7 +124,11 @@ export async function toggleStaff(formData: FormData) {
   const person = await prisma.staff.findUnique({ where: { id }, select: { active: true } });
   if (!person) return;
 
-  await prisma.staff.update({ where: { id }, data: { active: !person.active } });
+  // sessionVersion sube: la sesion abierta de quien se desactiva deja de valer.
+  await prisma.staff.update({
+    where: { id },
+    data: { active: !person.active, sessionVersion: { increment: 1 } },
+  });
   revalidatePath("/admin/staff");
 }
 
@@ -145,7 +149,10 @@ export async function resetStaffPin(_prev: ActionState, formData: FormData): Pro
     if (await bcrypt.compare(pin, person.pinHash)) return { error: "Ese PIN ya está en uso." };
   }
 
-  await prisma.staff.update({ where: { id }, data: { pinHash: await bcrypt.hash(pin, 10) } });
+  await prisma.staff.update({
+    where: { id },
+    data: { pinHash: await bcrypt.hash(pin, 10), sessionVersion: { increment: 1 } },
+  });
   revalidatePath("/admin/staff");
   return { ok: "PIN actualizado." };
 }

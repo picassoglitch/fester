@@ -26,6 +26,8 @@ model Staff {
   pinHash   String
   role      Role     @default(STAFF)
   active    Boolean  @default(true)
+  /// Va en el JWT como "sv". Subirlo invalida las sesiones abiertas.
+  sessionVersion Int @default(0)
   createdAt DateTime @default(now())
 
   scans     Scan[]
