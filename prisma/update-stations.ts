@@ -9,17 +9,12 @@
  * inactiva desaparece de la landing y de los pases.
  */
 import { PrismaClient } from "@prisma/client";
+import { DEFAULT_STATIONS } from "../src/lib/stations";
 
 const prisma = new PrismaClient();
 
-const ESTACIONES = [
-  { name: "Registro", emoji: "🎟️" },
-  { name: "Kiosko 1", emoji: "1️⃣" },
-  { name: "Kiosko 2", emoji: "2️⃣" },
-  { name: "Kiosko 3", emoji: "3️⃣" },
-  { name: "Kiosko 4", emoji: "4️⃣" },
-  { name: "Kiosko 5", emoji: "5️⃣" },
-];
+// La lista vive en src/lib/stations.ts (la landing la usa para su texto).
+const ESTACIONES = DEFAULT_STATIONS;
 
 async function main() {
   const existentes = await prisma.station.findMany();
