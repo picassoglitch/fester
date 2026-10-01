@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { clearSessionCookie, setSessionCookie } from "@/lib/auth";
+import { postLoginTarget } from "@/lib/safe-redirect";
 import { isLoginPinFormat, PIN_MAX, PIN_MIN_LOGIN } from "@/lib/pin";
 import { clientIpHash, guardPinAttempt, lockMessage } from "@/lib/throttle";
 
@@ -41,8 +42,7 @@ export async function loginWithPin(_prev: LoginState, formData: FormData): Promi
     sessionVersion: matched.sessionVersion,
   });
 
-  const safeNext = next.startsWith("/") ? next : "/staff/escanear";
-  redirect(matched.role === "ADMIN" && safeNext === "/staff/escanear" ? "/admin" : safeNext);
+  redirect(postLoginTarget(next, matched.role));
 }
 
 export async function logout() {
