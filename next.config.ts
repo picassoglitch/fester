@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { CANONICAL_HOST } from "./src/lib/site";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -43,7 +44,16 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["bcryptjs"],
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Cualquier host que no sea el oficial (p. ej. el espejo *.vercel.app)
+      // queda fuera de los buscadores. Lo ideal es quitar el alias (OPS).
+      {
+        source: "/:path*",
+        missing: [{ type: "host", value: CANONICAL_HOST }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
   },
 };
 

@@ -1,7 +1,12 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/auth";
 import { logout } from "@/app/actions/session";
 import FesterLogo from "@/components/FesterLogo";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 const NAV = [
   { href: "/admin", label: "Panel" },

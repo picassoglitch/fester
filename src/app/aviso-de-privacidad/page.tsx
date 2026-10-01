@@ -2,11 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import FesterLogo from "@/components/FesterLogo";
 import Icon from "@/components/landing/Icon";
-import { EVENT } from "@/lib/event";
+import { EVENT, PRIVACY_PATH } from "@/lib/event";
 import { PRIVACY_NOTICE, type PrivacyBlock } from "@/lib/privacy-notice";
 
 export const metadata: Metadata = {
   title: "Aviso de privacidad",
+  alternates: { canonical: PRIVACY_PATH },
   description: `Aviso de privacidad de ${PRIVACY_NOTICE.controller}: qué datos recabamos al registrarte a ${EVENT.name} ${EVENT.year}, con qué finalidad y cómo ejercer tus derechos ARCO.`,
 };
 

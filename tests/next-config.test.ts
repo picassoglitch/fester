@@ -26,3 +26,15 @@ describe("next.config headers", () => {
     expect(nextConfig.poweredByHeader).toBe(false);
   });
 });
+
+describe("X-Robots-Tag fuera del dominio oficial", () => {
+  it("tiene la regla missing host", async () => {
+    const rules = await nextConfig.headers!();
+    const rule = rules.find((r) => r.missing);
+    expect(rule).toMatchObject({
+      source: "/:path*",
+      missing: [{ type: "host", value: "www.encuentrofester.com.mx" }],
+      headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+    });
+  });
+});
