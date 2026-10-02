@@ -8,8 +8,19 @@
  * Si no hay DATABASE_URL (por ejemplo en un build local de prueba) no hace
  * nada. Si la hay y el push falla, el build falla: es preferible a desplegar
  * código que la base no puede responder.
+ *
+ * Solo corre en el build de producción. En Vercel, Preview comparte
+ * DATABASE_URL con Production: sin este filtro, cualquier rama empujaría su
+ * esquema a la base de producción.
  */
 import { execSync } from "node:child_process";
+
+const vercelEnv = process.env.VERCEL_ENV;
+
+if (vercelEnv && vercelEnv !== "production") {
+  console.log(`[db-sync] Build de ${vercelEnv}: se omite la sincronización del esquema.`);
+  process.exit(0);
+}
 
 const url = process.env.DATABASE_URL;
 
