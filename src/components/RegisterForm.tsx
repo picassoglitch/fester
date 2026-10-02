@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { clearCustomValidity, handleInvalid } from "@/lib/validity";
 import { useFormStatus } from "react-dom";
 import { registerAttendee, type RegisterState } from "@/app/actions/register";
 import Icon from "@/components/landing/Icon";
+import { trackPixel } from "@/lib/meta-pixel";
 import {
   AGE_LIMITS,
+  EVENT,
   INDEPENDENT_LABEL,
   INDUSTRIES,
   OTHER_OPTION,
@@ -16,6 +19,8 @@ import {
   REFERRAL_SOURCES,
   STATES,
 } from "@/lib/event";
+
+const PIXEL_CONTENT_NAME = `${EVENT.name} ${EVENT.year}`;
 
 function SubmitButton({ verifying }: { verifying: boolean }) {
   const { pending } = useFormStatus();
@@ -174,7 +179,10 @@ export default function RegisterForm() {
   const [values, setValues] = useState<Values>(EMPTY_VALUES);
   // "Editar mis datos" regresa al paso 1 sin perder lo capturado.
   const [editing, setEditing] = useState(false);
-  const verifying = state.stage === "verify" && !editing;
+  // "done" sigue mostrando el paso 2 mientras se navega al pase.
+  const verifying = (state.stage === "verify" || state.stage === "done") && !editing;
+  const router = useRouter();
+  const leadSent = useRef(false);
   // El error del servidor se oculta en cuanto la persona corrige un campo.
   const [errorDismissed, setErrorDismissed] = useState(false);
 
@@ -184,6 +192,19 @@ export default function RegisterForm() {
     if (state.stage === "verify") setEditing(false);
     setErrorDismissed(false);
   }, [state]);
+
+  // Eventos estandar de Meta: Lead al enviar el codigo del correo (una vez) y
+  // CompleteRegistration cuando el pase ya existe.
+  useEffect(() => {
+    if (state.stage === "verify" && !leadSent.current) {
+      leadSent.current = true;
+      trackPixel("Lead", { content_name: PIXEL_CONTENT_NAME });
+    }
+    if (state.stage === "done" && state.passPath) {
+      trackPixel("CompleteRegistration", { content_name: PIXEL_CONTENT_NAME, status: true });
+      router.replace(state.passPath);
+    }
+  }, [state, router]);
 
   function set<K extends keyof Values>(key: K, value: Values[K]) {
     setValues((current) => ({ ...current, [key]: value }));

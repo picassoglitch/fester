@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed } from "next/font/google";
 import { EVENT } from "@/lib/event";
 import { CANONICAL_ORIGIN } from "@/lib/site";
+import MetaPixel from "@/components/MetaPixel";
 import "./globals.css";
 
 /** Condensada para titulos, como en el mockup aprobado. El cuerpo sigue en la fuente del sistema. */
@@ -32,7 +33,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className={display.variable} data-scroll-behavior="smooth">
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        {children}
+        <MetaPixel />
+      </body>
     </html>
   );
 }

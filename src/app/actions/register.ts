@@ -25,8 +25,10 @@ import {
 export type RegisterState = {
   error?: string;
   notice?: string;
-  stage?: "form" | "verify";
+  stage?: "form" | "verify" | "done";
   email?: string;
+  /** Solo con stage "done": el cliente manda el evento del pixel y navega aqui. */
+  passPath?: string;
 };
 
 function pick(formData: FormData, key: string): string {
@@ -190,5 +192,7 @@ export async function registerAttendee(
 
   await setAttendeeSessionCookie({ id: attendee.id, code, name, email: address });
 
-  redirect(`/pase/${code}`);
+  // Sin redirect: el formulario manda CompleteRegistration al pixel desde la
+  // landing (la URL del pase lleva el codigo y no debe llegar a Meta) y navega.
+  return { stage: "done", passPath: `/pase/${code}` };
 }
