@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AttendeeProgress } from "@/lib/attendee";
+import type { PublicPassProgress } from "@/lib/attendee";
 import QrCode from "@/components/QrCode";
 import FesterLogo from "@/components/FesterLogo";
 import { formatTime } from "@/lib/format";
@@ -10,9 +10,11 @@ const POLL_MS = 10_000;
 
 export default function PassView({
   initial,
+  displayName,
   qrValue,
 }: {
-  initial: AttendeeProgress;
+  initial: PublicPassProgress;
+  displayName: string;
   qrValue: string;
 }) {
   const [data, setData] = useState(initial);
@@ -26,7 +28,7 @@ export default function PassView({
       try {
         const res = await fetch(`/api/pase/${initial.code}`, { cache: "no-store" });
         if (!res.ok || cancelled) return;
-        const next: AttendeeProgress = await res.json();
+        const next: PublicPassProgress = await res.json();
         setData(next);
         if (next.stars > previousStars.current) {
           const newest = next.stations
@@ -69,7 +71,7 @@ export default function PassView({
       <header className="flex flex-col items-center text-center">
         <FesterLogo className="h-8" />
         <p className="mt-3 text-xs font-semibold uppercase tracking-[0.3em] text-brand">Tu pase</p>
-        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{data.name}</h1>
+        <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{displayName}</h1>
         <p className="mt-1 font-mono text-sm tracking-[0.35em] text-white/45">{data.code}</p>
       </header>
 
@@ -82,7 +84,6 @@ export default function PassView({
       {data.redeemedAt ? (
         <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-center text-sm text-white/70">
           🎁 Premio entregado a las {formatTime(data.redeemedAt)}
-          {data.redeemedByName ? ` · ${data.redeemedByName}` : ""}
         </div>
       ) : done ? (
         <div className="animate-ring rounded-2xl border border-success/40 bg-success/10 px-4 py-3 text-center text-sm font-semibold text-success">
@@ -127,7 +128,7 @@ export default function PassView({
         <ul className="mt-5 space-y-2">
           {data.stations.map((station) => (
             <li
-              key={station.id}
+              key={station.key}
               className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition ${
                 station.visitedAt
                   ? "border-gold/30 bg-gold/10"

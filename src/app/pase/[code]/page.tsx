@@ -1,36 +1,39 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { getAttendeeProgress } from "@/lib/attendee";
+import { notFound } from "next/navigation";
+import { getPublicPassProgress } from "@/lib/attendee";
+import { getAttendeeSession } from "@/lib/auth";
 import { normalizeCode } from "@/lib/codes";
+import { prisma } from "@/lib/db";
 import { appUrl } from "@/lib/site";
 import PassView from "@/components/PassView";
-import FesterLogo from "@/components/FesterLogo";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Mi pase",
+  robots: { index: false, follow: false },
 };
 
 export default async function PassPage({ params }: { params: Promise<{ code: string }> }) {
-  const { code } = await params;
-  const progress = await getAttendeeProgress(normalizeCode(code));
+  const { code: rawCode } = await params;
+  const code = normalizeCode(rawCode);
+  const progress = await getPublicPassProgress(code);
+  if (!progress) notFound();
 
-  if (!progress) {
-    return (
-      <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center gap-4 px-6 text-center">
-        <FesterLogo className="h-9" />
-        <h1 className="text-2xl font-bold">Pase no encontrado</h1>
-        <p className="text-sm text-white/60">
-          El código <span className="font-mono">{normalizeCode(code)}</span> no existe. Revísalo o
-          crea un pase nuevo.
-        </p>
-        <Link href="/" className="btn btn-primary">
-          Crear mi pase
-        </Link>
-      </main>
-    );
+  // El nombre completo solo se muestra a quien es titular del pase, y viaja como texto
+  // plano: el componente cliente nunca recibe el registro completo.
+  let fullName: string | undefined;
+  const session = await getAttendeeSession();
+  if (session && session.code === code) {
+    const attendee = await prisma.attendee.findUnique({ where: { code }, select: { name: true } });
+    fullName = attendee?.name;
   }
 
-  return <PassView initial={progress} qrValue={`${appUrl()}/s/${progress.code}`} />;
+  return (
+    <PassView
+      initial={progress}
+      displayName={fullName ?? progress.firstName}
+      qrValue={`${appUrl()}/s/${progress.code}`}
+    />
+  );
 }
