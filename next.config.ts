@@ -7,15 +7,16 @@ const isProd = process.env.NODE_ENV === "production";
  * Politica estricta en modo Report-Only: los scripts inline de arranque de Next
  * necesitan nonces (todas las paginas se vuelven dinamicas) o hashes antes de
  * poder exigirla. Mientras tanto solo reporta en la consola del navegador.
- * 'unsafe-eval' solo en desarrollo (lo usa React dev).
+ * 'unsafe-eval' solo en desarrollo (lo usa React dev). Meta Pixel carga
+ * fbevents.js de connect.facebook.net y manda los eventos a www.facebook.com.
  */
 const reportOnlyCsp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline' https://connect.facebook.net${isProd ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  "img-src 'self' data: blob: https://www.facebook.com",
   "font-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' https://connect.facebook.net https://www.facebook.com",
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
   "frame-src 'none'",
