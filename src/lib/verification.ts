@@ -13,6 +13,7 @@ import { getSecret } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { verificationEmail } from "@/lib/emails";
 import { sendMail } from "@/lib/mail";
+import { consumeRateLimit } from "@/lib/throttle";
 
 /** Minutos que vive un codigo antes de vencer. */
 export const CODE_TTL_MINUTES = 15;
@@ -22,6 +23,10 @@ export const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_ATTEMPTS = 5;
 /** Codigos que puede pedir un mismo correo por hora. */
 const MAX_PER_HOUR = 6;
+/** Codigos que puede pedir una misma IP por hora, sumando todos los correos. */
+export const MAX_PER_IP_PER_HOUR = 10;
+
+const RATE_LIMIT_ERROR = "Pediste demasiados códigos. Espera una hora o escríbenos para ayudarte.";
 
 /**
  * `reason` distingue el fallo que no es culpa de la persona: con "cooldown" el
@@ -64,6 +69,8 @@ function newCode(): string {
 export async function issueEmailCode(
   rawEmail: string,
   purpose: VerificationPurpose,
+  /** HMAC de la IP (clientIpHash). Sin limite por IP el formulario servia para llenar cualquier buzon. */
+  ipHash: string,
 ): Promise<VerificationResult> {
   const email = normalizeEmail(rawEmail);
   if (!isValidEmail(email)) {
@@ -83,11 +90,7 @@ export async function issueEmailCode(
   ]);
 
   if (recentCount >= MAX_PER_HOUR) {
-    return {
-      ok: false,
-      error: "Pediste demasiados códigos. Espera una hora o escríbenos para ayudarte.",
-      reason: "rate-limit",
-    };
+    return { ok: false, error: RATE_LIMIT_ERROR, reason: "rate-limit" };
   }
 
   if (pending) {
@@ -100,6 +103,12 @@ export async function issueEmailCode(
         reason: "cooldown",
       };
     }
+  }
+
+  // Se cuenta aqui, ya pasados los limites por correo: solo suman los envios reales.
+  const perIp = await consumeRateLimit(`email-code:ip:${ipHash}`, MAX_PER_IP_PER_HOUR, 60 * 60 * 1000, now);
+  if (!perIp.allowed) {
+    return { ok: false, error: RATE_LIMIT_ERROR, reason: "rate-limit" };
   }
 
   const code = newCode();

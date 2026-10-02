@@ -94,22 +94,27 @@ export async function redeemPrize(rawCode: string): Promise<ScanOutcome> {
     return { ok: false, error: `${attendee.name} todavía no completa todas las estaciones.` };
   }
 
-  if (!attendee.redeemedAt) {
-    await prisma.attendee.update({
-      where: { id: attendee.id },
-      data: { redeemedAt: new Date(), redeemedById: session.id },
-    });
-  }
+  // Update condicional: si dos personas entregan el mismo premio a la vez, solo
+  // una cambia la fila y la otra ve "ya se habia entregado".
+  const { count } = await prisma.attendee.updateMany({
+    where: { id: attendee.id, redeemedAt: null, completedAt: { not: null } },
+    data: { redeemedAt: new Date(), redeemedById: session.id },
+  });
+  const delivered = count === 1;
 
   const progress = await getStaffAttendeeProgress(code);
   if (!progress) return { ok: false, error: "No pudimos leer el pase." };
+  if (!delivered && !progress.redeemedAt) {
+    // count 0 sin entrega previa: el recorrido se reabrio entre la lectura y el update.
+    return { ok: false, error: `${progress.name} todavía no completa todas las estaciones.` };
+  }
 
   return {
     ok: true,
-    status: attendee.redeemedAt ? "repetido" : "premio",
-    message: attendee.redeemedAt
-      ? `Ojo: el premio de ${progress.name} ya se había entregado.`
-      : `Premio entregado a ${progress.name}.`,
+    status: delivered ? "premio" : "repetido",
+    message: delivered
+      ? `Premio entregado a ${progress.name}.`
+      : `Ojo: el premio de ${progress.name} ya se había entregado.`,
     attendee: progress,
   };
 }

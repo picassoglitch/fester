@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { generateCode } from "@/lib/codes";
 import { passEmail } from "@/lib/emails";
 import { sendMail } from "@/lib/mail";
+import { clientIpHash } from "@/lib/throttle";
 import { confirmEmailCode, issueEmailCode, normalizeEmail } from "@/lib/verification";
 import {
   AGE_LIMITS,
@@ -105,7 +106,7 @@ export async function registerAttendee(
 
   // Paso 1: los datos estan bien, pero nadie entra sin comprobar el correo.
   if (!verifying || intent === "resend") {
-    const issued = await issueEmailCode(address, "REGISTER");
+    const issued = await issueEmailCode(address, "REGISTER", await clientIpHash());
     if (!issued.ok) {
       // Con el cooldown el codigo anterior sigue vigente: mejor mandarla a
       // escribirlo que dejarla esperando en el paso de los datos.

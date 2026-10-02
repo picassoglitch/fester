@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
+import { postLoginTarget, safeNextPath } from "@/lib/safe-redirect";
 import PinLogin from "@/components/PinLogin";
 import FesterLogo from "@/components/FesterLogo";
 
@@ -12,9 +13,9 @@ export default async function StaffLoginPage({
 }) {
   const { next } = await searchParams;
   const session = await getSession();
-  const target = next && next.startsWith("/") ? next : "/staff/escanear";
+  const target = safeNextPath(next);
 
-  if (session) redirect(target);
+  if (session) redirect(postLoginTarget(target, session.role));
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 px-5 py-10">

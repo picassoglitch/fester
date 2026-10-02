@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { resolveSeedAdminPin } from "../src/lib/pin";
 
 const prisma = new PrismaClient();
 
@@ -13,14 +14,15 @@ const DEFAULT_STATIONS = [
 ];
 
 async function main() {
-  const pin = process.env.ADMIN_PIN || "482913";
+  // Se valida antes de escribir nada en la base.
+  const pin = resolveSeedAdminPin(process.env.ADMIN_PIN);
 
   const admins = await prisma.staff.count({ where: { role: "ADMIN" } });
   if (admins === 0) {
     await prisma.staff.create({
       data: { name: "Administrador", pinHash: await bcrypt.hash(pin, 10), role: "ADMIN" },
     });
-    console.log(`Admin creado. PIN: ${pin}`);
+    console.log("Admin creado con el PIN de ADMIN_PIN.");
   } else {
     console.log("Ya existe un admin, no se creó otro.");
   }

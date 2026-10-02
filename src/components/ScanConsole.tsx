@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Scanner from "@/components/Scanner";
 import { recordScan, redeemPrize, type ScanOutcome } from "@/app/actions/scan";
@@ -26,6 +26,9 @@ export default function ScanConsole({
   const [stationId, setStationId] = useState<string>("");
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
   const [manual, setManual] = useState("");
+  // Codigo que llego por /s/CODE: se precarga y espera confirmacion explicita.
+  const [loadedCode, setLoadedCode] = useState<string | null>(null);
+  const prefilled = useRef<string | null>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -37,14 +40,19 @@ export default function ScanConsole({
     } catch {
       /* modo privado */
     }
+    // Sin estacion guardada no se elige una por defecto: hay que escogerla.
     const valid = stations.find((s) => s.id === stored);
-    setStationId(valid ? valid.id : stations[0].id);
+    if (valid) setStationId(valid.id);
   }, [mode, stations]);
+
+  const needsStation = mode === "estacion" && !stationId;
+  const activeStation = stations.find((s) => s.id === stationId);
 
   const submit = useCallback(
     (rawCode: string) => {
       const code = normalizeCode(rawCode);
       if (!code) return;
+      if (mode === "estacion" && !stationId) return;
       startTransition(async () => {
         const result =
           mode === "premio" ? await redeemPrize(code) : await recordScan(code, stationId);
@@ -57,15 +65,25 @@ export default function ScanConsole({
     [mode, stationId, router],
   );
 
+  // Llegar con ?code= solo precarga el pase (una vez por codigo). Antes se
+  // registraba solo y cada cambio de estacion volvia a sumar una estrella.
   useEffect(() => {
-    if (!initialCode) return;
-    if (mode === "estacion" && !stationId) return;
-    submit(initialCode);
-    // Solo una vez por codigo que llega desde el QR.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCode, stationId]);
+    if (!initialCode || prefilled.current === initialCode) return;
+    prefilled.current = initialCode;
+    setLoadedCode(initialCode);
+  }, [initialCode]);
 
-  const activeStation = stations.find((s) => s.id === stationId);
+  const clearCodeFromUrl = useCallback(() => {
+    if (initialCode) router.replace(mode === "premio" ? "/staff/premios" : "/staff/escanear");
+  }, [initialCode, mode, router]);
+
+  function confirmLoaded() {
+    if (!loadedCode) return;
+    submit(loadedCode);
+    setLoadedCode(null);
+    clearCodeFromUrl();
+  }
+
   const tone =
     outcome === null
       ? null
@@ -90,6 +108,11 @@ export default function ScanConsole({
             value={stationId}
             onChange={(event) => {
               setStationId(event.target.value);
+              // Cambiar de estacion descarta el pase cargado: no se registra nada.
+              setLoadedCode(null);
+              setOutcome(null);
+              setManual("");
+              clearCodeFromUrl();
               try {
                 localStorage.setItem(STATION_KEY, event.target.value);
               } catch {
@@ -97,6 +120,11 @@ export default function ScanConsole({
               }
             }}
           >
+            {!stationId && (
+              <option value="" disabled className="bg-ink">
+                Elige tu estación
+              </option>
+            )}
             {stations.map((station) => (
               <option key={station.id} value={station.id} className="bg-ink">
                 {station.emoji} {station.name}
@@ -106,7 +134,45 @@ export default function ScanConsole({
         </div>
       )}
 
-      <Scanner onCode={submit} paused={pending || outcome !== null} />
+      {needsStation && (
+        <p className="rounded-lg border border-gold/40 bg-gold/10 px-4 py-3 text-center text-sm text-gold">
+          Elige tu estación antes de escanear.
+        </p>
+      )}
+
+      <Scanner
+        onCode={submit}
+        paused={pending || outcome !== null || loadedCode !== null || needsStation}
+      />
+
+      {loadedCode && !outcome && (
+        <div className="card space-y-3 border border-sky/30 p-5 text-center">
+          <p className="text-sm text-white/60">Pase cargado</p>
+          <p className="font-mono text-2xl tracking-[0.3em]">{loadedCode}</p>
+          <button
+            type="button"
+            className="btn btn-primary w-full"
+            disabled={pending || needsStation}
+            onClick={confirmLoaded}
+          >
+            {mode === "premio"
+              ? "Entregar premio"
+              : activeStation
+                ? `Registrar estrella en ${activeStation.name}`
+                : "Elige tu estación"}
+          </button>
+          <button
+            type="button"
+            className="text-sm text-white/50 underline underline-offset-4"
+            onClick={() => {
+              setLoadedCode(null);
+              clearCodeFromUrl();
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
 
       <form
         className="flex gap-2"
@@ -124,7 +190,11 @@ export default function ScanConsole({
           autoComplete="off"
           maxLength={12}
         />
-        <button type="submit" className="btn btn-ghost px-5" disabled={pending || manual.length < 4}>
+        <button
+          type="submit"
+          className="btn btn-ghost px-5"
+          disabled={pending || needsStation || manual.length < 4}
+        >
           Ir
         </button>
       </form>

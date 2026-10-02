@@ -130,18 +130,7 @@ export default function AccountLogin() {
           {state.notice && !state.error && <Notice tone="ok">{state.notice}</Notice>}
 
           {state.error && (
-            <Notice tone="error">
-              {state.error}
-              {state.notFound && (
-                <>
-                  {" "}
-                  Regístrate y te generamos tu pase con QR en un minuto.
-                  <Link href="/#registro" className="btn btn-primary mt-3 w-full">
-                    Crear mi pase
-                  </Link>
-                </>
-              )}
-            </Notice>
+            <Notice tone="error">{state.error}</Notice>
           )}
 
           {verifying && (
@@ -175,18 +164,14 @@ export default function AccountLogin() {
           )}
 
           <input type="hidden" name="stage" value={verifying ? "code" : "email"} />
-          <SubmitButton secondary={state.notFound}>
-            {verifying ? "Entrar a mi cuenta" : state.notFound ? "Probar con otro correo" : "Enviarme un código"}
-          </SubmitButton>
+          <SubmitButton>{verifying ? "Entrar a mi cuenta" : "Enviarme un código"}</SubmitButton>
 
-          {!state.notFound && (
-            <p className="text-center text-xs text-white/50">
-              ¿Aún no te registras?{" "}
-              <Link href="/#registro" className="underline underline-offset-4 hover:text-white">
-                Crear mi pase
-              </Link>
-            </p>
-          )}
+          <p className="text-center text-xs text-white/50">
+            ¿Aún no te registras?{" "}
+            <Link href="/#registro" className="underline underline-offset-4 hover:text-white">
+              Crear mi pase
+            </Link>
+          </p>
         </form>
       ) : (
         <form action={codeAction} className="card space-y-3 p-5">

@@ -2,24 +2,10 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
+import { toCsv } from "@/lib/csv";
 import { buildXlsx, type CellValue, type Sheet } from "@/lib/xlsx";
 
 export const dynamic = "force-dynamic";
-
-function toCsv(rows: CellValue[][]): string {
-  const body = rows
-    .map((row) =>
-      row
-        .map((cell) => {
-          const value = String(cell ?? "");
-          return /[",;\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-        })
-        .join(","),
-    )
-    .join("\r\n");
-  // BOM para que Excel respete los acentos.
-  return `﻿${body}`;
-}
 
 function fileStamp(): string {
   return new Date().toISOString().slice(0, 10);
@@ -144,38 +130,53 @@ function sheetToRows(sheet: Sheet): CellValue[][] {
 export async function GET(_request: Request, context: { params: Promise<{ tipo: string }> }) {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
   }
 
   const { tipo } = await context.params;
+  const exporter = EXPORTS[tipo as keyof typeof EXPORTS];
+  // Lista cerrada: antes cualquier otro valor caia en el CSV completo.
+  if (!Object.hasOwn(EXPORTS, tipo) || !exporter) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+  return exporter();
+}
 
+const NO_STORE = { "Cache-Control": "no-store" };
+
+const EXPORTS = {
   // Libro de Excel con las dos hojas: es lo que se pasa a marketing y ventas.
-  if (tipo === "excel") {
+  async excel() {
     const [attendees, scans] = await Promise.all([attendeesSheet(), scansSheet()]);
     const workbook = buildXlsx([attendees, scans]);
 
     return new NextResponse(new Uint8Array(workbook), {
       headers: {
+        ...NO_STORE,
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; charset=utf-8",
         "Content-Disposition": `attachment; filename="fester-asistentes-${fileStamp()}.xlsx"`,
       },
     });
-  }
+  },
 
-  if (tipo === "escaneos") {
+  async asistentes() {
+    return new NextResponse(toCsv(sheetToRows(await attendeesSheet())), {
+      headers: {
+        ...NO_STORE,
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="fester-asistentes.csv"',
+      },
+    });
+  },
+
+  async escaneos() {
     return new NextResponse(toCsv(sheetToRows(await scansSheet())), {
       headers: {
+        ...NO_STORE,
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": 'attachment; filename="fester-escaneos.csv"',
       },
     });
-  }
-
-  return new NextResponse(toCsv(sheetToRows(await attendeesSheet())), {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="fester-asistentes.csv"',
-    },
-  });
-}
+  },
+} as const;
