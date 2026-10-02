@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed } from "next/font/google";
 import { EVENT } from "@/lib/event";
+import { CANONICAL_ORIGIN } from "@/lib/site";
 import "./globals.css";
 
 /** Condensada para titulos, como en el mockup aprobado. El cuerpo sigue en la fuente del sistema. */
@@ -12,6 +13,8 @@ const display = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(CANONICAL_ORIGIN),
+  alternates: { canonical: "/" },
   title: {
     default: `${EVENT.name} ${EVENT.year} · ${EVENT.tagline}`,
     template: `%s · ${EVENT.name} ${EVENT.year}`,

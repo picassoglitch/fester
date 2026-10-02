@@ -4,7 +4,12 @@ import { ResetPinForm, StaffForm } from "@/components/StaffForm";
 
 export const dynamic = "force-dynamic";
 
-export default async function StaffPage() {
+export default async function StaffPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string }>;
+}) {
+  const { aviso } = await searchParams;
   const staff = await prisma.staff.findMany({
     orderBy: [{ active: "desc" }, { name: "asc" }],
     include: { _count: { select: { scans: true } } },
@@ -19,6 +24,12 @@ export default async function StaffPage() {
           PIN no se pueden consultar después: si alguien lo olvida, asígnale uno nuevo.
         </p>
       </div>
+
+      {aviso === "desactivar" && (
+        <p className="rounded-lg border border-alert/50 bg-alert/15 px-4 py-3 text-sm text-white">
+          No puedes desactivar tu propia cuenta ni al último administrador.
+        </p>
+      )}
 
       <section className="card p-5">
         <StaffForm />

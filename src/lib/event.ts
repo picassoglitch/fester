@@ -5,6 +5,7 @@
  */
 
 import type { IconName } from "@/components/landing/Icon";
+import { spanishNumber, STATION_COUNT } from "@/lib/stations";
 
 export const EVENT = {
   brand: "Fester",
@@ -265,7 +266,7 @@ const JOURNEY_STEPS: readonly JourneyStep[] = [
     copy: "Al llegar, escanearemos tu QR en el registro para darte acceso y activar tu pasaporte digital.",
     bullets: [
       "Podrás llevar el tracking de tu recorrido por los kioskos del evento.",
-      "El objetivo será visitar los cinco kioskos y completar tu pasaporte.",
+      `El objetivo será pasar por las ${spanishNumber(STATION_COUNT)} estaciones (registro y ${spanishNumber(STATION_COUNT - 1)} kioskos) y completar tu pasaporte.`,
       "En cada kiosko escanearás el mismo QR para sumar puntos.",
       "Los puntos podrán utilizarse para el canje de promocionales.",
     ],
@@ -273,11 +274,11 @@ const JOURNEY_STEPS: readonly JourneyStep[] = [
   {
     icon: "groupstar",
     title: "Recorre los kioskos y disfruta el evento",
-    copy: "Escanea tu QR en los cinco kioskos para sumar puntos y aprovecha todo lo que hay alrededor:",
+    copy: `Escanea tu QR en las ${spanishNumber(STATION_COUNT)} estaciones para sumar puntos y aprovecha todo lo que hay alrededor:`,
     chips: [
       { icon: "mic", label: "Conferencias" },
       { icon: "gamepad", label: "Juegos" },
-      { icon: "camera", label: "Photo booth" },
+      { icon: "camera", label: "Cabina de fotos" },
       { icon: "vr", label: "Experiencia inmersiva" },
       { icon: "training", label: "Capacitaciones" },
     ],

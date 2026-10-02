@@ -7,7 +7,12 @@ import Journey from "@/components/landing/Journey";
 import Registration from "@/components/landing/Registration";
 import Faq from "@/components/landing/Faq";
 import SiteFooter from "@/components/landing/SiteFooter";
+import type { Metadata } from "next";
 import { SHOW_SPEAKERS } from "@/lib/event";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 /**
  * La landing no consulta la base: todo su contenido vive en src/lib/event.ts,

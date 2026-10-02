@@ -8,6 +8,8 @@
 -- borrarlas arrastraria en cascada los escaneos ya registrados.
 --
 -- Equivale a "npm run db:stations" (prisma/update-stations.ts).
+-- La lista oficial vive en src/lib/stations.ts (DEFAULT_STATIONS): si cambia
+-- alla, actualiza los valores de abajo a mano.
 
 with deseadas (name, emoji, "order") as (
   values

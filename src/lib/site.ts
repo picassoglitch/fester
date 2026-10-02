@@ -9,3 +9,10 @@ export function appUrl(): string {
   if (vercel) return `https://${vercel}`;
   return "http://localhost:3000";
 }
+
+/**
+ * Dominio oficial para canonical, robots y sitemap. Fijo a proposito: con
+ * VERCEL_URL el espejo *.vercel.app se declararia canonico a si mismo.
+ */
+export const CANONICAL_ORIGIN = "https://www.encuentrofester.com.mx";
+export const CANONICAL_HOST = new URL(CANONICAL_ORIGIN).host;
