@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
+import { normalizeCode } from "@/lib/codes";
+import { canRedeemPrizes, staffHomeWithCode } from "@/lib/roles";
 import { logout } from "@/app/actions/session";
 import ScanConsole from "@/components/ScanConsole";
 import AutoRefresh from "@/components/AutoRefresh";
@@ -8,12 +11,21 @@ import FesterLogo from "@/components/FesterLogo";
 
 export const dynamic = "force-dynamic";
 
-export default async function PrizesPage() {
-  const [session, pendingPrizes, delivered] = await Promise.all([
+export default async function PrizesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string }>;
+}) {
+  const [{ code }, session, pendingPrizes, delivered] = await Promise.all([
+    searchParams,
     requireSession(),
     prisma.attendee.count({ where: { completedAt: { not: null }, redeemedAt: null } }),
     prisma.attendee.count({ where: { redeemedAt: { not: null } } }),
   ]);
+  // Escaneo no entrega premios: va a su pantalla con el pase precargado.
+  if (!canRedeemPrizes(session.role)) {
+    redirect(staffHomeWithCode(session.role, code ? normalizeCode(code) : null));
+  }
 
   return (
     <main className="mx-auto w-full max-w-lg px-4 py-6">
@@ -25,9 +37,11 @@ export default async function PrizesPage() {
           <p className="text-xs text-white/50">Sesión de {session.name}</p>
         </div>
         <div className="flex items-center gap-3 text-xs">
-          <Link href="/staff/escanear" className="text-white/60 underline underline-offset-4">
-            Estaciones
-          </Link>
+          {session.role === "ADMIN" && (
+            <Link href="/staff/escanear" className="text-white/60 underline underline-offset-4">
+              Estaciones
+            </Link>
+          )}
           <form action={logout}>
             <button type="submit" className="text-white/60 underline underline-offset-4">
               Salir
@@ -47,7 +61,14 @@ export default async function PrizesPage() {
         </div>
       </div>
 
-      <ScanConsole stations={[]} staffName={session.name} mode="premio" />
+      {/* ?code= solo precarga el pase: el staff confirma con "Entregar premio". */}
+      <ScanConsole
+        stations={[]}
+        staffName={session.name}
+        mode="premio"
+        showModeLink={session.role === "ADMIN"}
+        initialCode={code ? normalizeCode(code) : undefined}
+      />
     </main>
   );
 }

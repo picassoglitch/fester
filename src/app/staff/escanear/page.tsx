@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { normalizeCode } from "@/lib/codes";
+import { canRecordStations, staffHomeWithCode } from "@/lib/roles";
 import { getStaffStats } from "@/lib/staff-stats";
 import { logout } from "@/app/actions/session";
 import ScanConsole from "@/components/ScanConsole";
@@ -16,6 +18,10 @@ export default async function ScanPage({
   searchParams: Promise<{ code?: string }>;
 }) {
   const [{ code }, session] = await Promise.all([searchParams, requireSession()]);
+  // Premios no registra estaciones: va a su pantalla con el pase precargado.
+  if (!canRecordStations(session.role)) {
+    redirect(staffHomeWithCode(session.role, code ? normalizeCode(code) : null));
+  }
   const stats = await getStaffStats(session.id);
 
   return (
@@ -31,13 +37,15 @@ export default async function ScanPage({
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs">
-          <Link href="/staff/premios" className="text-white/60 underline underline-offset-4">
-            Premios
-          </Link>
           {session.role === "ADMIN" && (
-            <Link href="/admin" className="text-white/60 underline underline-offset-4">
-              Panel
-            </Link>
+            <>
+              <Link href="/staff/premios" className="text-white/60 underline underline-offset-4">
+                Premios
+              </Link>
+              <Link href="/admin" className="text-white/60 underline underline-offset-4">
+                Panel
+              </Link>
+            </>
           )}
           <form action={logout}>
             <button type="submit" className="text-white/60 underline underline-offset-4">
@@ -59,6 +67,7 @@ export default async function ScanPage({
               stations={stats.stations.map((s) => ({ id: s.id, name: s.name, emoji: s.emoji }))}
               staffName={session.name}
               mode="estacion"
+              showModeLink={session.role === "ADMIN"}
               initialCode={code ? normalizeCode(code) : undefined}
             />
           )}

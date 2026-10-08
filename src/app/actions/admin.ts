@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { syncCompletion } from "@/lib/attendee";
 import { newPinError } from "@/lib/pin";
+import { parseRole, ROLE_LABELS } from "@/lib/roles";
 
 export type ActionState = { error?: string; ok?: string };
 
@@ -101,7 +102,7 @@ export async function createStaff(_prev: ActionState, formData: FormData): Promi
   await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   const pin = String(formData.get("pin") ?? "").trim();
-  const role = String(formData.get("role") ?? "STAFF") === "ADMIN" ? "ADMIN" : "STAFF";
+  const role = parseRole(formData.get("role")) ?? "STAFF";
 
   if (name.length < 2) return { error: "Escribe el nombre de la persona." };
   const pinError = newPinError(pin, role);
@@ -138,6 +139,50 @@ export async function toggleStaff(formData: FormData) {
     data: { active: !person.active, sessionVersion: { increment: 1 } },
   });
   revalidatePath("/admin/staff");
+}
+
+export async function changeStaffRole(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const session = await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const role = parseRole(formData.get("role"));
+  const pin = String(formData.get("pin") ?? "").trim();
+  if (!role) return { error: "Elige un rol." };
+
+  const person = await prisma.staff.findUnique({ where: { id }, select: { active: true, role: true } });
+  if (!person) return { error: "No encontramos a esa persona." };
+  if (person.role === role) return { ok: "Ese ya es su rol." };
+  // Igual que al desactivar: nadie se saca a si mismo del panel.
+  if (id === session.id) return { error: "No puedes cambiar tu propio rol." };
+  if (
+    person.role === "ADMIN" &&
+    person.active &&
+    (await prisma.staff.count({ where: { role: "ADMIN", active: true } })) <= 1
+  ) {
+    return { error: "Es el último administrador activo: no se le puede quitar el rol." };
+  }
+
+  // Un admin necesita PIN de 8 digitos; el actual no se puede leer (es hash),
+  // asi que para subir a alguien a admin se le asigna uno nuevo.
+  let pinHash: string | undefined;
+  if (role === "ADMIN" || pin) {
+    const pinError = newPinError(pin, role);
+    if (pinError) {
+      return { error: role === "ADMIN" ? `Para hacerlo administrador asígnale un PIN nuevo. ${pinError}` : pinError };
+    }
+    const others = await prisma.staff.findMany({ where: { id: { not: id } }, select: { pinHash: true } });
+    for (const other of others) {
+      if (await bcrypt.compare(pin, other.pinHash)) return { error: "Ese PIN ya está en uso." };
+    }
+    pinHash = await bcrypt.hash(pin, 10);
+  }
+
+  // sessionVersion sube: la sesion abierta con el rol anterior deja de valer.
+  await prisma.staff.update({
+    where: { id },
+    data: { role, ...(pinHash ? { pinHash } : {}), sessionVersion: { increment: 1 } },
+  });
+  revalidatePath("/admin/staff");
+  return { ok: `Rol cambiado a ${ROLE_LABELS[role]}.` };
 }
 
 export async function resetStaffPin(_prev: ActionState, formData: FormData): Promise<ActionState> {

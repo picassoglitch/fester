@@ -8,8 +8,11 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+/// STAFF registra estaciones ("Escaneo"); PRIZES solo entrega premios
+/// ("Premios"); ADMIN puede todo.
 enum Role {
   STAFF
+  PRIZES
   ADMIN
 }
 
