@@ -153,7 +153,7 @@ async function prizesSheet(url: URL): Promise<Sheet> {
       attendee.redeemedAt ? formatDateTime(attendee.redeemedAt) : "",
       attendee.redeemedBy?.name ?? "",
       attendee.redeemedAt && !attendee.completedAt
-        ? "entregado antes de un cambio de estaciones"
+        ? "entregado sin recorrido completo"
         : "",
     ]),
   };

@@ -165,7 +165,7 @@ describe.skipIf(!hasLocalDb)("seguimiento de premios (base local)", () => {
     expect(deliveredCsv).not.toContain(codes.pending);
     expect(deliveredCsv).toContain(`Mesa ${marker}`);
     const early = deliveredLines.find((line) => line.includes(codes.early[0]));
-    expect(early).toContain("entregado antes de un cambio de estaciones");
+    expect(early).toContain("entregado sin recorrido completo");
     expect(deliveredCsv).not.toMatch(/@ejemplo\.com|5512345678/);
 
     // Pestaña desconocida cae en pendientes.

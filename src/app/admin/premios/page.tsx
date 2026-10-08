@@ -22,7 +22,7 @@ export default async function PrizesAdminPage({
   searchParams: Promise<{ q?: string; tab?: string; pagina?: string }>;
 }) {
   const params = await searchParams;
-  const q = (params.q ?? "").trim();
+  const q = (params.q ?? "").trim().slice(0, 100);
   const tab = parsePrizeTab(params.tab);
   const page = Math.max(1, Number(params.pagina ?? 1) || 1);
   const where = prizeWhere(tab, q);
@@ -153,7 +153,7 @@ export default async function PrizesAdminPage({
                     formatDateTime(attendee.completedAt)
                   ) : attendee.redeemedAt ? (
                     <span className="rounded-full bg-white/6 px-2.5 py-1 text-xs text-white/55">
-                      entregado antes de un cambio de estaciones
+                      entregado sin recorrido completo
                     </span>
                   ) : (
                     "—"

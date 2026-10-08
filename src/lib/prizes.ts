@@ -4,8 +4,7 @@ import { prisma } from "@/lib/db";
 /**
  * Seguimiento de premios. Cada contador sale de su propia consulta: si se
  * calcula "pendientes = completos - entregados" el numero se va a negativo
- * cuando alguien recibio premio y luego dejo de figurar como completo (por
- * ejemplo, al agregar una estacion).
+ * cuando hay premios entregados sin recorrido completo (sin completedAt).
  */
 export const PRIZE_TABS = [
   { key: "pendientes", label: "Pendientes" },
