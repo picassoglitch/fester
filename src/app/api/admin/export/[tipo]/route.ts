@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { toCsv } from "@/lib/csv";
 import { buildXlsx, type CellValue, type Sheet } from "@/lib/xlsx";
+import { PRIZE_ROW_SELECT, parsePrizeTab, prizeOrder, prizeWhere } from "@/lib/prizes";
 
 export const dynamic = "force-dynamic";
 
@@ -123,11 +124,46 @@ async function scansSheet(): Promise<Sheet> {
   };
 }
 
+/** Seguimiento de premios: respeta la pestaña (?tab=) y la busqueda (?q=) de /admin/premios. */
+async function prizesSheet(url: URL): Promise<Sheet> {
+  const tab = parsePrizeTab(url.searchParams.get("tab"));
+  const q = (url.searchParams.get("q") ?? "").trim().slice(0, 100);
+  const attendees = await prisma.attendee.findMany({
+    where: prizeWhere(tab, q),
+    orderBy: prizeOrder(tab),
+    select: PRIZE_ROW_SELECT,
+  });
+
+  return {
+    name: "Premios",
+    columns: [
+      { header: "nombre", width: 28 },
+      { header: "codigo", width: 12 },
+      { header: "empresa", width: 26 },
+      { header: "completo", width: 18 },
+      { header: "premio_entregado", width: 18 },
+      { header: "entregado_por", width: 20 },
+      { header: "nota", width: 40 },
+    ],
+    rows: attendees.map((attendee) => [
+      attendee.name,
+      attendee.code,
+      attendee.company ?? "",
+      attendee.completedAt ? formatDateTime(attendee.completedAt) : "",
+      attendee.redeemedAt ? formatDateTime(attendee.redeemedAt) : "",
+      attendee.redeemedBy?.name ?? "",
+      attendee.redeemedAt && !attendee.completedAt
+        ? "entregado sin recorrido completo"
+        : "",
+    ]),
+  };
+}
+
 function sheetToRows(sheet: Sheet): CellValue[][] {
   return [sheet.columns.map((column) => column.header), ...sheet.rows];
 }
 
-export async function GET(_request: Request, context: { params: Promise<{ tipo: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ tipo: string }> }) {
   const session = await getSession();
   if (!session || session.role !== "ADMIN") {
     return NextResponse.json({ error: "unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
@@ -139,7 +175,7 @@ export async function GET(_request: Request, context: { params: Promise<{ tipo: 
   if (!Object.hasOwn(EXPORTS, tipo) || !exporter) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
-  return exporter();
+  return exporter(request);
 }
 
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -176,6 +212,19 @@ const EXPORTS = {
         ...NO_STORE,
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": 'attachment; filename="fester-escaneos.csv"',
+      },
+    });
+  },
+
+  async premios(request: Request) {
+    const url = new URL(request.url);
+    const sheet = await prizesSheet(url);
+    const tab = parsePrizeTab(url.searchParams.get("tab"));
+    return new NextResponse(toCsv(sheetToRows(sheet)), {
+      headers: {
+        ...NO_STORE,
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="fester-premios-${tab}-${fileStamp()}.csv"`,
       },
     });
   },

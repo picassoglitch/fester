@@ -26,12 +26,12 @@ export const EVENT = {
 /**
  * Marca pidio quitar el telefono generico del pie (17 de septiembre).
  *
- * `email` es el correo institucional del evento (Fester): es el remitente de
- * los correos que manda la app y el contacto general de la landing. El soporte
- * del Encuentro va aparte, en `supportEmail()`.
+ * `email` es el correo de contacto del Encuentro: el unico que aparece en el
+ * pie, en los correos, en las preguntas frecuentes y en /mi-cuenta, y a donde
+ * llegan las respuestas de los asistentes (reply-to). Ver `supportEmail()`.
  */
 export const CONTACT = {
-  email: "encuentro@fester.com.mx",
+  email: "contacto@encuentrofester.com.mx",
   scheduleLabel: "Lunes a viernes, 9:00 a 18:00 h",
 } as const;
 
@@ -50,17 +50,12 @@ export const MAIL_DOMAIN = "encuentrofester.com.mx";
 export const DEFAULT_MAIL_FROM = `${EVENT.name} <no-reply@${MAIL_DOMAIN}>`;
 
 /**
- * Buzon de soporte del Encuentro. Se define con NEXT_PUBLIC_SUPPORT_EMAIL en el
- * entorno (Vercel) el dia que el buzon exista; mientras tanto todo cae en el
- * correo del evento para que nadie escriba a una direccion muerta.
+ * Correo de contacto y soporte del Encuentro. Por defecto es `CONTACT.email`;
+ * NEXT_PUBLIC_SUPPORT_EMAIL en el entorno (Vercel) lo sobreescribe, asi que
+ * dejala vacia salvo que de verdad haga falta otro buzon.
  */
 export function supportEmail(): string {
   return process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || CONTACT.email;
-}
-
-/** true cuando soporte ya tiene su propio buzon: el pie solo lo anuncia entonces. */
-export function hasSupportMailbox(): boolean {
-  return supportEmail() !== CONTACT.email;
 }
 
 /** La seccion de speakers se oculta hasta que marketing confirme la lista. */
