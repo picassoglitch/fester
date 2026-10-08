@@ -31,12 +31,15 @@ export default function StationChangeConfirm({
   impact: { completed: number; redeemed: number; inProgress: number; completesWithout: number };
 }) {
   const [change, setChange] = useState<Change | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // Borrar una estacion borra sus escaneos en cascada: solo se permite sin escaneos.
+  const canDelete = station.scans === 0;
 
   const toggleLabel = station.active ? "Desactivar" : "Activar";
 
   if (!change) {
     return (
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
         <button
           type="button"
           className="underline underline-offset-4"
@@ -44,13 +47,19 @@ export default function StationChangeConfirm({
         >
           {toggleLabel}
         </button>
-        <button
-          type="button"
-          className="text-alert/80 underline underline-offset-4"
-          onClick={() => setChange("eliminar")}
-        >
-          Eliminar
-        </button>
+        {canDelete ? (
+          <button
+            type="button"
+            className="text-alert/80 underline underline-offset-4"
+            onClick={() => setChange("eliminar")}
+          >
+            Eliminar
+          </button>
+        ) : (
+          <span className="text-white/40">
+            No se puede eliminar: tiene escaneos. Desactívala para quitarla del recorrido.
+          </span>
+        )}
       </div>
     );
   }
@@ -67,7 +76,7 @@ export default function StationChangeConfirm({
   }
   if (change === "eliminar") {
     lines.push(
-      `Se borran sus ${station.scans} escaneos y no se puede deshacer. Para conservarlos, mejor desactívala.`,
+      "No tiene escaneos. Se borra para siempre y no se puede deshacer.",
     );
   } else if (change === "desactivar") {
     lines.push("Sus escaneos se conservan.");
@@ -75,7 +84,12 @@ export default function StationChangeConfirm({
 
   const serverAction = change === "eliminar" ? deleteStation : toggleStation;
   async function action(formData: FormData) {
-    await serverAction(formData);
+    const result = await serverAction(formData);
+    if (result && "error" in result && result.error) {
+      setError(result.error);
+      return;
+    }
+    setError(null);
     setChange(null);
   }
   const confirmLabel =
@@ -99,6 +113,11 @@ export default function StationChangeConfirm({
           {line}
         </p>
       ))}
+      {error && (
+        <p role="alert" className="mt-2 text-alert">
+          {error}
+        </p>
+      )}
       <form action={action} className="mt-3 flex flex-wrap items-center gap-3">
         <input type="hidden" name="id" value={station.id} />
         <input type="hidden" name="confirm" value="1" />
@@ -109,7 +128,10 @@ export default function StationChangeConfirm({
         <button
           type="button"
           className="btn btn-ghost px-4 py-2 text-sm"
-          onClick={() => setChange(null)}
+          onClick={() => {
+            setError(null);
+            setChange(null);
+          }}
         >
           Cancelar
         </button>

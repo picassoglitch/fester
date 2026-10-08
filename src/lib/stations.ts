@@ -52,15 +52,22 @@ export async function ensureDefaultStations(client: PrismaClient = prisma): Prom
 }
 
 /**
- * Marca completedAt (ahora) a quien ya tiene escaneadas todas las estaciones
- * activas, en una sola sentencia. Solo pone fechas: nunca borra completedAt
- * ni toca redeemedAt / redeemedById. Sin estaciones activas no marca a nadie.
+ * Marca completedAt a quien ya tiene escaneadas todas las estaciones activas,
+ * en una sola sentencia. La fecha es la de su ultimo escaneo en una estacion
+ * activa (cuando de verdad termino), no la hora en que el admin quito la
+ * estacion. Solo pone fechas: nunca borra completedAt ni toca redeemedAt /
+ * redeemedById. Sin estaciones activas no marca a nadie.
  * Devuelve cuantas personas quedaron completas con esta llamada.
  */
 export function markCompletedAttendees(client: PrismaClient | Prisma.TransactionClient = prisma) {
   return client.$executeRaw`
     update "Attendee" a
-       set "completedAt" = now()
+       set "completedAt" = (
+             select max(sc."createdAt")
+               from "Scan" sc
+               join "Station" s on s.id = sc."stationId"
+              where s.active and sc."attendeeId" = a.id
+           )
      where a."completedAt" is null
        and exists (select 1 from "Station" s where s.active)
        and not exists (

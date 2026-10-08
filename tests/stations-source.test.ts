@@ -145,10 +145,28 @@ describe.skipIf(!hasLocalDb)("estaciones: una sola fuente y completo para siempr
     expect(impact.completed).toBeGreaterThanOrEqual(2);
     expect(impact.redeemed).toBeGreaterThanOrEqual(1);
 
+    // Su ultimo escaneo en una estacion activa tiene fecha conocida; uno posterior
+    // en la estacion ya desactivada no debe contar.
+    const lastActive = new Date("2026-11-05T17:30:00.000Z");
+    const scan = await prisma.scan.findFirstOrThrow({ where: { attendeeId: ids.almost } });
+    await prisma.scan.update({ where: { id: scan.id }, data: { createdAt: lastActive } });
+    await prisma.scan.updateMany({
+      where: { attendeeId: ids.almost, id: { not: scan.id } },
+      data: { createdAt: new Date("2026-11-05T15:00:00.000Z") },
+    });
+    await prisma.scan.create({
+      data: { attendeeId: ids.almost, stationId: nueva.id, createdAt: new Date("2026-11-05T19:00:00.000Z") },
+    });
+
     const doneBefore = await attendee("done");
+    const almostBefore = await attendee("almost");
     await toggleStation(form({ id: extraStationId, active: "0", confirm: "1" }));
 
-    expect((await attendee("almost")).completedAt).not.toBeNull();
+    // Completa con la fecha de su ultimo escaneo activo, no la de ahora.
+    const almost = await attendee("almost");
+    expect(almost.completedAt).toEqual(lastActive);
+    expect(almost.redeemedAt).toEqual(almostBefore.redeemedAt);
+    expect(almost.redeemedById).toEqual(almostBefore.redeemedById);
     // A quien ya estaba completo no se le cambia la fecha.
     expect((await attendee("done")).completedAt).toEqual(doneBefore.completedAt);
 
@@ -157,17 +175,28 @@ describe.skipIf(!hasLocalDb)("estaciones: una sola fuente y completo para siempr
     expect((await attendee("almost")).completedAt).not.toBeNull();
   });
 
-  it("borrar una estación tampoco reabre a nadie", async () => {
+  it("no deja borrar una estación con escaneos; sin escaneos sí", async () => {
     const { deleteStation } = await import("@/app/actions/admin");
     const { prisma } = await import("@/lib/db");
-    const temp = await prisma.station.create({ data: { name: `Prueba Borrar ${suffix}`, order: 901 } });
-    createdStations.push(temp.id);
-    await prisma.scan.create({ data: { attendeeId: ids.done, stationId: temp.id } });
+    const used = await prisma.station.create({ data: { name: `Prueba Usada ${suffix}`, order: 901 } });
+    const empty = await prisma.station.create({ data: { name: `Prueba Vacia ${suffix}`, order: 902 } });
+    createdStations.push(used.id, empty.id);
+    await prisma.scan.create({ data: { attendeeId: ids.done, stationId: used.id } });
 
-    await deleteStation(form({ id: temp.id, confirm: "1" }));
-    expect(await prisma.station.findUnique({ where: { id: temp.id } })).toBeNull();
+    const refused = await deleteStation(form({ id: used.id, confirm: "1" }));
+    expect(refused.error).toMatch(/Desactívala/);
+    expect(await prisma.station.findUnique({ where: { id: used.id } })).not.toBeNull();
+    expect(await prisma.scan.count({ where: { stationId: used.id } })).toBe(1);
+
+    const deleted = await deleteStation(form({ id: empty.id, confirm: "1" }));
+    expect(deleted.error).toBeUndefined();
+    expect(await prisma.station.findUnique({ where: { id: empty.id } })).toBeNull();
+    // Borrar la vacia (activa) no reabre a nadie ni toca el premio.
     expect((await attendee("done")).completedAt).not.toBeNull();
     expect((await attendee("prize")).redeemedAt).not.toBeNull();
+
+    // Se deja inactiva para no estorbar a las demas pruebas.
+    await prisma.station.update({ where: { id: used.id }, data: { active: false } });
   });
 
   it("revertir un escaneo sí reabre el pase y avisa al admin; el premio no se toca", async () => {

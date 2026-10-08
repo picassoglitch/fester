@@ -8,11 +8,11 @@ vi.mock("@/app/actions/admin", () => ({ toggleStation, deleteStation }));
 
 afterEach(cleanup);
 
-async function renderConfirm(active: boolean) {
+async function renderConfirm(active: boolean, scans = 12) {
   const { default: StationChangeConfirm } = await import("@/components/StationChangeConfirm");
   return render(
     <StationChangeConfirm
-      station={{ id: "s1", name: "Photo Opp", active, scans: 12 }}
+      station={{ id: "s1", name: "Photo Opp", active, scans }}
       impact={{ completed: 3, redeemed: 1, inProgress: 40, completesWithout: 2 }}
     />,
   );
@@ -41,9 +41,16 @@ describe("confirmación de cambios de estación", () => {
     expect(dialog.querySelector('input[name="confirm"]')?.getAttribute("value")).toBe("1");
   });
 
-  it("al eliminar advierte que se borran los escaneos", async () => {
-    await renderConfirm(true);
+  it("no ofrece eliminar una estación con escaneos y explica por qué", async () => {
+    await renderConfirm(true, 12);
+    expect(screen.queryByRole("button", { name: "Eliminar" })).toBeNull();
+    expect(screen.getByText(/No se puede eliminar: tiene escaneos/)).toBeTruthy();
+  });
+
+  it("sin escaneos sí deja eliminar, con confirmación", async () => {
+    await renderConfirm(true, 0);
     fireEvent.click(screen.getByRole("button", { name: "Eliminar" }));
-    expect(screen.getByRole("alertdialog").textContent).toContain("Se borran sus 12 escaneos");
+    expect(screen.getByRole("alertdialog").textContent).toContain("No tiene escaneos");
+    expect(deleteStation).not.toHaveBeenCalled();
   });
 });

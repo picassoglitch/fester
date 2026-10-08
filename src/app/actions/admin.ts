@@ -88,18 +88,28 @@ export async function toggleStation(formData: FormData) {
   revalidatePath("/");
 }
 
-export async function deleteStation(formData: FormData) {
+const DELETE_WITH_SCANS_ERROR =
+  "Esta estación ya tiene escaneos y borrarla los borraría también. Desactívala en su lugar.";
+
+/** Solo se borran estaciones sin escaneos: los Scan se borran en cascada con la estacion. */
+export async function deleteStation(formData: FormData): Promise<ActionState> {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  if (!id || String(formData.get("confirm") ?? "") !== "1") return;
+  if (!id || String(formData.get("confirm") ?? "") !== "1") return {};
 
-  const { count } = await prisma.station.deleteMany({ where: { id } });
-  if (count === 0) return;
+  // La condicion va en el mismo DELETE: un escaneo que llegue entre la lectura
+  // y el borrado tambien lo frena.
+  const { count } = await prisma.station.deleteMany({ where: { id, scans: { none: {} } } });
+  if (count === 0) {
+    const exists = await prisma.station.count({ where: { id } });
+    return exists ? { error: DELETE_WITH_SCANS_ERROR } : {};
+  }
   await markCompletedAttendees();
 
   revalidatePath("/admin/estaciones");
   revalidatePath("/admin");
   revalidatePath("/");
+  return { ok: "Estación eliminada." };
 }
 
 /* ------------------------------------ staff ----------------------------------- */
