@@ -12,6 +12,7 @@ export async function getDashboardStats() {
     totalAttendees,
     completedAttendees,
     redeemedAttendees,
+    pendingPrizeAttendees,
     totalScans,
     scansLast15,
     scansLastHour,
@@ -26,6 +27,9 @@ export async function getDashboardStats() {
     prisma.attendee.count(),
     prisma.attendee.count({ where: { completedAt: { not: null } } }),
     prisma.attendee.count({ where: { redeemedAt: { not: null } } }),
+    // Consulta propia: restar entregados de completos sale negativo cuando hay
+    // premios entregados a quien ya no figura como completo (cambio de estaciones).
+    prisma.attendee.count({ where: { completedAt: { not: null }, redeemedAt: null } }),
     prisma.scan.count(),
     prisma.scan.count({ where: { createdAt: { gte: last15 } } }),
     prisma.scan.count({ where: { createdAt: { gte: lastHour } } }),
@@ -127,7 +131,7 @@ export async function getDashboardStats() {
       attendees: totalAttendees,
       completed: completedAttendees,
       redeemed: redeemedAttendees,
-      pendingPrizes: completedAttendees - redeemedAttendees,
+      pendingPrizes: pendingPrizeAttendees,
       scans: totalScans,
       scansLast15,
       scansLastHour,
