@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { syncCompletion } from "@/lib/attendee";
+import { markCompletedAttendees } from "@/lib/stations";
 import { newPinError } from "@/lib/pin";
 
 export type ActionState = { error?: string; ok?: string };
@@ -64,17 +65,23 @@ export async function moveStation(formData: FormData) {
   revalidatePath("/");
 }
 
+/**
+ * Activar, desactivar o borrar una estacion. La pagina pide confirmacion antes
+ * (confirm=1) y manda el estado al que se quiere llegar, para que un doble clic
+ * o una pestaña vieja no la regresen al estado anterior.
+ *
+ * Despues solo se MARCAN completos los que ya tienen todas las activas (una
+ * sentencia); nadie que ya completo se reabre y el premio no se toca.
+ */
 export async function toggleStation(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  const station = await prisma.station.findUnique({ where: { id }, select: { active: true } });
-  if (!station) return;
+  const active = String(formData.get("active") ?? "") === "1";
+  if (!id || String(formData.get("confirm") ?? "") !== "1") return;
 
-  await prisma.station.update({ where: { id }, data: { active: !station.active } });
-
-  // Activar o desactivar una estacion cambia quien esta "completo".
-  const attendees = await prisma.attendee.findMany({ select: { id: true } });
-  for (const attendee of attendees) await syncCompletion(attendee.id);
+  const { count } = await prisma.station.updateMany({ where: { id }, data: { active } });
+  if (count === 0) return;
+  await markCompletedAttendees();
 
   revalidatePath("/admin/estaciones");
   revalidatePath("/admin");
@@ -84,11 +91,11 @@ export async function toggleStation(formData: FormData) {
 export async function deleteStation(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id || String(formData.get("confirm") ?? "") !== "1") return;
 
-  await prisma.station.delete({ where: { id } });
-  const attendees = await prisma.attendee.findMany({ select: { id: true } });
-  for (const attendee of attendees) await syncCompletion(attendee.id);
+  const { count } = await prisma.station.deleteMany({ where: { id } });
+  if (count === 0) return;
+  await markCompletedAttendees();
 
   revalidatePath("/admin/estaciones");
   revalidatePath("/admin");
@@ -173,11 +180,18 @@ export async function undoScan(formData: FormData) {
   const code = String(formData.get("code") ?? "");
   if (!scanId) return;
 
-  const scan = await prisma.scan.delete({ where: { id: scanId }, select: { attendeeId: true } });
-  await syncCompletion(scan.attendeeId);
+  const scan = await prisma.scan.delete({
+    where: { id: scanId },
+    select: { attendeeId: true, attendee: { select: { completedAt: true } } },
+  });
+  // Unico camino que reabre un pase. El premio (redeemedAt) no se toca.
+  const completedAt = await syncCompletion(scan.attendeeId, { reopen: true });
 
   revalidatePath(`/admin/asistentes/${code}`);
   revalidatePath("/admin");
+  if (scan.attendee.completedAt && !completedAt) {
+    redirect(`/admin/asistentes/${encodeURIComponent(code)}?aviso=reabierto`);
+  }
 }
 
 export async function setPrizeState(formData: FormData) {

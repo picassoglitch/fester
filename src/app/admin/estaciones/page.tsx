@@ -1,22 +1,27 @@
 import { prisma } from "@/lib/db";
-import { deleteStation, moveStation, renameStation, toggleStation } from "@/app/actions/admin";
+import { moveStation, renameStation } from "@/app/actions/admin";
 import StationForm from "@/components/StationForm";
+import StationChangeConfirm from "@/components/StationChangeConfirm";
+import { getStationChangeImpact } from "@/lib/stations";
 
 export const dynamic = "force-dynamic";
 
 export default async function StationsPage() {
-  const stations = await prisma.station.findMany({
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    include: { _count: { select: { scans: true } } },
-  });
+  const [stations, impact] = await Promise.all([
+    prisma.station.findMany({
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      include: { _count: { select: { scans: true } } },
+    }),
+    getStationChangeImpact(),
+  ]);
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Estaciones</h1>
         <p className="mt-1 text-sm text-white/55">
-          Cada estación activa vale una estrella. Al desactivar o borrar una, el avance de todos se
-          recalcula solo.
+          Cada estación activa vale una estrella y el premio pide todas las activas. Quien ya
+          completó el recorrido sigue completo aunque agregues o reactives estaciones.
         </p>
       </div>
 
@@ -92,20 +97,20 @@ export default async function StationsPage() {
                   <span className="text-white/40">inactiva</span>
                 )}
               </span>
-              <div className="flex items-center gap-4">
-                <form action={toggleStation}>
-                  <input type="hidden" name="id" value={station.id} />
-                  <button type="submit" className="underline underline-offset-4">
-                    {station.active ? "Desactivar" : "Activar"}
-                  </button>
-                </form>
-                <form action={deleteStation}>
-                  <input type="hidden" name="id" value={station.id} />
-                  <button type="submit" className="text-alert/80 underline underline-offset-4">
-                    Eliminar
-                  </button>
-                </form>
-              </div>
+              <StationChangeConfirm
+                station={{
+                  id: station.id,
+                  name: station.name,
+                  active: station.active,
+                  scans: station._count.scans,
+                }}
+                impact={{
+                  completed: impact.completed,
+                  redeemed: impact.redeemed,
+                  inProgress: impact.inProgress,
+                  completesWithout: impact.completesWithout[station.id] ?? 0,
+                }}
+              />
             </div>
           </li>
         ))}

@@ -1,52 +1,25 @@
 /**
- * Deja las estaciones activas exactamente como la lista de abajo.
+ * Crea las estaciones de ejemplo (DEFAULT_STATIONS) que falten.
  *
  *   npx tsx prisma/update-stations.ts
  *
- * Es idempotente: se puede correr las veces que haga falta. Las estaciones que
- * ya no van NO se borran, se desactivan: asi no se pierden los escaneos que
- * hayan quedado registrados (borrarlas los borraria en cascada). Una estacion
- * inactiva desaparece de la landing y de los pases.
+ * La lista real se administra en /admin/estaciones. Este script solo agrega las
+ * de ejemplo que no existan, al final del orden. Nunca desactiva, reactiva,
+ * reordena ni borra estaciones: las creadas en el admin se quedan como estan.
+ * Es idempotente: se puede correr las veces que haga falta.
  */
 import { PrismaClient } from "@prisma/client";
-import { DEFAULT_STATIONS } from "../src/lib/stations";
+import { ensureDefaultStations } from "../src/lib/stations";
 
 const prisma = new PrismaClient();
 
-// La lista vive en src/lib/stations.ts (la landing la usa para su texto).
-const ESTACIONES = DEFAULT_STATIONS;
-
 async function main() {
-  const existentes = await prisma.station.findMany();
-  const deseadas = new Set(ESTACIONES.map((e) => e.name.toLowerCase()));
-
-  for (const [index, estacion] of ESTACIONES.entries()) {
-    const previa = existentes.find(
-      (e) => e.name.toLowerCase() === estacion.name.toLowerCase(),
-    );
-    if (previa) {
-      await prisma.station.update({
-        where: { id: previa.id },
-        data: { emoji: estacion.emoji, order: index + 1, active: true },
-      });
-      console.log(`= ${estacion.name}`);
-    } else {
-      await prisma.station.create({
-        data: { ...estacion, order: index + 1, active: true },
-      });
-      console.log(`+ ${estacion.name}`);
-    }
-  }
-
-  for (const previa of existentes) {
-    if (!deseadas.has(previa.name.toLowerCase()) && previa.active) {
-      await prisma.station.update({ where: { id: previa.id }, data: { active: false } });
-      console.log(`- ${previa.name} (desactivada, sus escaneos se conservan)`);
-    }
-  }
+  const creadas = await ensureDefaultStations(prisma);
+  for (const nombre of creadas) console.log(`+ ${nombre}`);
+  if (creadas.length === 0) console.log("No faltaba ninguna estación de ejemplo.");
 
   const activas = await prisma.station.count({ where: { active: true } });
-  console.log(`\nListo: ${activas} estaciones activas.`);
+  console.log(`\nListo: ${activas} estaciones activas (no se tocó ninguna existente).`);
 }
 
 main()

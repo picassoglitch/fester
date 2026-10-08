@@ -245,7 +245,7 @@ export default function ScanConsole({
 
               <p className="text-center text-sm text-white/70">
                 {outcome.attendee.stars} de {outcome.attendee.total} estrellas ·{" "}
-                {outcome.attendee.pending === 0 ? (
+                {outcome.attendee.pending === 0 || outcome.attendee.completedAt ? (
                   <span className="font-semibold text-success">recorrido completo</span>
                 ) : (
                   <span className="font-semibold text-white">

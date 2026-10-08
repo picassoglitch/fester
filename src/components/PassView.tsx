@@ -64,7 +64,8 @@ export default function PassView({
   }, [initial.code]);
 
   const pct = data.total > 0 ? Math.round((data.stars / data.total) * 100) : 0;
-  const done = data.total > 0 && data.pending === 0;
+  // Quien ya completo sigue completo aunque despues se agreguen estaciones.
+  const done = Boolean(data.completedAt) || (data.total > 0 && data.pending === 0);
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-col gap-4 px-4 py-6 sm:py-10">
@@ -108,7 +109,7 @@ export default function PassView({
             </p>
           </div>
           <p className="text-sm text-white/60">
-            {data.pending > 0 ? (
+            {!done ? (
               <>
                 Te faltan <span className="font-semibold text-white">{data.pending}</span>
               </>
