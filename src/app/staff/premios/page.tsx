@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
+import { normalizeCode } from "@/lib/codes";
+import { canRedeemPrizes, staffHomeWithCode } from "@/lib/roles";
 import { logout } from "@/app/actions/session";
 import ScanConsole from "@/components/ScanConsole";
 import AutoRefresh from "@/components/AutoRefresh";
@@ -12,11 +15,17 @@ export const dynamic = "force-dynamic";
 export default async function PrizesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; code?: string }>;
 }) {
-  const q = ((await searchParams).q ?? "").trim().slice(0, 100);
-  const [session, pendingPrizes, delivered, pendingList] = await Promise.all([
-    requireSession(),
+  const [params, session] = await Promise.all([searchParams, requireSession()]);
+  const code = params.code;
+  // Escaneo no entrega premios: va a su pantalla con el pase precargado. Se
+  // revisa antes de consultar la lista de pendientes.
+  if (!canRedeemPrizes(session.role)) {
+    redirect(staffHomeWithCode(session.role, code ? normalizeCode(code) : null));
+  }
+  const q = (params.q ?? "").trim().slice(0, 100);
+  const [pendingPrizes, delivered, pendingList] = await Promise.all([
     prisma.attendee.count({ where: { completedAt: { not: null }, redeemedAt: null } }),
     prisma.attendee.count({ where: { redeemedAt: { not: null } } }),
     // Solo nombre y codigo: en la mesa no hace falta ver datos de contacto.
@@ -33,9 +42,11 @@ export default async function PrizesPage({
           <p className="text-xs text-white/50">Sesión de {session.name}</p>
         </div>
         <div className="flex items-center gap-3 text-xs">
-          <Link href="/staff/escanear" className="text-white/60 underline underline-offset-4">
-            Estaciones
-          </Link>
+          {session.role === "ADMIN" && (
+            <Link href="/staff/escanear" className="text-white/60 underline underline-offset-4">
+              Estaciones
+            </Link>
+          )}
           <form action={logout}>
             <button type="submit" className="text-white/60 underline underline-offset-4">
               Salir
@@ -55,7 +66,14 @@ export default async function PrizesPage({
         </div>
       </div>
 
-      <ScanConsole stations={[]} staffName={session.name} mode="premio" />
+      {/* ?code= solo precarga el pase: el staff confirma con "Entregar premio". */}
+      <ScanConsole
+        stations={[]}
+        staffName={session.name}
+        mode="premio"
+        showModeLink={session.role === "ADMIN"}
+        initialCode={code ? normalizeCode(code) : undefined}
+      />
 
       <section className="mt-6 space-y-3">
         <h2 className="text-sm font-semibold text-white/70">Pendientes por entregar</h2>

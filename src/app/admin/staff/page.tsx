@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { toggleStaff } from "@/app/actions/admin";
-import { ResetPinForm, StaffForm } from "@/components/StaffForm";
+import { ChangeRoleForm, ResetPinForm, StaffForm } from "@/components/StaffForm";
+import { ROLE_LABELS } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,10 @@ export default async function StaffPage({
           Cada persona entra con su propio PIN, así queda registrado quién escaneó cada pase. Los
           PIN no se pueden consultar después: si alguien lo olvida, asígnale uno nuevo.
         </p>
+        <p className="mt-1 text-sm text-white/55">
+          Escaneo registra estrellas en las estaciones; Premios solo entrega premios; Administrador
+          puede todo. Cambiar el rol cierra la sesión abierta de esa persona.
+        </p>
       </div>
 
       {aviso === "desactivar" && (
@@ -41,11 +46,17 @@ export default async function StaffPage({
             <div>
               <p className="font-medium">
                 {person.name}
-                {person.role === "ADMIN" && (
-                  <span className="ml-2 rounded-full bg-brand/25 px-2 py-0.5 text-xs text-white/80">
-                    admin
-                  </span>
-                )}
+                <span
+                  className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
+                    person.role === "ADMIN"
+                      ? "bg-brand/25 text-white/80"
+                      : person.role === "PRIZES"
+                        ? "bg-gold/20 text-gold"
+                        : "bg-white/8 text-white/70"
+                  }`}
+                >
+                  {ROLE_LABELS[person.role]}
+                </span>
                 {!person.active && (
                   <span className="ml-2 rounded-full bg-white/8 px-2 py-0.5 text-xs text-white/50">
                     inactivo
@@ -56,6 +67,7 @@ export default async function StaffPage({
             </div>
 
             <div className="flex flex-wrap items-center gap-4">
+              <ChangeRoleForm id={person.id} role={person.role} />
               <ResetPinForm id={person.id} />
               <form action={toggleStaff}>
                 <input type="hidden" name="id" value={person.id} />

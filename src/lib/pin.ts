@@ -1,3 +1,5 @@
+import type { StaffRole } from "@/lib/roles";
+
 /**
  * Reglas de PIN compartidas por el login, el alta de staff, el seed y el
  * teclado. El login sigue aceptando 4–8 digitos para que el staff con PIN
@@ -15,7 +17,7 @@ export function isLoginPinFormat(pin: string): boolean {
 }
 
 /** Valida un PIN que se va a asignar. Regresa el mensaje de error o null. */
-export function newPinError(pin: string, role: "STAFF" | "ADMIN"): string | null {
+export function newPinError(pin: string, role: StaffRole): string | null {
   if (role === "ADMIN") {
     return new RegExp(`^\\d{${ADMIN_PIN_LENGTH}}$`).test(pin)
       ? null

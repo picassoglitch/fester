@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { getStaffAttendeeProgress, syncCompletion, type StaffAttendeeProgress } from "@/lib/attendee";
 import { normalizeCode } from "@/lib/codes";
+import { canRecordStations, canRedeemPrizes } from "@/lib/roles";
 
 export type ScanOutcome =
   | { ok: false; error: string }
@@ -16,8 +17,12 @@ export type ScanOutcome =
       attendee: StaffAttendeeProgress;
     };
 
+const NO_STATIONS = "No tienes permiso para registrar estaciones.";
+const NO_PRIZES = "No tienes permiso para entregar premios.";
+
 export async function lookupAttendee(rawCode: string): Promise<ScanOutcome> {
-  await requireSession();
+  const session = await requireSession();
+  if (!canRecordStations(session.role)) return { ok: false, error: NO_STATIONS };
   const code = normalizeCode(rawCode);
   if (!code) return { ok: false, error: "Código vacío." };
 
@@ -29,6 +34,7 @@ export async function lookupAttendee(rawCode: string): Promise<ScanOutcome> {
 
 export async function recordScan(rawCode: string, stationId: string): Promise<ScanOutcome> {
   const session = await requireSession();
+  if (!canRecordStations(session.role)) return { ok: false, error: NO_STATIONS };
   const code = normalizeCode(rawCode);
   if (!code) return { ok: false, error: "Código vacío." };
   if (!stationId) return { ok: false, error: "Selecciona una estación." };
@@ -83,6 +89,7 @@ export async function recordScan(rawCode: string, stationId: string): Promise<Sc
 
 export async function redeemPrize(rawCode: string): Promise<ScanOutcome> {
   const session = await requireSession();
+  if (!canRedeemPrizes(session.role)) return { ok: false, error: NO_PRIZES };
   const code = normalizeCode(rawCode);
 
   const attendee = await prisma.attendee.findUnique({
