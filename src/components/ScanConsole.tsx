@@ -32,6 +32,7 @@ export default function ScanConsole({
   // Codigo que llego por /s/CODE: se precarga y espera confirmacion explicita.
   const [loadedCode, setLoadedCode] = useState<string | null>(null);
   const prefilled = useRef<string | null>(null);
+  const manualRef = useRef<HTMLInputElement>(null);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -47,6 +48,14 @@ export default function ScanConsole({
     const valid = stations.find((s) => s.id === stored);
     if (valid) setStationId(valid.id);
   }, [mode, stations]);
+
+  // Lo que se tecleo en "Código manual" antes de hidratar no paso por onChange:
+  // el estado seguia vacio, "Ir" deshabilitado y el siguiente render borraba el
+  // campo, asi que el primer intento se perdia. Se toma del DOM al montar.
+  useEffect(() => {
+    const typed = manualRef.current?.value;
+    if (typed) setManual(typed.toUpperCase());
+  }, []);
 
   const needsStation = mode === "estacion" && !stationId;
   const activeStation = stations.find((s) => s.id === stationId);
@@ -185,6 +194,7 @@ export default function ScanConsole({
         }}
       >
         <input
+          ref={manualRef}
           className="field flex-1 text-center font-mono uppercase tracking-[0.3em]"
           placeholder="Código manual"
           value={manual}

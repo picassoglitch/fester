@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
+import { hydrateRoot } from "react-dom/client";
 
 const recordScan = vi.fn(async () => ({ ok: false as const, error: "x" }));
 const redeemPrize = vi.fn();
@@ -63,5 +65,34 @@ describe("ScanConsole", () => {
     fireEvent.change(screen.getByPlaceholderText("Código manual"), { target: { value: "ZZZ999" } });
     expect((screen.getByRole("button", { name: "Ir" }) as HTMLButtonElement).disabled).toBe(true);
     expect(recordScan).not.toHaveBeenCalled();
+  });
+
+  it("el código manual tecleado antes de hidratar se registra al primer intento", async () => {
+    localStorage.setItem("fester_station", "s2");
+    const { default: ScanConsole } = await import("@/components/ScanConsole");
+    const ui = <ScanConsole stations={stations} staffName="Staff" mode="estacion" />;
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    container.innerHTML = renderToString(ui);
+    // Antes de hidratar el input es HTML puro: el texto llega sin onChange.
+    const input = container.querySelector('input[placeholder="Código manual"]') as HTMLInputElement;
+    input.value = "abcd1234";
+
+    let root!: ReturnType<typeof hydrateRoot>;
+    await act(async () => {
+      root = hydrateRoot(container, ui);
+    });
+    // El efecto de la estación vuelve a renderizar: el código no se borra.
+    expect(input.value).toBe("ABCD1234");
+    const ir = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Ir")!;
+    expect(ir.disabled).toBe(false);
+
+    fireEvent.submit(input.form!);
+    await vi.waitFor(() => expect(recordScan).toHaveBeenCalledTimes(1));
+    expect(recordScan).toHaveBeenCalledWith("ABCD1234", "s2");
+
+    act(() => root.unmount());
+    container.remove();
   });
 });
