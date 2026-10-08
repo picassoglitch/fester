@@ -79,6 +79,14 @@ describe("postLoginTarget por rol", () => {
     expect(postLoginTarget("/admin/staff", "ADMIN")).toBe("/admin/staff");
   });
 
+  it("un destino que vuelve a /staff (el login) no se queda en ciclo", () => {
+    for (const next of ["/staff", "/staff/", "/staff?next=/staff", "/staff?next=%2Fstaff%3Fnext%3D%2Fstaff"]) {
+      expect(postLoginTarget(next, "STAFF")).toBe("/staff/escanear");
+      expect(postLoginTarget(next, "PRIZES")).toBe("/staff/premios");
+      expect(postLoginTarget(next, "ADMIN")).toBe("/admin");
+    }
+  });
+
   it("/s/CODE lleva a cada rol a su pantalla con el pase precargado", () => {
     expect(staffCodeTarget("FV28QG", "PRIZES")).toBe("/staff/premios?code=FV28QG");
     expect(staffCodeTarget("FV28QG", "STAFF")).toBe("/staff/escanear?code=FV28QG");

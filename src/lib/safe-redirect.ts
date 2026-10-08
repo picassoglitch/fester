@@ -60,6 +60,11 @@ export function safeNextPath(raw: unknown, fallback = "/staff/escanear"): string
 export function postLoginTarget(raw: unknown, role: StaffRole): string {
   const target = safeNextPath(raw);
   const url = new URL(target, BASE);
+  // /staff es el propio login: con sesion abierta redirige aqui otra vez, asi
+  // que mandarlo ahi (con o sin ?next=, o con / al final) seria un ciclo.
+  if (/^\/staff\/*$/.test(url.pathname)) {
+    return role === "ADMIN" ? "/admin" : staffHomeWithCode(role, url.searchParams.get("code"));
+  }
   if (!canOpenPath(role, url.pathname)) {
     return staffHomeWithCode(role, url.searchParams.get("code"));
   }
