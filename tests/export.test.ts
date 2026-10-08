@@ -30,6 +30,7 @@ describe("/api/admin/export/[tipo]", () => {
   it("staff (no admin) -> 401", async () => {
     getSession.mockResolvedValue({ id: "s", name: "S", role: "STAFF", sessionVersion: 0 });
     expect((await call("asistentes")).status).toBe(401);
+    expect((await call("premios")).status).toBe(401);
   });
 
   it("admin con tipo desconocido -> 404", async () => {
@@ -43,7 +44,7 @@ describe("/api/admin/export/[tipo]", () => {
 
   it("admin con tipos válidos -> 200 y no-store", async () => {
     getSession.mockResolvedValue({ id: "a", name: "A", role: "ADMIN", sessionVersion: 0 });
-    for (const tipo of ["excel", "asistentes", "escaneos"]) {
+    for (const tipo of ["excel", "asistentes", "escaneos", "premios"]) {
       const res = await call(tipo);
       expect(res.status).toBe(200);
       expect(res.headers.get("cache-control")).toBe("no-store");
