@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { canOpenPath, staffHomeWithCode } from "@/lib/roles";
 
 export async function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
@@ -12,8 +13,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(login);
   }
 
-  if (pathname.startsWith("/admin") && session.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/staff/escanear", request.url));
+  // Redireccion rapida segun el rol del token. La revision que cuenta esta en
+  // las paginas y acciones (getSession contra la base).
+  if (!canOpenPath(session.role, pathname)) {
+    const home = staffHomeWithCode(session.role, request.nextUrl.searchParams.get("code"));
+    return NextResponse.redirect(new URL(home, request.url));
   }
 
   return NextResponse.next();

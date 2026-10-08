@@ -1,3 +1,5 @@
+import { canOpenPath, staffHomeWithCode, type StaffRole } from "@/lib/roles";
+
 /**
  * Destino seguro para ?next= despues del login de staff. `startsWith("/")`
  * dejaba pasar //evil.com y /\evil.com, que el navegador trata como otro host.
@@ -50,12 +52,27 @@ export function safeNextPath(raw: unknown, fallback = "/staff/escanear"): string
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-/** Destino final segun el rol: el staff nunca aterriza en /admin. */
-export function postLoginTarget(raw: unknown, role: "STAFF" | "ADMIN"): string {
+/**
+ * Destino final segun el rol: nadie aterriza en una pantalla que su rol no
+ * abre (el staff nunca en /admin, Escaneo nunca en premios, Premios solo en
+ * premios). Si el destino traia un pase (?code=), se conserva.
+ */
+export function postLoginTarget(raw: unknown, role: StaffRole): string {
   const target = safeNextPath(raw);
-  if (role === "STAFF" && (target === "/admin" || target.startsWith("/admin/") || target.startsWith("/admin?"))) {
-    return "/staff/escanear";
+  const url = new URL(target, BASE);
+  // /staff es el propio login: con sesion abierta redirige aqui otra vez, asi
+  // que mandarlo ahi (con o sin ?next=, o con / al final) seria un ciclo.
+  if (/^\/staff\/*$/.test(url.pathname)) {
+    return role === "ADMIN" ? "/admin" : staffHomeWithCode(role, url.searchParams.get("code"));
+  }
+  if (!canOpenPath(role, url.pathname)) {
+    return staffHomeWithCode(role, url.searchParams.get("code"));
   }
   if (role === "ADMIN" && target === "/staff/escanear") return "/admin";
   return target;
+}
+
+/** A donde va el staff con sesion que abre /s/CODE: el pase precargado en su pantalla. */
+export function staffCodeTarget(code: string, role: StaffRole): string {
+  return postLoginTarget(`/staff/escanear?code=${encodeURIComponent(code)}`, role);
 }

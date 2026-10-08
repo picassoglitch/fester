@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { createStaff, resetStaffPin, type ActionState } from "@/app/actions/admin";
+import { changeStaffRole, createStaff, resetStaffPin, type ActionState } from "@/app/actions/admin";
+import { ROLE_LABELS, STAFF_ROLES, type StaffRole } from "@/lib/roles";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -30,12 +31,11 @@ export function StaffForm() {
           required
         />
         <select name="role" className="field sm:w-40" defaultValue="STAFF">
-          <option value="STAFF" className="bg-ink">
-            Staff
-          </option>
-          <option value="ADMIN" className="bg-ink">
-            Administrador
-          </option>
+          {STAFF_ROLES.map((role) => (
+            <option key={role} value={role} className="bg-ink">
+              {ROLE_LABELS[role]}
+            </option>
+          ))}
         </select>
         <Submit label="Agregar" />
       </div>
@@ -62,6 +62,37 @@ export function ResetPinForm({ id }: { id: string }) {
       />
       <button type="submit" className="btn btn-ghost px-4 py-2 text-sm">
         Cambiar PIN
+      </button>
+      {state.error && <span className="text-xs text-alert">{state.error}</span>}
+      {state.ok && <span className="text-xs text-success">{state.ok}</span>}
+    </form>
+  );
+}
+
+export function ChangeRoleForm({ id, role }: { id: string; role: StaffRole }) {
+  const [state, action] = useActionState<ActionState, FormData>(changeStaffRole, {});
+
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2">
+      <input type="hidden" name="id" value={id} />
+      <select name="role" className="field w-40" defaultValue={role} aria-label="Rol">
+        {STAFF_ROLES.map((option) => (
+          <option key={option} value={option} className="bg-ink">
+            {ROLE_LABELS[option]}
+          </option>
+        ))}
+      </select>
+      <input
+        name="pin"
+        className="field w-44 text-center"
+        placeholder="PIN nuevo (admin: 8)"
+        inputMode="numeric"
+        pattern="\d{6,8}"
+        maxLength={8}
+        aria-label="PIN nuevo (obligatorio al hacer administrador)"
+      />
+      <button type="submit" className="btn btn-ghost px-4 py-2 text-sm">
+        Cambiar rol
       </button>
       {state.error && <span className="text-xs text-alert">{state.error}</span>}
       {state.ok && <span className="text-xs text-success">{state.ok}</span>}

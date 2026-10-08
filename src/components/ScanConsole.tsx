@@ -17,11 +17,14 @@ export default function ScanConsole({
   staffName,
   mode,
   initialCode,
+  showModeLink = false,
 }: {
   stations: Station[];
   staffName: string;
   mode: Mode;
   initialCode?: string;
+  /** Liga a la otra pantalla (estaciones/premios): solo el admin abre las dos. */
+  showModeLink?: boolean;
 }) {
   const [stationId, setStationId] = useState<string>("");
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
@@ -293,12 +296,14 @@ export default function ScanConsole({
           {staffName}
           {mode === "estacion" && activeStation ? ` · ${activeStation.name}` : ""}
         </span>
-        <Link
-          href={mode === "premio" ? "/staff/escanear" : "/staff/premios"}
-          className="underline underline-offset-4"
-        >
-          {mode === "premio" ? "Ir a estaciones" : "Entregar premios"}
-        </Link>
+        {showModeLink && (
+          <Link
+            href={mode === "premio" ? "/staff/escanear" : "/staff/premios"}
+            className="underline underline-offset-4"
+          >
+            {mode === "premio" ? "Ir a estaciones" : "Entregar premios"}
+          </Link>
+        )}
       </footer>
     </div>
   );

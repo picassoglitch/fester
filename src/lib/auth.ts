@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
+import { parseRole, type StaffRole } from "@/lib/roles";
 
 export const SESSION_COOKIE = "fester_session";
 const MAX_AGE_SECONDS = 60 * 60 * 14; // una jornada de evento
@@ -12,7 +13,7 @@ const ATTENDEE_MAX_AGE_SECONDS = 60 * 60 * 24 * 120;
 export type Session = {
   id: string;
   name: string;
-  role: "STAFF" | "ADMIN";
+  role: StaffRole;
   /** Staff.sessionVersion al firmar. Si cambia en la base, la sesion muere. */
   sessionVersion: number;
 };
@@ -56,10 +57,13 @@ export async function verifySessionToken(token: string): Promise<Session | null>
     if (payload.scope === "attendee") return null;
     // Los tokens de antes de sessionVersion no sirven: todos entran otra vez.
     if (typeof payload.sv !== "number") return null;
+    // Un rol desconocido no se degrada a STAFF: la sesion simplemente no vale.
+    const role = parseRole(payload.role);
+    if (!role) return null;
     return {
       id: payload.sub,
       name: String(payload.name ?? ""),
-      role: payload.role === "ADMIN" ? "ADMIN" : "STAFF",
+      role,
       sessionVersion: payload.sv,
     };
   } catch {
