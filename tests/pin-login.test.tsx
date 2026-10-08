@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { StrictMode } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { hydrateRoot } from "react-dom/client";
@@ -122,5 +123,33 @@ describe("PinLogin", () => {
     const { default: PinLogin } = await import("@/components/PinLogin");
     const { container } = render(<PinLogin next="/staff/escanear" />);
     expect(bufferScript(container)).toBeUndefined();
+  });
+
+  it("en StrictMode el Enter tecleado antes de hidratar envía una sola vez", async () => {
+    const { default: PinLogin } = await import("@/components/PinLogin");
+    const submit = vi.spyOn(HTMLFormElement.prototype, "requestSubmit").mockImplementation(() => {});
+    submit.mockClear();
+    const ui = (
+      <StrictMode>
+        <PinLogin next="/staff/escanear" />
+      </StrictMode>
+    );
+
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    container.innerHTML = renderToString(ui);
+    new Function(bufferScript(container)!.textContent!)();
+    for (const key of "1234") fireEvent.keyDown(document.body, { key });
+    fireEvent.keyDown(document.body, { key: "Enter" });
+
+    let root!: ReturnType<typeof hydrateRoot>;
+    await act(async () => {
+      root = hydrateRoot(container, ui);
+    });
+    expect(pinValue(container)).toBe("1234");
+    expect(submit).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+    container.remove();
   });
 });

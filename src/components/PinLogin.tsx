@@ -53,6 +53,9 @@ export default function PinLogin({ next }: { next: string }) {
   const preHydration = useIsPreHydration();
   // Enter que llego antes de hidratar: se envia cuando el PIN ya esta en el form.
   const [submitBuffered, setSubmitBuffered] = useState(false);
+  // Un solo envio aunque el efecto se repita (StrictMode): cada envio de mas es
+  // otra llamada a loginWithPin y otro intento contra el limite.
+  const submittedBuffered = useRef(false);
 
   // Teclado fisico: digitos, Backspace y Enter. No captura si el foco esta en
   // otro campo de texto.
@@ -95,7 +98,8 @@ export default function PinLogin({ next }: { next: string }) {
   }, []);
 
   useEffect(() => {
-    if (!submitBuffered) return;
+    if (!submitBuffered || submittedBuffered.current) return;
+    submittedBuffered.current = true;
     setSubmitBuffered(false);
     formRef.current?.requestSubmit();
   }, [submitBuffered]);
