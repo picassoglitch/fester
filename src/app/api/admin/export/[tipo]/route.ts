@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { toCsv } from "@/lib/csv";
 import { buildXlsx, type CellValue, type Sheet } from "@/lib/xlsx";
+import { getActiveStations } from "@/lib/stations";
 import { PRIZE_ROW_SELECT, parsePrizeTab, prizeOrder, prizeWhere } from "@/lib/prizes";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +16,7 @@ function fileStamp(): string {
 /** Todo lo capturado de cada persona, mas su avance estacion por estacion. */
 async function attendeesSheet(): Promise<Sheet> {
   const [stations, attendees] = await Promise.all([
-    prisma.station.findMany({
-      where: { active: true },
-      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    }),
+    getActiveStations(),
     prisma.attendee.findMany({
       orderBy: { createdAt: "asc" },
       include: {

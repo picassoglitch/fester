@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
+import { getActiveStations } from "@/lib/stations";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +56,7 @@ export default async function AttendeesPage({
   const where = whereFor(filter, q);
 
   const [stations, total, attendees] = await Promise.all([
-    prisma.station.findMany({ where: { active: true }, select: { id: true } }),
+    getActiveStations(),
     prisma.attendee.count({ where }),
     prisma.attendee.findMany({
       where,

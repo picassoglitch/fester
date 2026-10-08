@@ -4,16 +4,19 @@ import { prisma } from "@/lib/db";
 import { normalizeCode } from "@/lib/codes";
 import { formatDateTime, formatDuration, formatTime } from "@/lib/format";
 import { appUrl } from "@/lib/site";
+import { getActiveStations } from "@/lib/stations";
 import { deleteAttendee, setPrizeState, undoScan } from "@/app/actions/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AttendeeJourneyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>;
+  searchParams: Promise<{ aviso?: string }>;
 }) {
-  const { code: rawCode } = await params;
+  const [{ code: rawCode }, { aviso }] = await Promise.all([params, searchParams]);
   const code = normalizeCode(rawCode);
 
   const attendee = await prisma.attendee.findUnique({
@@ -31,10 +34,7 @@ export default async function AttendeeJourneyPage({
   });
   if (!attendee) notFound();
 
-  const stations = await prisma.station.findMany({
-    where: { active: true },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-  });
+  const stations = await getActiveStations();
 
   const visited = new Set(attendee.scans.map((s) => s.stationId));
   const missing = stations.filter((s) => !visited.has(s.id));
@@ -96,6 +96,13 @@ export default async function AttendeeJourneyPage({
         ← Asistentes
       </Link>
 
+      {aviso === "reabierto" && !attendee.completedAt && (
+        <p role="status" className="card border-alert/40 p-4 text-sm text-alert">
+          Se revirtió el escaneo y el recorrido de {attendee.name} se reabrió: ya no cuenta como
+          completo{attendee.redeemedAt ? " (el premio sigue marcado como entregado)" : ""}.
+        </p>
+      )}
+
       <header className="card flex flex-wrap items-start justify-between gap-4 p-5">
         <div>
           <h1 className="text-2xl font-bold">{attendee.name}</h1>
@@ -126,7 +133,11 @@ export default async function AttendeeJourneyPage({
             <span className="text-lg font-medium text-white/40"> / {stations.length}</span>
           </p>
           <p className="mt-1 text-sm text-white/55">
-            {missing.length === 0 ? "Recorrido completo" : `Le faltan ${missing.length}`}
+            {missing.length === 0
+              ? "Recorrido completo"
+              : attendee.completedAt
+                ? `Recorrido completo · ${missing.length} sin escanear`
+                : `Le faltan ${missing.length}`}
           </p>
           <Link
             href={`/pase/${attendee.code}`}

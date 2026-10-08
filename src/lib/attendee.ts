@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getActiveStations } from "@/lib/stations";
 
 export type StationProgress = {
   id: string;
@@ -54,11 +55,7 @@ export type PublicPassProgress = {
 
 async function loadStationProgress(attendeeId: string): Promise<StationProgress[]> {
   const [stations, scans] = await Promise.all([
-    prisma.station.findMany({
-      where: { active: true },
-      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-      select: { id: true, name: true, emoji: true, order: true },
-    }),
+    getActiveStations(),
     prisma.scan.findMany({
       where: { attendeeId },
       select: { stationId: true, createdAt: true },
@@ -181,10 +178,17 @@ export function toPublicPass(
 /**
  * Marca completedAt cuando el asistente ya tiene todas las estaciones activas.
  * Se llama despues de cada escaneo.
+ *
+ * Completo una vez, completo siempre: agregar o reactivar estaciones nunca
+ * borra completedAt. Solo "Revertir escaneo" del admin reabre un pase, y lo
+ * pide con { reopen: true }. Nunca toca redeemedAt / redeemedById.
  */
-export async function syncCompletion(attendeeId: string): Promise<Date | null> {
+export async function syncCompletion(
+  attendeeId: string,
+  options: { reopen?: boolean } = {},
+): Promise<Date | null> {
   const [activeStations, attendee] = await Promise.all([
-    prisma.station.findMany({ where: { active: true }, select: { id: true } }),
+    getActiveStations(),
     prisma.attendee.findUnique({
       where: { id: attendeeId },
       select: { completedAt: true, scans: { select: { stationId: true } } },
@@ -203,8 +207,7 @@ export async function syncCompletion(attendeeId: string): Promise<Date | null> {
     });
     return updated.completedAt;
   }
-  if (!complete && attendee.completedAt) {
-    // Una estacion nueva reabre el recorrido de quien ya habia terminado.
+  if (!complete && attendee.completedAt && options.reopen) {
     await prisma.attendee.update({ where: { id: attendeeId }, data: { completedAt: null } });
     return null;
   }

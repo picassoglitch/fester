@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getActiveStations } from "@/lib/stations";
 
 export type DashboardStats = Awaited<ReturnType<typeof getDashboardStats>>;
 
@@ -9,6 +10,7 @@ export async function getDashboardStats() {
 
   const [
     stations,
+    activeStations,
     totalAttendees,
     completedAttendees,
     redeemedAttendees,
@@ -24,6 +26,7 @@ export async function getDashboardStats() {
     registrations,
   ] = await Promise.all([
     prisma.station.findMany({ orderBy: [{ order: "asc" }, { createdAt: "asc" }] }),
+    getActiveStations(),
     prisma.attendee.count(),
     prisma.attendee.count({ where: { completedAt: { not: null } } }),
     prisma.attendee.count({ where: { redeemedAt: { not: null } } }),
@@ -56,7 +59,6 @@ export async function getDashboardStats() {
     prisma.attendee.findMany({ select: { createdAt: true } }),
   ]);
 
-  const activeStations = stations.filter((s) => s.active);
   const scanCountByStation = new Map(scanGroups.map((g) => [g.stationId, g._count._all]));
   const lastScanByStation = new Map(scanGroups.map((g) => [g.stationId, g._max.createdAt]));
 

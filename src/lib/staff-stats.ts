@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getActiveStations } from "@/lib/stations";
 
 export type StaffStats = Awaited<ReturnType<typeof getStaffStats>>;
 
@@ -21,11 +22,7 @@ export async function getStaffStats(staffId: string) {
     byStation,
     recent,
   ] = await Promise.all([
-    prisma.station.findMany({
-      where: { active: true },
-      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-      select: { id: true, name: true, emoji: true },
-    }),
+    getActiveStations(),
     prisma.attendee.count(),
     prisma.attendee.count({ where: { completedAt: { not: null } } }),
     prisma.attendee.count({ where: { redeemedAt: { not: null } } }),
