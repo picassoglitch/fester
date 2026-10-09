@@ -6,11 +6,18 @@ import { useRouter } from "next/navigation";
 import Scanner from "@/components/Scanner";
 import { recordScan, redeemPrize, type ScanOutcome } from "@/app/actions/scan";
 import { normalizeCode } from "@/lib/codes";
+import { playScanFeedback, unlockScanFeedback, type ScanTone } from "@/lib/scan-feedback";
 
 type Station = { id: string; name: string; emoji: string };
 type Mode = "estacion" | "premio";
 
 const STATION_KEY = "fester_station";
+
+function toneOf(outcome: ScanOutcome): ScanTone {
+  if (!outcome.ok) return "error";
+  if (outcome.status === "nuevo") return "ok";
+  return outcome.status === "premio" ? "prize" : "warn";
+}
 
 export default function ScanConsole({
   stations,
@@ -57,6 +64,17 @@ export default function ScanConsole({
     if (typed) setManual(typed.toUpperCase());
   }, []);
 
+  // El navegador solo deja sonar el pitido despues de un toque o tecla.
+  useEffect(() => {
+    const unlock = () => unlockScanFeedback();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
   const needsStation = mode === "estacion" && !stationId;
   const activeStation = stations.find((s) => s.id === stationId);
 
@@ -69,6 +87,7 @@ export default function ScanConsole({
         const result =
           mode === "premio" ? await redeemPrize(code) : await recordScan(code, stationId);
         setOutcome(result);
+        playScanFeedback(toneOf(result));
         setManual("");
         // Refresca los contadores del servidor: el escaneo acaba de moverlos.
         if (result.ok) router.refresh();
@@ -96,16 +115,7 @@ export default function ScanConsole({
     clearCodeFromUrl();
   }
 
-  const tone =
-    outcome === null
-      ? null
-      : !outcome.ok
-        ? "error"
-        : outcome.status === "nuevo"
-          ? "ok"
-          : outcome.status === "premio"
-            ? "prize"
-            : "warn";
+  const tone = outcome === null ? null : toneOf(outcome);
 
   return (
     <div className="flex flex-col gap-4">

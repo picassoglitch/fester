@@ -7,8 +7,11 @@ import { hydrateRoot } from "react-dom/client";
 const recordScan = vi.fn(async () => ({ ok: false as const, error: "x" }));
 const redeemPrize = vi.fn();
 const replace = vi.fn();
+const playScanFeedback = vi.fn();
+const unlockScanFeedback = vi.fn();
 
 vi.mock("@/app/actions/scan", () => ({ recordScan, redeemPrize }));
+vi.mock("@/lib/scan-feedback", () => ({ playScanFeedback, unlockScanFeedback }));
 vi.mock("@/components/Scanner", () => ({ default: () => null }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace, refresh: vi.fn() }) }));
 vi.mock("next/link", () => ({ default: ({ children }: { children: React.ReactNode }) => children }));
@@ -28,6 +31,8 @@ beforeEach(() => {
   localStorage.clear();
   recordScan.mockClear();
   replace.mockClear();
+  playScanFeedback.mockClear();
+  unlockScanFeedback.mockClear();
 });
 afterEach(cleanup);
 
@@ -53,6 +58,19 @@ describe("ScanConsole", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Registrar estrella en Kiosko 1" }));
     await vi.waitFor(() => expect(recordScan).toHaveBeenCalledTimes(1));
     expect(recordScan).toHaveBeenCalledWith("ABC123", "s2");
+  });
+
+  it("avisa con pitido y vibración según el resultado del escaneo", async () => {
+    localStorage.setItem("fester_station", "s2");
+    await renderConsole("ABC123");
+    fireEvent.pointerDown(window);
+    expect(unlockScanFeedback).toHaveBeenCalled();
+    expect(playScanFeedback).not.toHaveBeenCalled();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Registrar estrella en Kiosko 1" }));
+    await vi.waitFor(() => expect(playScanFeedback).toHaveBeenCalledTimes(1));
+    // El mock de recordScan responde con error.
+    expect(playScanFeedback).toHaveBeenCalledWith("error");
   });
 
   it("sin estación guardada no elige Registro por defecto y bloquea el escaneo", async () => {
