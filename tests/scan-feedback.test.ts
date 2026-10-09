@@ -38,6 +38,7 @@ function installAudio(state: string) {
 
 beforeEach(() => {
   vi.resetModules();
+  ctx = undefined as unknown as FakeCtx;
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -49,7 +50,7 @@ describe("aviso de escaneo para el staff", () => {
     const patterns = Object.values(SCAN_FEEDBACK).map((f) => JSON.stringify(f));
     expect(new Set(patterns).size).toBe(4);
     expect(SCAN_FEEDBACK.ok.beeps).toHaveLength(1);
-    expect(SCAN_FEEDBACK.prize.beeps).toHaveLength(3);
+    expect(SCAN_FEEDBACK.prize.beeps).toHaveLength(2);
   });
 
   it("vibra con el patrón del resultado y suena tras desbloquear el audio", async () => {
@@ -64,7 +65,7 @@ describe("aviso de escaneo para el staff", () => {
 
     playScanFeedback("prize");
     expect(vibrate).toHaveBeenCalledWith(SCAN_FEEDBACK.prize.vibrate);
-    expect(ctx.started).toBe(3);
+    expect(ctx.started).toBe(2);
   });
 
   it("con el audio bloqueado solo vibra, sin tronar", async () => {
@@ -82,5 +83,28 @@ describe("aviso de escaneo para el staff", () => {
       unlockScanFeedback();
       playScanFeedback("error");
     }).not.toThrow();
+  });
+});
+
+describe("silencio del staff", () => {
+  it("silenciado solo vibra y se recuerda en el equipo", async () => {
+    installAudio("running");
+    const vibrate = vi.fn();
+    Object.defineProperty(navigator, "vibrate", { value: vibrate, configurable: true });
+    const { playScanFeedback, readScanSoundMuted, saveScanSoundMuted } = await import(
+      "@/lib/scan-feedback"
+    );
+    localStorage.clear();
+    expect(readScanSoundMuted()).toBe(false);
+    saveScanSoundMuted(true);
+    expect(readScanSoundMuted()).toBe(true);
+
+    playScanFeedback("ok", { sound: false });
+    expect(vibrate).toHaveBeenCalledWith([80]);
+    // Sin sonido ni siquiera se crea el AudioContext.
+    expect(ctx).toBeUndefined();
+
+    saveScanSoundMuted(false);
+    expect(readScanSoundMuted()).toBe(false);
   });
 });

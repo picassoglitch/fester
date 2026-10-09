@@ -14,28 +14,47 @@ export type ScanTone = "ok" | "prize" | "warn" | "error";
 type Beep = { freq: number; ms: number; wave: OscillatorType };
 
 export const SCAN_FEEDBACK: Record<ScanTone, { beeps: Beep[]; vibrate: number[] }> = {
-  // Estrella nueva: un pitido agudo y corto.
-  ok: { beeps: [{ freq: 880, ms: 120, wave: "sine" }], vibrate: [80] },
-  // Recorrido completo o premio entregado: tres notas que suben.
+  // Estrella nueva: un pitido agudo y brillante.
+  ok: { beeps: [{ freq: 1200, ms: 120, wave: "sine" }], vibrate: [80] },
+  // Recorrido completo o premio entregado: dos notas que suben.
   prize: {
     beeps: [
-      { freq: 660, ms: 110, wave: "sine" },
       { freq: 880, ms: 110, wave: "sine" },
-      { freq: 1175, ms: 180, wave: "sine" },
+      { freq: 1320, ms: 180, wave: "sine" },
     ],
-    vibrate: [80, 60, 80, 60, 160],
+    vibrate: [80, 60, 80, 60, 200],
   },
   // Ya lo tenia: dos pitidos medios.
   warn: {
     beeps: [
-      { freq: 520, ms: 90, wave: "triangle" },
-      { freq: 520, ms: 90, wave: "triangle" },
+      { freq: 600, ms: 90, wave: "triangle" },
+      { freq: 600, ms: 90, wave: "triangle" },
     ],
     vibrate: [60, 80, 60],
   },
   // Error: un zumbido grave y largo.
-  error: { beeps: [{ freq: 200, ms: 350, wave: "square" }], vibrate: [300] },
+  error: { beeps: [{ freq: 220, ms: 400, wave: "square" }], vibrate: [300] },
 };
+
+const MUTE_KEY = "fester_scan_sound";
+
+/** El staff puede silenciar el pitido (la vibracion sigue); se recuerda en el equipo. */
+export function readScanSoundMuted(): boolean {
+  try {
+    return localStorage.getItem(MUTE_KEY) === "off";
+  } catch {
+    return false;
+  }
+}
+
+export function saveScanSoundMuted(muted: boolean): void {
+  try {
+    if (muted) localStorage.setItem(MUTE_KEY, "off");
+    else localStorage.removeItem(MUTE_KEY);
+  } catch {
+    /* modo privado */
+  }
+}
 
 const GAP_MS = 70;
 const VOLUME = 0.2;
@@ -63,7 +82,7 @@ export function unlockScanFeedback(): void {
   if (ctx?.state === "suspended") void ctx.resume().catch(() => {});
 }
 
-export function playScanFeedback(tone: ScanTone): void {
+export function playScanFeedback(tone: ScanTone, { sound = true }: { sound?: boolean } = {}): void {
   const { beeps, vibrate } = SCAN_FEEDBACK[tone];
 
   try {
@@ -72,6 +91,7 @@ export function playScanFeedback(tone: ScanTone): void {
     /* sin vibracion */
   }
 
+  if (!sound) return;
   const ctx = getAudio();
   if (!ctx || ctx.state !== "running") return;
   try {

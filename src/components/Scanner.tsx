@@ -39,7 +39,6 @@ export default function Scanner({
             const now = Date.now();
             if (lastRef.current.code === text && now - lastRef.current.at < REPEAT_GUARD_MS) return;
             lastRef.current = { code: text, at: now };
-            navigator.vibrate?.(60);
             onCode(text);
           },
         );
