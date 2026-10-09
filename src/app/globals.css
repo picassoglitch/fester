@@ -281,6 +281,34 @@ input[type="number"].field-light::-webkit-inner-spin-button {
   animation: beam 4s ease-in-out infinite;
 }
 
+/* Pantalla de resultado del escaner: entra de golpe y la barra marca el cierre. */
+@keyframes scan-in {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-scan-in {
+  animation: scan-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes scan-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -288,7 +316,8 @@ input[type="number"].field-light::-webkit-inner-spin-button {
 
   .animate-pop,
   .animate-ring,
-  .animate-beam {
+  .animate-beam,
+  .animate-scan-in {
     animation: none;
   }
 }

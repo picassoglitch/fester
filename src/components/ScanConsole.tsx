@@ -6,18 +6,43 @@ import { useRouter } from "next/navigation";
 import Scanner from "@/components/Scanner";
 import { recordScan, redeemPrize, type ScanOutcome } from "@/app/actions/scan";
 import { normalizeCode } from "@/lib/codes";
-import { playScanFeedback, unlockScanFeedback, type ScanTone } from "@/lib/scan-feedback";
+import {
+  playScanFeedback,
+  readScanSoundMuted,
+  saveScanSoundMuted,
+  unlockScanFeedback,
+  type ScanTone,
+} from "@/lib/scan-feedback";
 
 type Station = { id: string; name: string; emoji: string };
 type Mode = "estacion" | "premio";
 
-const STATION_KEY = "fester_station";
+/** Lo que ve el staff a pantalla completa despues de cada escaneo. */
+type Result =
+  | { kind: "star" | "complete" | "prize" | "warn"; outcome: Extract<ScanOutcome, { ok: true }> }
+  | { kind: "error"; message: string; retryCode: string | null };
 
-function toneOf(outcome: ScanOutcome): ScanTone {
-  if (!outcome.ok) return "error";
-  if (outcome.status === "nuevo") return "ok";
-  return outcome.status === "premio" ? "prize" : "warn";
+const STATION_KEY = "fester_station";
+/** Estrella, completo, premio y "ya registrado" se cierran solos para el siguiente. */
+export const AUTO_CLOSE_MS = 1500;
+/** El mismo QR frente a la camara no vuelve a contar durante este tiempo. */
+export const SAME_CODE_GUARD_MS = 3000;
+const NETWORK_ERROR = "Sin conexión con el servidor. Revisa la red e intenta de nuevo.";
+
+function resultOf(outcome: ScanOutcome, mode: Mode): Result {
+  if (!outcome.ok) return { kind: "error", message: outcome.error, retryCode: null };
+  if (outcome.status === "nuevo") return { kind: "star", outcome };
+  if (outcome.status === "premio") return { kind: mode === "premio" ? "prize" : "complete", outcome };
+  return { kind: "warn", outcome };
 }
+
+const TONE: Record<Result["kind"], ScanTone> = {
+  star: "ok",
+  complete: "prize",
+  prize: "prize",
+  warn: "warn",
+  error: "error",
+};
 
 export default function ScanConsole({
   stations,
@@ -34,12 +59,18 @@ export default function ScanConsole({
   showModeLink?: boolean;
 }) {
   const [stationId, setStationId] = useState<string>("");
-  const [outcome, setOutcome] = useState<ScanOutcome | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
   const [manual, setManual] = useState("");
+  const [muted, setMuted] = useState(false);
   // Codigo que llego por /s/CODE: se precarga y espera confirmacion explicita.
   const [loadedCode, setLoadedCode] = useState<string | null>(null);
   const prefilled = useRef<string | null>(null);
   const manualRef = useRef<HTMLInputElement>(null);
+  const selectRef = useRef<HTMLSelectElement>(null);
+  // Un escaneo a la vez: un segundo toque mientras el servidor responde no sale.
+  const inFlight = useRef(false);
+  const lastResult = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  const mutedRef = useRef(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -55,6 +86,12 @@ export default function ScanConsole({
     const valid = stations.find((s) => s.id === stored);
     if (valid) setStationId(valid.id);
   }, [mode, stations]);
+
+  useEffect(() => {
+    const stored = readScanSoundMuted();
+    mutedRef.current = stored;
+    setMuted(stored);
+  }, []);
 
   // Lo que se tecleo en "Código manual" antes de hidratar no paso por onChange:
   // el estado seguia vacio, "Ir" deshabilitado y el siguiente render borraba el
@@ -75,26 +112,79 @@ export default function ScanConsole({
     };
   }, []);
 
+  // Pantalla siempre encendida mientras se escanea (donde el navegador lo soporta).
+  useEffect(() => {
+    let lock: WakeLockSentinel | null = null;
+    let cancelled = false;
+    async function acquire() {
+      try {
+        const next = await navigator.wakeLock?.request("screen");
+        if (cancelled) void next?.release();
+        else lock = next ?? null;
+      } catch {
+        /* sin wake lock o bateria baja */
+      }
+    }
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void acquire();
+    };
+    void acquire();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      void lock?.release().catch(() => {});
+    };
+  }, []);
+
   const needsStation = mode === "estacion" && !stationId;
   const activeStation = stations.find((s) => s.id === stationId);
 
   const submit = useCallback(
     (rawCode: string) => {
       const code = normalizeCode(rawCode);
-      if (!code) return;
+      if (!code || inFlight.current) return;
       if (mode === "estacion" && !stationId) return;
+      inFlight.current = true;
       startTransition(async () => {
-        const result =
-          mode === "premio" ? await redeemPrize(code) : await recordScan(code, stationId);
-        setOutcome(result);
-        playScanFeedback(toneOf(result));
+        let next: Result;
+        try {
+          const outcome =
+            mode === "premio" ? await redeemPrize(code) : await recordScan(code, stationId);
+          next = resultOf(outcome, mode);
+          // Refresca los contadores del servidor; el resultado vive aqui y no se pierde.
+          if (outcome.ok) router.refresh();
+        } catch {
+          next = { kind: "error", message: NETWORK_ERROR, retryCode: code };
+        }
+        inFlight.current = false;
+        lastResult.current = { code, at: Date.now() };
+        setResult(next);
         setManual("");
-        // Refresca los contadores del servidor: el escaneo acaba de moverlos.
-        if (result.ok) router.refresh();
+        playScanFeedback(TONE[next.kind], { sound: !mutedRef.current });
       });
     },
     [mode, stationId, router],
   );
+
+  // La camara: el mismo QR sostenido no vuelve a contar hasta pasados 3 s.
+  const onCameraCode = useCallback(
+    (rawCode: string) => {
+      const code = normalizeCode(rawCode);
+      const last = lastResult.current;
+      if (code && last.code === code && Date.now() - last.at < SAME_CODE_GUARD_MS) return;
+      submit(rawCode);
+    },
+    [submit],
+  );
+
+  const closeResult = useCallback(() => setResult(null), []);
+
+  useEffect(() => {
+    if (!result || result.kind === "error") return;
+    const timer = setTimeout(closeResult, AUTO_CLOSE_MS);
+    return () => clearTimeout(timer);
+  }, [result, closeResult]);
 
   // Llegar con ?code= solo precarga el pase (una vez por codigo). Antes se
   // registraba solo y cada cambio de estacion volvia a sumar una estrella.
@@ -115,10 +205,53 @@ export default function ScanConsole({
     clearCodeFromUrl();
   }
 
-  const tone = outcome === null ? null : toneOf(outcome);
+  function toggleMuted() {
+    const next = !muted;
+    mutedRef.current = next;
+    setMuted(next);
+    saveScanSoundMuted(next);
+  }
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="sticky top-0 z-30 -mx-4 flex items-center gap-3 border-b border-white/10 bg-ink/95 px-4 py-2.5 backdrop-blur">
+        <p className="min-w-0 flex-1 truncate text-sm">
+          {mode === "premio" ? (
+            <span className="font-semibold">🎁 Entrega de premios</span>
+          ) : activeStation ? (
+            <>
+              <span className="text-white/60">Estación: </span>
+              <span className="font-semibold">
+                {activeStation.emoji} {activeStation.name}
+              </span>
+            </>
+          ) : (
+            <span className="font-semibold text-gold">Sin estación</span>
+          )}
+        </p>
+        <button
+          type="button"
+          onClick={toggleMuted}
+          className="rounded-lg border border-white/15 px-2.5 py-1 text-base"
+          aria-label={muted ? "Activar sonido" : "Silenciar"}
+          aria-pressed={muted}
+        >
+          {muted ? "🔇" : "🔊"}
+        </button>
+        {mode === "estacion" && (
+          <button
+            type="button"
+            className="text-xs text-white/70 underline underline-offset-4"
+            onClick={() => {
+              selectRef.current?.scrollIntoView?.({ block: "center" });
+              selectRef.current?.focus();
+            }}
+          >
+            Cambiar
+          </button>
+        )}
+      </div>
+
       {mode === "estacion" && (
         <div>
           <label htmlFor="station" className="mb-1.5 block text-sm text-white/60">
@@ -126,13 +259,14 @@ export default function ScanConsole({
           </label>
           <select
             id="station"
+            ref={selectRef}
             className="field appearance-none"
             value={stationId}
             onChange={(event) => {
               setStationId(event.target.value);
               // Cambiar de estacion descarta el pase cargado: no se registra nada.
               setLoadedCode(null);
-              setOutcome(null);
+              setResult(null);
               setManual("");
               clearCodeFromUrl();
               try {
@@ -163,38 +297,9 @@ export default function ScanConsole({
       )}
 
       <Scanner
-        onCode={submit}
-        paused={pending || outcome !== null || loadedCode !== null || needsStation}
+        onCode={onCameraCode}
+        paused={pending || result !== null || loadedCode !== null || needsStation}
       />
-
-      {loadedCode && !outcome && (
-        <div className="card space-y-3 border border-sky/30 p-5 text-center">
-          <p className="text-sm text-white/60">Pase cargado</p>
-          <p className="font-mono text-2xl tracking-[0.3em]">{loadedCode}</p>
-          <button
-            type="button"
-            className="btn btn-primary w-full"
-            disabled={pending || needsStation}
-            onClick={confirmLoaded}
-          >
-            {mode === "premio"
-              ? "Entregar premio"
-              : activeStation
-                ? `Registrar estrella en ${activeStation.name}`
-                : "Elige tu estación"}
-          </button>
-          <button
-            type="button"
-            className="text-sm text-white/50 underline underline-offset-4"
-            onClick={() => {
-              setLoadedCode(null);
-              clearCodeFromUrl();
-            }}
-          >
-            Cancelar
-          </button>
-        </div>
-      )}
 
       <form
         className="flex gap-2"
@@ -222,93 +327,59 @@ export default function ScanConsole({
         </button>
       </form>
 
-      {pending && <p className="text-center text-sm text-white/50">Registrando…</p>}
-
-      {outcome && (
+      {loadedCode && !result && !pending && (
         <div
-          className={`animate-pop card border p-5 ${
-            tone === "ok"
-              ? "border-success/50 bg-success/10"
-              : tone === "prize"
-                ? "border-gold/50 bg-gold/10"
-                : tone === "warn"
-                  ? "border-white/25"
-                  : "border-alert/50 bg-alert/10"
-          }`}
+          role="dialog"
+          aria-label="Pase cargado"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-navy px-6 text-center"
         >
-          {!outcome.ok ? (
-            <p className="text-center text-lg font-semibold text-alert">{outcome.error}</p>
-          ) : (
-            <div className="space-y-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold">{outcome.attendee.name}</p>
-                <p className="font-mono text-xs tracking-[0.3em] text-white/45">
-                  {outcome.attendee.code}
-                </p>
-                <p
-                  className={`mt-2 text-sm font-semibold ${
-                    tone === "ok" ? "text-success" : tone === "prize" ? "text-gold" : "text-white/70"
-                  }`}
-                >
-                  {outcome.message}
-                </p>
-              </div>
-
-              <div className="flex items-center justify-center gap-1.5 text-2xl">
-                {outcome.attendee.stations.map((station) => (
-                  <span
-                    key={station.id}
-                    title={station.name}
-                    className={station.visitedAt ? "text-gold" : "text-white/15"}
-                  >
-                    ★
-                  </span>
-                ))}
-              </div>
-
-              <p className="text-center text-sm text-white/70">
-                {outcome.attendee.stars} de {outcome.attendee.total} estrellas ·{" "}
-                {outcome.attendee.pending === 0 || outcome.attendee.completedAt ? (
-                  <span className="font-semibold text-success">recorrido completo</span>
-                ) : (
-                  <span className="font-semibold text-white">
-                    le faltan {outcome.attendee.pending}
-                  </span>
-                )}
-              </p>
-
-              {outcome.attendee.pending > 0 && (
-                <ul className="flex flex-wrap justify-center gap-1.5">
-                  {outcome.attendee.stations
-                    .filter((s) => !s.visitedAt)
-                    .map((station) => (
-                      <li
-                        key={station.id}
-                        className="rounded-full border border-white/12 bg-white/5 px-3 py-1 text-xs text-white/70"
-                      >
-                        {station.emoji} {station.name}
-                      </li>
-                    ))}
-                </ul>
-              )}
-
-              {outcome.attendee.redeemedAt && (
-                <p className="text-center text-xs text-white/50">
-                  🎁 Premio ya entregado
-                  {outcome.attendee.redeemedByName ? ` · ${outcome.attendee.redeemedByName}` : ""}
-                </p>
-              )}
-            </div>
-          )}
-
+          <p className="text-lg text-white/70">Pase cargado</p>
+          <p className="font-mono text-5xl font-bold tracking-[0.25em]">{loadedCode}</p>
           <button
             type="button"
-            className="btn btn-primary mt-5 w-full"
-            onClick={() => setOutcome(null)}
+            className="btn btn-primary w-full max-w-sm py-5 text-lg"
+            disabled={pending || needsStation}
+            onClick={confirmLoaded}
           >
-            Escanear siguiente
+            {mode === "premio"
+              ? "Entregar premio"
+              : activeStation
+                ? `Registrar estrella en ${activeStation.name}`
+                : "Elige tu estación"}
+          </button>
+          <button
+            type="button"
+            className="text-base text-white/60 underline underline-offset-4"
+            onClick={() => {
+              setLoadedCode(null);
+              clearCodeFromUrl();
+            }}
+          >
+            Cancelar
           </button>
         </div>
+      )}
+
+      {pending && (
+        <div
+          role="status"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-navy/95 text-center"
+        >
+          <span className="h-14 w-14 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+          <p className="text-2xl font-bold">Registrando…</p>
+        </div>
+      )}
+
+      {result && !pending && (
+        <ResultScreen
+          result={result}
+          stationName={activeStation?.name}
+          onClose={closeResult}
+          onRetry={(code) => {
+            setResult(null);
+            submit(code);
+          }}
+        />
       )}
 
       <footer className="flex items-center justify-between pt-2 text-xs text-white/40">
@@ -325,6 +396,103 @@ export default function ScanConsole({
           </Link>
         )}
       </footer>
+    </div>
+  );
+}
+
+// Color + icono + palabra: se entiende a un brazo de distancia y sin depender del color.
+const SCREEN: Record<Result["kind"], { bg: string; text: string; icon: string; title: string }> = {
+  star: { bg: "bg-[#0f8a4c]", text: "text-white", icon: "✓", title: "¡LISTO!" },
+  complete: { bg: "bg-gold", text: "text-navy", icon: "🎉", title: "¡RECORRIDO COMPLETO!" },
+  prize: { bg: "bg-[#0f8a4c]", text: "text-white", icon: "🎁", title: "PREMIO ENTREGADO" },
+  warn: { bg: "bg-[#f59e0b]", text: "text-navy", icon: "⚠️", title: "YA REGISTRADO" },
+  error: { bg: "bg-[#c8102e]", text: "text-white", icon: "✕", title: "NO VÁLIDO" },
+};
+
+function ResultScreen({
+  result,
+  stationName,
+  onClose,
+  onRetry,
+}: {
+  result: Result;
+  stationName?: string;
+  onClose: () => void;
+  onRetry: (code: string) => void;
+}) {
+  const look = SCREEN[result.kind];
+  const attendee = result.kind === "error" ? null : result.outcome.attendee;
+  const retryCode = result.kind === "error" ? result.retryCode : null;
+
+  let subtitle: string;
+  if (result.kind === "error") subtitle = result.message;
+  else if (result.kind === "star") subtitle = "Estrella registrada";
+  else if (result.kind === "complete") subtitle = "Mándalo a Premios";
+  else if (result.kind === "prize") subtitle = `Premio entregado a ${result.outcome.attendee.name}`;
+  else subtitle = result.outcome.message;
+
+  return (
+    <div
+      role="alertdialog"
+      aria-live="assertive"
+      aria-label={look.title}
+      data-result={result.kind}
+      onClick={onClose}
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center px-6 pb-40 text-center ${look.bg} ${look.text}`}
+    >
+      <div className="animate-scan-in flex flex-col items-center">
+        <span aria-hidden className="text-[160px] font-black leading-none">
+          {look.icon}
+        </span>
+        <p className="mt-4 text-4xl font-black tracking-wide">{look.title}</p>
+        <p className="mt-2 text-xl font-semibold">{subtitle}</p>
+
+        {attendee && (
+          <div className="mt-5 space-y-1">
+            {result.kind !== "prize" && <p className="text-3xl font-bold">{attendee.name}</p>}
+            <p className="font-mono text-sm tracking-[0.3em] opacity-75">{attendee.code}</p>
+            {result.kind === "star" && stationName && (
+              <p className="text-lg font-semibold">{stationName}</p>
+            )}
+            <p className="pt-2 text-2xl font-bold">
+              {attendee.stars} de {attendee.total} ★
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 space-y-3 p-6">
+        {retryCode && (
+          <button
+            type="button"
+            className="w-full rounded-xl bg-white py-4 text-lg font-bold text-[#c8102e]"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRetry(retryCode);
+            }}
+          >
+            Reintentar
+          </button>
+        )}
+        <button
+          type="button"
+          className="w-full rounded-xl border-2 border-current py-4 text-lg font-bold"
+          onClick={(event) => {
+            event.stopPropagation();
+            onClose();
+          }}
+        >
+          Escanear siguiente
+        </button>
+        {result.kind !== "error" && (
+          <div className="h-1.5 overflow-hidden rounded-full bg-black/15">
+            <div
+              className="h-full origin-left bg-current"
+              style={{ animation: `scan-countdown ${AUTO_CLOSE_MS}ms linear forwards` }}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
