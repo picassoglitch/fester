@@ -205,6 +205,15 @@ export default function ScanConsole({
     clearCodeFromUrl();
   }
 
+  function chooseStation(id: string) {
+    setStationId(id);
+    try {
+      localStorage.setItem(STATION_KEY, id);
+    } catch {
+      /* modo privado */
+    }
+  }
+
   function toggleMuted() {
     const next = !muted;
     mutedRef.current = next;
@@ -263,17 +272,12 @@ export default function ScanConsole({
             className="field appearance-none"
             value={stationId}
             onChange={(event) => {
-              setStationId(event.target.value);
+              chooseStation(event.target.value);
               // Cambiar de estacion descarta el pase cargado: no se registra nada.
               setLoadedCode(null);
               setResult(null);
               setManual("");
               clearCodeFromUrl();
-              try {
-                localStorage.setItem(STATION_KEY, event.target.value);
-              } catch {
-                /* modo privado */
-              }
             }}
           >
             {!stationId && (
@@ -335,6 +339,30 @@ export default function ScanConsole({
         >
           <p className="text-lg text-white/70">Pase cargado</p>
           <p className="font-mono text-5xl font-bold tracking-[0.25em]">{loadedCode}</p>
+          {needsStation && (
+            // La hoja tapa el selector de arriba: sin estacion guardada se elige aqui
+            // mismo, sin perder el pase cargado.
+            <div className="w-full max-w-sm text-left">
+              <label htmlFor="sheet-station" className="mb-1.5 block text-sm text-gold">
+                Elige tu estación para registrar este pase
+              </label>
+              <select
+                id="sheet-station"
+                className="field appearance-none"
+                value=""
+                onChange={(event) => chooseStation(event.target.value)}
+              >
+                <option value="" disabled className="bg-ink">
+                  Elige tu estación
+                </option>
+                {stations.map((station) => (
+                  <option key={station.id} value={station.id} className="bg-ink">
+                    {station.emoji} {station.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <button
             type="button"
             className="btn btn-primary w-full max-w-sm py-5 text-lg"

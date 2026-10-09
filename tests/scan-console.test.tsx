@@ -359,4 +359,18 @@ describe("ScanConsole", () => {
       expect(screen.getByRole("button", { name: "Cambiar" })).toBeTruthy();
     });
   });
+
+  it("con pase cargado y sin estación guardada se elige la estación en la hoja sin perder el pase", async () => {
+    await renderConsole("FV28QG");
+    const sheet = await screen.findByRole("dialog", { name: "Pase cargado" });
+    expect(sheet.textContent).toContain("FV28QG");
+    fireEvent.change(screen.getByLabelText("Elige tu estación para registrar este pase"), {
+      target: { value: "s3" },
+    });
+    // El pase sigue cargado y ahora se puede confirmar en la estación elegida.
+    expect(screen.getByRole("dialog", { name: "Pase cargado" }).textContent).toContain("FV28QG");
+    expect(localStorage.getItem("fester_station")).toBe("s3");
+    fireEvent.click(screen.getByRole("button", { name: "Registrar estrella en Kiosko 2" }));
+    await vi.waitFor(() => expect(recordScan).toHaveBeenCalledWith("FV28QG", "s3"));
+  });
 });
