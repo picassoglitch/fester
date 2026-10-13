@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
+import { countByProfile, parseProfile, profileColor, profileLabel, profileOf, profileWhere } from "@/lib/profiles";
 import { getActiveStations } from "@/lib/stations";
 import type { Prisma } from "@prisma/client";
 
@@ -47,16 +48,20 @@ function whereFor(filter: FilterKey, q: string): Prisma.AttendeeWhereInput {
 export default async function AttendeesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; filtro?: string; pagina?: string }>;
+  searchParams: Promise<{ q?: string; filtro?: string; perfil?: string; pagina?: string }>;
 }) {
   const params = await searchParams;
   const q = (params.q ?? "").trim();
   const filter = (FILTERS.find((f) => f.key === params.filtro)?.key ?? "todos") as FilterKey;
+  const profile = parseProfile(params.perfil);
   const page = Math.max(1, Number(params.pagina ?? 1) || 1);
-  const where = whereFor(filter, q);
+  // Los conteos por perfil respetan la busqueda y el estado, pero no el perfil elegido.
+  const baseWhere = whereFor(filter, q);
+  const where = profile ? { AND: [baseWhere, profileWhere(profile)] } : baseWhere;
 
-  const [stations, total, attendees] = await Promise.all([
+  const [stations, positionGroups, total, attendees] = await Promise.all([
     getActiveStations(),
+    prisma.attendee.groupBy({ by: ["position"], where: baseWhere, _count: { _all: true } }),
     prisma.attendee.count({ where }),
     prisma.attendee.findMany({
       where,
@@ -68,6 +73,10 @@ export default async function AttendeesPage({
   ]);
 
   const activeIds = new Set(stations.map((s) => s.id));
+  const profileCounts = countByProfile(
+    positionGroups.map((g) => ({ position: g.position, count: g._count._all })),
+  );
+  const profileTotal = profileCounts.reduce((sum, row) => sum + row.count, 0);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const rows = attendees.map((attendee) => {
@@ -79,11 +88,12 @@ export default async function AttendeesPage({
     return { attendee, stars, lastScan };
   });
 
-  function href(next: Partial<{ q: string; filtro: string; pagina: number }>) {
+  function href(next: Partial<{ q: string; filtro: string; perfil: string | null; pagina: number }>) {
     const search = new URLSearchParams();
-    const value = { q, filtro: filter, pagina: page, ...next };
+    const value = { q, filtro: filter, perfil: profile, pagina: page, ...next };
     if (value.q) search.set("q", value.q);
     if (value.filtro && value.filtro !== "todos") search.set("filtro", value.filtro);
+    if (value.perfil) search.set("perfil", value.perfil);
     if (value.pagina && value.pagina > 1) search.set("pagina", String(value.pagina));
     const qs = search.toString();
     return `/admin/asistentes${qs ? `?${qs}` : ""}`;
@@ -111,6 +121,7 @@ export default async function AttendeesPage({
 
       <form className="flex gap-2" action="/admin/asistentes">
         {filter !== "todos" && <input type="hidden" name="filtro" value={filter} />}
+        {profile && <input type="hidden" name="perfil" value={profile} />}
         <input
           name="q"
           defaultValue={q}
@@ -138,11 +149,46 @@ export default async function AttendeesPage({
         ))}
       </div>
 
+      <div>
+        <p className="mb-1.5 text-xs uppercase tracking-wide text-white/45">Perfil (puesto)</p>
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          <Link
+            href={href({ perfil: null, pagina: 1 })}
+            className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm transition ${
+              !profile
+                ? "border-brand bg-brand/20 text-white"
+                : "border-white/12 text-white/60 hover:text-white"
+            }`}
+          >
+            Todos <span className="tabular-nums text-white/45">{profileTotal}</span>
+          </Link>
+          {profileCounts.map((row) => (
+            <Link
+              key={row.profile}
+              href={href({ perfil: row.profile, pagina: 1 })}
+              className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm transition ${
+                profile === row.profile
+                  ? "border-brand bg-brand/20 text-white"
+                  : "border-white/12 text-white/60 hover:text-white"
+              }`}
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full"
+                style={{ background: profileColor(row.profile) }}
+              />
+              {profileLabel(row.profile)}
+              <span className="tabular-nums text-white/45">{row.count}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       <div className="card overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[860px] text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-white/45">
             <tr className="border-b border-white/10">
               <th className="px-4 py-3">Asistente</th>
+              <th className="px-4 py-3">Perfil</th>
               <th className="px-4 py-3">Código</th>
               <th className="px-4 py-3">Estrellas</th>
               <th className="px-4 py-3">Registro</th>
@@ -153,7 +199,7 @@ export default async function AttendeesPage({
           <tbody className="divide-y divide-white/8">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-white/45">
+                <td colSpan={7} className="px-4 py-8 text-center text-white/45">
                   Sin resultados.
                 </td>
               </tr>
@@ -168,6 +214,15 @@ export default async function AttendeesPage({
                     {attendee.name}
                   </Link>
                   <p className="text-xs text-white/40">{attendee.email ?? attendee.phone ?? "—"}</p>
+                </td>
+                <td className="px-4 py-3 text-white/70">
+                  <span className="flex items-center gap-2 whitespace-nowrap">
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{ background: profileColor(profileOf(attendee.position)) }}
+                    />
+                    {profileLabel(profileOf(attendee.position))}
+                  </span>
                 </td>
                 <td className="px-4 py-3 font-mono text-xs tracking-widest text-white/60">
                   {attendee.code}

@@ -369,7 +369,10 @@ export const PRIVACY = {
 
 /* --- Opciones del formulario de registro --- */
 
-/** Catalogo definitivo de marca para "Puesto / Cargo" (11 opciones, "Otro" incluido). */
+/**
+ * Catalogo definitivo de marca para "Puesto / Cargo" (12 opciones, "Otro" incluido).
+ * "Estudiante" se agrego el 13 de octubre para poder contar estudiantes en el panel.
+ */
 export const POSITIONS = [
   "Arquitecto",
   "Albañil",
@@ -381,6 +384,7 @@ export const POSITIONS = [
   "Proveedor de materiales de construcción",
   "Técnico de la construcción",
   "Técnico de impermeabilización",
+  "Estudiante",
   "Otro",
 ] as const;
 

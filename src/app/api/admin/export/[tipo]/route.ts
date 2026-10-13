@@ -5,6 +5,7 @@ import { formatDateTime } from "@/lib/format";
 import { toCsv } from "@/lib/csv";
 import { buildXlsx, type CellValue, type Sheet } from "@/lib/xlsx";
 import { getActiveStations } from "@/lib/stations";
+import { profileOf } from "@/lib/profiles";
 import { PRIZE_ROW_SELECT, parsePrizeTab, prizeOrder, prizeWhere } from "@/lib/prizes";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ async function attendeesSheet(): Promise<Sheet> {
     { header: "telefono", width: 16 },
     { header: "empresa", width: 26 },
     { header: "puesto", width: 22 },
+    { header: "perfil", width: 22 },
     { header: "giro", width: 24 },
     { header: "estado", width: 18 },
     { header: "ciudad", width: 16 },
@@ -66,6 +68,7 @@ async function attendeesSheet(): Promise<Sheet> {
       attendee.phone ?? "",
       attendee.company ?? "",
       attendee.position ?? "",
+      profileOf(attendee.position),
       attendee.industry ?? "",
       attendee.state ?? "",
       attendee.city ?? "",

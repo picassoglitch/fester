@@ -1,5 +1,35 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { countByProfile } from "@/lib/profiles";
 import { getActiveStations } from "@/lib/stations";
+
+type ProfileScanRow = { stationId: string; position: string | null; count: number };
+
+/** Escaneos por estacion y "Puesto"; con `since`, solo los de esa ventana. */
+function scansByStationAndPosition(since?: Date) {
+  // createdAt es timestamp sin zona en UTC; sin el AT TIME ZONE, Postgres
+  // compararia en la zona de la sesion y la ventana se correria horas.
+  const window = since
+    ? Prisma.sql`WHERE s."createdAt" >= (${since}::timestamptz AT TIME ZONE 'UTC')`
+    : Prisma.empty;
+  return prisma.$queryRaw<ProfileScanRow[]>`
+    SELECT s."stationId", a."position", COUNT(*)::int AS count
+    FROM "Scan" s
+    JOIN "Attendee" a ON a."id" = s."attendeeId"
+    ${window}
+    GROUP BY s."stationId", a."position"`;
+}
+
+/** Perfiles por estacion, listos para pintar barras. */
+function profilesByStation(rows: readonly ProfileScanRow[]) {
+  const grouped = new Map<string, ProfileScanRow[]>();
+  for (const row of rows) {
+    const list = grouped.get(row.stationId) ?? [];
+    list.push(row);
+    grouped.set(row.stationId, list);
+  }
+  return new Map([...grouped].map(([stationId, list]) => [stationId, countByProfile(list)]));
+}
 
 export type DashboardStats = Awaited<ReturnType<typeof getDashboardStats>>;
 
@@ -24,6 +54,9 @@ export async function getDashboardStats() {
     recentAttendees,
     completedTimes,
     registrations,
+    profileScans,
+    profileScansLastHour,
+    positionGroups,
   ] = await Promise.all([
     prisma.station.findMany({ orderBy: [{ order: "asc" }, { createdAt: "asc" }] }),
     getActiveStations(),
@@ -57,10 +90,16 @@ export async function getDashboardStats() {
       select: { createdAt: true, completedAt: true },
     }),
     prisma.attendee.findMany({ select: { createdAt: true } }),
+    scansByStationAndPosition(),
+    scansByStationAndPosition(lastHour),
+    prisma.attendee.groupBy({ by: ["position"], _count: { _all: true } }),
   ]);
 
   const scanCountByStation = new Map(scanGroups.map((g) => [g.stationId, g._count._all]));
   const lastScanByStation = new Map(scanGroups.map((g) => [g.stationId, g._max.createdAt]));
+
+  const profilesAll = profilesByStation(profileScans);
+  const profilesLastHour = profilesByStation(profileScansLastHour);
 
   const stationStats = stations.map((station) => {
     const visits = scanCountByStation.get(station.id) ?? 0;
@@ -74,6 +113,8 @@ export async function getDashboardStats() {
       pending: Math.max(0, totalAttendees - visits),
       rate: totalAttendees > 0 ? visits / totalAttendees : 0,
       lastScanAt: lastScanByStation.get(station.id)?.toISOString() ?? null,
+      profiles: profilesAll.get(station.id) ?? [],
+      profilesLastHour: profilesLastHour.get(station.id) ?? [],
     };
   });
 
@@ -143,6 +184,10 @@ export async function getDashboardStats() {
       medianCompletionMs,
     },
     stations: stationStats,
+    /** Asistentes registrados por perfil (Puesto). */
+    profiles: countByProfile(
+      positionGroups.map((g) => ({ position: g.position, count: g._count._all })),
+    ),
     distribution,
     staff: staffStats,
     registrationsByHour,
