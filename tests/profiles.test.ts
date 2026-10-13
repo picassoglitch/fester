@@ -113,4 +113,25 @@ describe.skipIf(!hasLocalDb)("perfiles en la base local", () => {
     // Recien escaneados: tambien entran en la ventana de la ultima hora.
     expect(after.profilesLastHour.find((r) => r.profile === "Albañil")?.count ?? 0).toBeGreaterThan(0);
   });
+
+  it("la ultima hora no cuenta escaneos de hace horas, sin importar la zona de la base", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { getDashboardStats } = await import("@/lib/stats");
+    const [, other] = await prisma.station.findMany({ where: { active: true }, orderBy: { order: "asc" } });
+    const architect = await prisma.attendee.findFirstOrThrow({
+      where: { code: { in: codes }, position: "Arquitecto" },
+    });
+    const count = async () =>
+      (await getDashboardStats()).stations
+        .find((s) => s.id === other.id)!
+        .profilesLastHour.find((r) => r.profile === "Arquitecto")?.count ?? 0;
+
+    // Sesion con una zona que no es UTC (la de prod puede ser cualquiera).
+    await prisma.$executeRawUnsafe(`ALTER DATABASE "${new URL(process.env.DATABASE_URL!).pathname.slice(1)}" SET timezone TO 'America/Mexico_City'`);
+    const before = await count();
+    await prisma.scan.create({
+      data: { attendeeId: architect.id, stationId: other.id, createdAt: new Date(Date.now() - 3 * 3600_000) },
+    });
+    expect(await count()).toBe(before);
+  });
 });

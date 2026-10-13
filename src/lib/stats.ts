@@ -7,7 +7,11 @@ type ProfileScanRow = { stationId: string; position: string | null; count: numbe
 
 /** Escaneos por estacion y "Puesto"; con `since`, solo los de esa ventana. */
 function scansByStationAndPosition(since?: Date) {
-  const window = since ? Prisma.sql`WHERE s."createdAt" >= ${since}` : Prisma.empty;
+  // createdAt es timestamp sin zona en UTC; sin el AT TIME ZONE, Postgres
+  // compararia en la zona de la sesion y la ventana se correria horas.
+  const window = since
+    ? Prisma.sql`WHERE s."createdAt" >= (${since}::timestamptz AT TIME ZONE 'UTC')`
+    : Prisma.empty;
   return prisma.$queryRaw<ProfileScanRow[]>`
     SELECT s."stationId", a."position", COUNT(*)::int AS count
     FROM "Scan" s
