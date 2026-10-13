@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { DashboardStats } from "@/lib/stats";
+import ProfileBreakdown from "@/components/ProfileBreakdown";
 import { formatDuration, formatTime, relativeTime } from "@/lib/format";
 
 const POLL_MS = 20_000;
@@ -62,8 +63,16 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
     };
   }, [live]);
 
-  const { totals, stations, distribution, staff, feed, recentAttendees, registrationsByHour } =
-    stats;
+  const {
+    totals,
+    stations,
+    profiles,
+    distribution,
+    staff,
+    feed,
+    recentAttendees,
+    registrationsByHour,
+  } = stats;
   const maxHour = Math.max(1, ...registrationsByHour.map((r) => r.count));
   const maxBucket = Math.max(1, ...distribution);
 
@@ -127,6 +136,8 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
           hint="registro → recorrido completo"
         />
       </section>
+
+      <ProfileBreakdown stations={stations} profiles={profiles} />
 
       <div className="grid gap-4 lg:grid-cols-5">
         <section className="card p-5 lg:col-span-3">
