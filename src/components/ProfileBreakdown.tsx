@@ -151,7 +151,7 @@ export default function ProfileBreakdown({
               .sort((a, b) => b.count - a.count)
               .map((row) => (
                 <li key={row.profile} className="flex items-center gap-3 text-sm">
-                  <span className="flex w-40 shrink-0 items-center gap-2 truncate text-white/70">
+                  <span className="flex w-44 shrink-0 items-center gap-2 truncate text-white/70">
                     <Dot profile={row.profile} />
                     {profileLabel(row.profile)}
                   </span>
