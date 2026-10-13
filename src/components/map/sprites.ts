@@ -3,9 +3,11 @@ import {
   crowdSlot,
   DOOR,
   prizeSlot,
+  DEFAULT_RING,
   route,
   unitPair,
   type Point,
+  type Ring,
 } from "@/lib/map-layout";
 import { profileColor } from "@/lib/profiles";
 
@@ -44,11 +46,15 @@ function same(a: Point, b: Point): boolean {
 }
 
 /** A donde tiene que ir cada quien segun su estado. */
-export function targetFor(person: MapPerson, spots: Map<string, Point>): Point | null {
+export function targetFor(
+  person: MapPerson,
+  spots: Map<string, Point>,
+  ring: Ring = DEFAULT_RING,
+): Point | null {
   if (person.status === "leaving") return DOOR;
   if (person.status === "prize") return prizeSlot(person.id);
   const spot = spots.get(person.stationId);
-  return spot ? crowdSlot(spot, person.id) : null;
+  return spot ? crowdSlot(spot, person.id, ring.inner, ring.outer) : null;
 }
 
 function newSprite(person: MapPerson, at: Point): Sprite {
@@ -80,20 +86,21 @@ export function applySnapshot(
   sprites: Map<string, Sprite>,
   people: readonly MapPerson[],
   spots: Map<string, Point>,
-  { initial, instant }: { initial: boolean; instant: boolean },
+  { initial, instant, ring = DEFAULT_RING }: { initial: boolean; instant: boolean; ring?: Ring },
 ) {
   const seen = new Set<string>();
 
   for (const person of people) {
-    const target = targetFor(person, spots);
+    const target = targetFor(person, spots, ring);
     if (!target) continue;
     seen.add(person.id);
     let sprite = sprites.get(person.id);
 
     if (!sprite) {
       if (person.status === "leaving") {
-        // Recogio su premio antes de que lo vieramos: sale desde la mesa.
-        if (!initial && !instant) continue;
+        // Recogio su premio antes de que lo vieramos (o ya salio y sigue en
+        // la ventana del sondeo): solo en la primera carga se le ve salir.
+        if (!initial) continue;
         sprite = newSprite(person, prizeSlot(person.id));
       } else {
         sprite = newSprite(person, initial || instant ? target : DOOR);

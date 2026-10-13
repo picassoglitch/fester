@@ -44,6 +44,25 @@ export function stationSpots(ids: readonly string[]): Map<string, Point> {
   return spots;
 }
 
+export type Ring = { inner: number; outer: number };
+
+/** Anillo de gente por defecto (pocas estaciones, mucho espacio). */
+export const DEFAULT_RING: Ring = { inner: 84, outer: 128 };
+
+/**
+ * El anillo de gente se achica cuando las estaciones quedan cerca, para que
+ * nadie parezca estar formado en el kiosko de al lado.
+ */
+export function crowdRing(count: number): Ring {
+  const rows = count <= 4 ? 1 : count <= 10 ? 2 : 3;
+  const perRow = Math.ceil(count / rows);
+  const width = COURT.right - 135 - (COURT.left + 140);
+  const colGap = perRow > 1 ? width / (perRow - 1) : Infinity;
+  const rowGap = rows === 1 ? Infinity : rows === 2 ? 210 : 140;
+  const outer = Math.min(DEFAULT_RING.outer, colGap / 2 - 6, rowGap / (2 * 0.62) - 6);
+  return { inner: Math.min(DEFAULT_RING.inner, outer - 22), outer };
+}
+
 /** FNV-1a: el mismo id siempre cae en el mismo lugar de la bola de gente. */
 export function hash(text: string): number {
   let h = 0x811c9dc5;

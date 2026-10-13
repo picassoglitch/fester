@@ -7,6 +7,8 @@ export type BoothInfo = {
   active: boolean;
   spot: Point;
   count: number;
+  /** Radio del tapete: el anillo donde se forma la gente. */
+  ring: number;
 };
 
 /** Numeros pintados en la pared lateral, como los cuadros de un fronton. */
@@ -25,7 +27,7 @@ function Booth({ booth }: { booth: BoothInfo }) {
   return (
     <g opacity={booth.active ? 1 : 0.5}>
       {/* Tapete donde se forma la gente */}
-      <ellipse cx={x} cy={y + 8} rx={132} ry={84} fill="#ffffff" opacity={0.07} />
+      <ellipse cx={x} cy={y + 8} rx={booth.ring + 4} ry={booth.ring * 0.62 + 6} fill="#ffffff" opacity={0.07} />
       <ellipse
         cx={x}
         cy={y + 8}

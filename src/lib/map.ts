@@ -21,12 +21,9 @@ export type MapPerson = {
 
 export type MapSnapshot = Awaited<ReturnType<typeof getMapSnapshot>>;
 
-export function mapStatus(attendee: {
-  completedAt: Date | null;
-  redeemedAt: Date | null;
-}): MapStatus {
-  if (attendee.redeemedAt) return "leaving";
-  if (attendee.completedAt) return "prize";
+export function mapStatus(attendee: { completed: boolean; redeemed: boolean }): MapStatus {
+  if (attendee.redeemed) return "leaving";
+  if (attendee.completed) return "prize";
   return "station";
 }
 
@@ -34,39 +31,48 @@ export function mapStatus(attendee: {
  * Quien aparece en el mapa: solo quien ya escaneo al menos una estacion y no
  * se fue (premio entregado hace mas de LEAVING_WINDOW_MS).
  */
+type MapRow = {
+  id: string;
+  name: string;
+  position: string | null;
+  completed: boolean;
+  redeemed: boolean;
+  stationId: string;
+};
+
 export async function getMapSnapshot(now = new Date()) {
   const leftBefore = new Date(now.getTime() - LEAVING_WINDOW_MS);
 
-  const [stations, attendees] = await Promise.all([
+  const [stations, rows] = await Promise.all([
     prisma.station.findMany({
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, emoji: true, active: true },
     }),
-    prisma.attendee.findMany({
-      where: {
-        scans: { some: {} },
-        OR: [{ redeemedAt: null }, { redeemedAt: { gte: leftBefore } }],
-      },
-      select: {
-        id: true,
-        name: true,
-        position: true,
-        completedAt: true,
-        redeemedAt: true,
-        scans: { orderBy: { createdAt: "desc" }, take: 1, select: { stationId: true } },
-      },
-    }),
+    // Una fila por asistente con su ultimo escaneo (DISTINCT ON), en vez de
+    // traer todos los escaneos de todos cada 5 s. createdAt/redeemedAt son
+    // timestamps sin zona en UTC: por eso el AT TIME ZONE.
+    prisma.$queryRaw<MapRow[]>`
+      SELECT a."id", a."name", a."position",
+             a."completedAt" IS NOT NULL AS completed,
+             a."redeemedAt" IS NOT NULL AS redeemed,
+             last."stationId"
+      FROM "Attendee" a
+      JOIN (
+        SELECT DISTINCT ON (s."attendeeId") s."attendeeId", s."stationId"
+        FROM "Scan" s
+        ORDER BY s."attendeeId", s."createdAt" DESC, s."id" DESC
+      ) last ON last."attendeeId" = a."id"
+      WHERE a."redeemedAt" IS NULL
+         OR a."redeemedAt" >= (${leftBefore}::timestamptz AT TIME ZONE 'UTC')`,
   ]);
 
-  const people: MapPerson[] = attendees
-    .filter((a) => a.scans.length > 0)
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      profile: profileOf(a.position),
-      stationId: a.scans[0].stationId,
-      status: mapStatus(a),
-    }));
+  const people: MapPerson[] = rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    profile: profileOf(row.position),
+    stationId: row.stationId,
+    status: mapStatus({ completed: row.completed, redeemed: row.redeemed }),
+  }));
 
   // Las inactivas solo se dibujan si alguien sigue parado ahi.
   const occupied = new Set(people.map((p) => p.stationId));

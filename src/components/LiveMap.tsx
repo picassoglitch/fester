@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import VenueArt, { VenueLabels, type BoothInfo } from "@/components/map/VenueArt";
 import { applySnapshot, drawSprite, step, type Sprite } from "@/components/map/sprites";
 import type { MapSnapshot } from "@/lib/map";
-import { stationSpots, VIEW } from "@/lib/map-layout";
+import { crowdRing, stationSpots, VIEW } from "@/lib/map-layout";
 import { PROFILES, profileColor, profileLabel } from "@/lib/profiles";
 import { relativeTime } from "@/lib/format";
 
@@ -41,6 +41,7 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
   const hoverId = useRef<string | null>(null);
 
   const spots = useMemo(() => stationSpots(snapshot.stations.map((s) => s.id)), [snapshot.stations]);
+  const ring = useMemo(() => crowdRing(snapshot.stations.length), [snapshot.stations.length]);
 
   // Cada sondeo mueve a los personajes hacia su nuevo lugar.
   useEffect(() => {
@@ -48,24 +49,32 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
     applySnapshot(sprites.current, snapshot.people, spots, {
       initial: firstApply.current,
       instant,
+      ring,
     });
     firstApply.current = false;
-  }, [snapshot, spots]);
+  }, [snapshot, spots, ring]);
 
   // Sondeo
   useEffect(() => {
     if (!live) return;
     let cancelled = false;
+    let inFlight = false;
 
     async function refresh() {
-      if (document.hidden) return;
+      // Un sondeo a la vez: una respuesta vieja no debe regresar a nadie.
+      if (document.hidden || inFlight) return;
+      inFlight = true;
       try {
         const res = await fetch("/api/admin/mapa", { cache: "no-store" });
         if (!res.ok || cancelled) return;
-        setSnapshot(await res.json());
+        const next: MapSnapshot = await res.json();
+        if (cancelled) return;
+        setSnapshot((current) => (next.generatedAt >= current.generatedAt ? next : current));
         setUpdatedAt(Date.now());
       } catch {
         /* reintenta en el siguiente ciclo */
+      } finally {
+        inFlight = false;
       }
     }
 
@@ -184,6 +193,7 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
     ...station,
     spot: spots.get(station.id)!,
     count: inStation.get(station.id) ?? 0,
+    ring: ring.outer,
   }));
 
   const hovered = hover ? sprites.current.get(hover.id) : undefined;

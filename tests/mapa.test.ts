@@ -3,6 +3,7 @@ import { applySnapshot, step, type Sprite } from "@/components/map/sprites";
 import type { MapPerson } from "@/lib/map";
 import {
   COURT,
+  crowdRing,
   crowdSlot,
   DOOR,
   LOBBY_HUB,
@@ -28,6 +29,20 @@ describe("geometria del mapa", () => {
       }
       const rows = new Set(spots.map((s) => s.y)).size;
       expect(rows).toBe(n <= 4 ? 1 : n <= 10 ? 2 : 3);
+    }
+  });
+
+  it("los anillos de gente de estaciones vecinas no se enciman", () => {
+    for (let n = 1; n <= 14; n++) {
+      const ring = crowdRing(n);
+      const spots = [...stationSpots(Array.from({ length: n }, (_, i) => `s${i}`)).values()];
+      expect(ring.inner).toBeGreaterThan(60);
+      for (const a of spots)
+        for (const b of spots) {
+          if (a === b) continue;
+          const apart = a.y === b.y ? Math.abs(a.x - b.x) >= 2 * ring.outer : Math.abs(a.y - b.y) >= 2 * ring.outer * 0.62;
+          expect(apart, `${n} estaciones`).toBe(true);
+        }
     }
   });
 
@@ -125,6 +140,16 @@ describe("personajes", () => {
     applySnapshot(sprites, [], spots, { initial: false, instant: false });
     expect(sprites.get("p1")!.fading).toBe(true);
     walkAll(sprites);
+    expect(sprites.has("p1")).toBe(false);
+  });
+
+  it("con movimiento reducido, quien ya salio no reaparece en cada sondeo", () => {
+    const sprites = new Map<string, Sprite>();
+    applySnapshot(sprites, [person()], spots, { initial: true, instant: true });
+    applySnapshot(sprites, [person({ status: "leaving" })], spots, { initial: false, instant: true });
+    walkAll(sprites);
+    expect(sprites.has("p1")).toBe(false);
+    applySnapshot(sprites, [person({ status: "leaving" })], spots, { initial: false, instant: true });
     expect(sprites.has("p1")).toBe(false);
   });
 
