@@ -20,6 +20,27 @@ export const EVENT = {
   registrationDeadline: "Cupo limitado",
 } as const;
 
+/**
+ * Agenda oficial: se muestra como imagen (public/agenda-del-evento.png),
+ * no se reconstruye en HTML, para conservar el arte de marca tal cual.
+ */
+export const AGENDA_IMAGE = {
+  src: "/agenda-del-evento.png",
+  alt: "Agenda del evento",
+  width: 1357,
+  height: 1159,
+} as const;
+
+/** Aviso de aforo, justo debajo de la agenda en el hero. */
+export const CAPACITY_NOTICE = {
+  heading: "¡Te recomendamos llegar con anticipación!",
+  paragraphs: [
+    "Para que disfrutes al máximo esta experiencia, te sugerimos llegar temprano y asegurar tu acceso, ya que contamos con un aforo máximo de 450 personas.",
+    "El ingreso se realizará de manera continua durante el evento, sujeto al aforo del recinto, por lo que, si al momento de tu llegada estamos a máxima capacidad, nuestro equipo te orientará para que puedas ingresar en cuanto haya espacio disponible.",
+  ],
+  closing: "¡Te esperamos para vivir una gran experiencia juntos!",
+} as const;
+
 /* --- Contacto --- */
 
 /**
