@@ -27,8 +27,8 @@ export const EVENT = {
 export const AGENDA_IMAGE = {
   src: "/agenda-del-evento.png",
   alt: "Agenda del evento",
-  width: 1600,
-  height: 2480,
+  width: 1357,
+  height: 1159,
 } as const;
 
 /** Aviso de aforo, justo debajo de la agenda en el hero. */
