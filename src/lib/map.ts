@@ -43,7 +43,7 @@ type MapRow = {
 export async function getMapSnapshot(now = new Date()) {
   const leftBefore = new Date(now.getTime() - LEAVING_WINDOW_MS);
 
-  const [stations, rows] = await Promise.all([
+  const [stations, rows, completed, redeemed] = await Promise.all([
     prisma.station.findMany({
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       select: { id: true, name: true, emoji: true, active: true },
@@ -64,6 +64,9 @@ export async function getMapSnapshot(now = new Date()) {
       ) last ON last."attendeeId" = a."id"
       WHERE a."redeemedAt" IS NULL
          OR a."redeemedAt" >= (${leftBefore}::timestamptz AT TIME ZONE 'UTC')`,
+    // Contadores grandes del mapa: de todo el evento, no solo de quien sigue ahi.
+    prisma.attendee.count({ where: { completedAt: { not: null } } }),
+    prisma.attendee.count({ where: { redeemedAt: { not: null } } }),
   ]);
 
   const people: MapPerson[] = rows.map((row) => ({
@@ -80,5 +83,6 @@ export async function getMapSnapshot(now = new Date()) {
     generatedAt: now.toISOString(),
     stations: stations.filter((s) => s.active || occupied.has(s.id)),
     people,
+    totals: { completed, redeemed },
   };
 }

@@ -2,74 +2,99 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { applySnapshot, step, type Sprite } from "@/components/map/sprites";
 import type { MapPerson } from "@/lib/map";
 import {
+  BOOTH,
   COURT,
   crowdRing,
   crowdSlot,
   DOOR,
-  LOBBY_HUB,
-  prizeSlot,
+  LOBBY,
   PRIZE_DESK,
-  route,
+  prizeSlot,
+  project,
   stationSpots,
+  unproject,
+  VIEW,
+  WALL_HEIGHT,
 } from "@/lib/map-layout";
 import { ensureStations, hasLocalDb, testCode } from "./db";
 
 describe("geometria del mapa", () => {
-  it("reparte las estaciones dentro de la cancha, en filas", () => {
+  it("reparte las estaciones dentro de la cancha, en filas, con su anillo completo", () => {
     for (const n of [1, 3, 4, 6, 10, 14]) {
       const ids = Array.from({ length: n }, (_, i) => `s${i}`);
       const spots = [...stationSpots(ids).values()];
+      const ring = crowdRing(n);
       expect(spots).toHaveLength(n);
       for (const spot of spots) {
-        // Cabe el anillo de gente completo (128 de radio) sin salirse de la cancha.
-        expect(spot.x - 128).toBeGreaterThanOrEqual(COURT.left);
-        expect(spot.x + 128).toBeLessThanOrEqual(COURT.right);
-        expect(spot.y).toBeGreaterThan(COURT.top);
-        expect(spot.y).toBeLessThan(COURT.bottom);
+        expect(spot.x - ring.outer).toBeGreaterThanOrEqual(COURT.left);
+        expect(spot.x + ring.outer).toBeLessThanOrEqual(COURT.right);
+        expect(spot.y - ring.outer).toBeGreaterThanOrEqual(COURT.top);
+        expect(spot.y + ring.outer).toBeLessThanOrEqual(COURT.bottom);
       }
       const rows = new Set(spots.map((s) => s.y)).size;
       expect(rows).toBe(n <= 4 ? 1 : n <= 10 ? 2 : 3);
     }
   });
 
-  it("los anillos de gente de estaciones vecinas no se enciman", () => {
+  it("los anillos de gente de estaciones vecinas no se enciman y nadie queda dentro del kiosko", () => {
+    const boothHalfDiagonal = Math.hypot(BOOTH.w, BOOTH.d) / 2;
     for (let n = 1; n <= 14; n++) {
       const ring = crowdRing(n);
       const spots = [...stationSpots(Array.from({ length: n }, (_, i) => `s${i}`)).values()];
-      expect(ring.inner).toBeGreaterThan(60);
+      expect(ring.inner).toBeGreaterThan(boothHalfDiagonal);
+      expect(ring.outer).toBeGreaterThan(ring.inner);
       for (const a of spots)
         for (const b of spots) {
           if (a === b) continue;
-          const apart = a.y === b.y ? Math.abs(a.x - b.x) >= 2 * ring.outer : Math.abs(a.y - b.y) >= 2 * ring.outer * 0.62;
-          expect(apart, `${n} estaciones`).toBe(true);
+          expect(Math.hypot(a.x - b.x, a.y - b.y), `${n} estaciones`).toBeGreaterThanOrEqual(2 * ring.outer);
         }
     }
   });
 
   it("cada quien tiene su lugar fijo, alrededor del kiosko y no encima", () => {
-    const center = { x: 600, y: 300 };
+    const center = { x: 600, y: 200 };
     expect(crowdSlot(center, "abc")).toEqual(crowdSlot(center, "abc"));
     for (let i = 0; i < 200; i++) {
       const slot = crowdSlot(center, `persona-${i}`);
-      const dx = slot.x - center.x;
-      const dy = (slot.y - center.y) / 0.62;
-      expect(Math.hypot(dx, dy)).toBeGreaterThanOrEqual(84 - 0.01);
-      expect(Math.hypot(dx, dy)).toBeLessThanOrEqual(128 + 0.01);
+      const r = Math.hypot(slot.x - center.x, slot.y - center.y);
+      expect(r).toBeGreaterThanOrEqual(62 - 0.01);
+      expect(r).toBeLessThanOrEqual(110 + 0.01);
     }
   });
 
-  it("la fila de premios queda frente a la mesa, sin taparla", () => {
+  it("quien espera premio queda en el vestibulo, frente al mostrador", () => {
     for (let i = 0; i < 100; i++) {
-      expect(prizeSlot(`p${i}`).y).toBeGreaterThanOrEqual(PRIZE_DESK.y + 60);
+      const slot = prizeSlot(`p${i}`);
+      expect(slot.y).toBeGreaterThan(PRIZE_DESK.y + PRIZE_DESK.d / 2);
+      expect(slot.x).toBeGreaterThanOrEqual(LOBBY.left);
+      expect(slot.x).toBeLessThanOrEqual(LOBBY.right);
+      expect(slot.y).toBeLessThan(COURT.bottom);
     }
   });
 
-  it("entre la cancha y la puerta se pasa por el vestibulo", () => {
-    const station = { x: 400, y: 300 };
-    expect(route(station, DOOR)).toEqual([LOBBY_HUB, DOOR]);
-    expect(route(DOOR, station)).toEqual([LOBBY_HUB, station]);
-    expect(route(prizeSlot("x"), DOOR)).toEqual([DOOR]);
-    expect(route(station, { x: 900, y: 450 })).toEqual([{ x: 900, y: 450 }]);
+  it("la puerta da al vestibulo y la linea recta a cualquier estacion no cruza las gradas", () => {
+    expect(DOOR.x).toBeGreaterThanOrEqual(LOBBY.right);
+    expect(DOOR.y).toBeLessThan(COURT.bottom);
+  });
+
+  it("la proyeccion isometrica va y viene, y el recinto cabe en el lienzo con sus paredes", () => {
+    const p = { x: 321, y: 123 };
+    const back = unproject(project(p));
+    expect(back.x).toBeCloseTo(p.x);
+    expect(back.y).toBeCloseTo(p.y);
+    const corners = [
+      project({ x: 0, y: 0 }, WALL_HEIGHT),
+      project({ x: 0, y: 440 }),
+      project({ x: 1260, y: 0 }, WALL_HEIGHT),
+      project({ x: 1260, y: 440 }),
+      project(DOOR),
+    ];
+    for (const c of corners) {
+      expect(c.x).toBeGreaterThan(0);
+      expect(c.x).toBeLessThan(VIEW.width);
+      expect(c.y).toBeGreaterThan(0);
+      expect(c.y).toBeLessThan(VIEW.height - 18);
+    }
   });
 });
 
@@ -101,7 +126,7 @@ describe("personajes", () => {
     applySnapshot(sprites, [person()], spots, { initial: false, instant: false });
     const sprite = sprites.get("p1")!;
     expect({ x: sprite.x, y: sprite.y }).toEqual(DOOR);
-    expect(sprite.path[0]).toEqual(LOBBY_HUB);
+    expect(sprite.path).toEqual([crowdSlot(spots.get("a")!, "p1")]);
     walkAll(sprites);
     expect({ x: sprite.x, y: sprite.y }).toEqual(crowdSlot(spots.get("a")!, "p1"));
   });
@@ -229,6 +254,19 @@ describe.skipIf(!hasLocalDb)("quien sale en el mapa (base local)", () => {
     });
     expect(find(codes.waiting)?.status).toBe("prize");
     expect(find(codes.leaving)?.status).toBe("leaving");
+  });
+
+  it("trae los totales de completados y premios entregados de todo el evento", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { getMapSnapshot } = await import("@/lib/map");
+    const snapshot = await getMapSnapshot();
+    const [completed, redeemed] = await Promise.all([
+      prisma.attendee.count({ where: { completedAt: { not: null } } }),
+      prisma.attendee.count({ where: { redeemedAt: { not: null } } }),
+    ]);
+    // "gone" recogio hace una hora: ya no sale en el mapa pero si cuenta.
+    expect(snapshot.totals).toEqual({ completed, redeemed });
+    expect(redeemed).toBeGreaterThanOrEqual(2);
   });
 
   it("la ruta del mapa es solo para el admin", async () => {
