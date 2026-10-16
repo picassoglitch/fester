@@ -202,7 +202,7 @@ export function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: num
 }
 
 /** Altura del personaje en la pantalla, de los pies a la punta del casco. */
-export const SPRITE_HEIGHT = 40;
+const SPRITE_HEIGHT = 40;
 
 /**
  * Un trabajador de caricatura cabezon, con los pies en su lugar del piso.

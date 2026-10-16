@@ -57,7 +57,7 @@ function withPulse(ctx: CanvasRenderingContext2D, base: Point, age: number, draw
 
 const AWNING_RED = "#e2001a";
 
-export type BoothDraw = { spot: Point; emoji: string; active: boolean };
+type BoothDraw = { spot: Point; emoji: string; active: boolean };
 
 /** Altura del kiosko hasta arriba del toldo, en la pantalla. */
 export const BOOTH_TOP = 74;
@@ -184,8 +184,8 @@ export type Fx = {
   gold?: boolean;
 };
 
-export const RING_SECONDS = 1.1;
-export const POP_SECONDS = 2.8;
+const RING_SECONDS = 1.1;
+const POP_SECONDS = 2.8;
 
 const easeOut = (p: number) => 1 - Math.pow(1 - p, 3);
 /** Entrada con rebote sutil, como cubic-bezier(0.34, 1.56, 0.64, 1). */
@@ -202,7 +202,7 @@ function truncate(ctx: CanvasRenderingContext2D, text: string, max: number): str
 }
 
 /** Lo que se ve del lienzo, para que los nombres no se corten en la orilla. */
-export type Bounds = { x: number; y: number; w: number; h: number; scale: number };
+type Bounds = { x: number; y: number; w: number; h: number; scale: number };
 
 /** Dibuja un destello; devuelve false cuando ya termino. */
 export function drawFx(ctx: CanvasRenderingContext2D, fx: Fx, now: number, bounds: Bounds): boolean {
