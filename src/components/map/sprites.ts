@@ -1,18 +1,18 @@
 import type { MapPerson } from "@/lib/map";
 import {
   crowdSlot,
+  DEFAULT_RING,
   DOOR,
   prizeSlot,
-  DEFAULT_RING,
-  route,
+  project,
   unitPair,
   type Point,
   type Ring,
 } from "@/lib/map-layout";
 import { profileColor } from "@/lib/profiles";
 
-/** Unidades del lienzo por segundo. */
-const SPEED = 150;
+/** Unidades del piso por segundo. */
+const SPEED = 130;
 const FADE_PER_SECOND = 2;
 
 export type Sprite = {
@@ -22,6 +22,7 @@ export type Sprite = {
   color: string;
   status: MapPerson["status"];
   stationId: string;
+  /** Pies, en el plano del piso. */
   x: number;
   y: number;
   /** Puntos que le faltan por caminar. */
@@ -29,6 +30,8 @@ export type Sprite = {
   speed: number;
   phase: number;
   skin: string;
+  pants: string;
+  /** Hacia donde mira en la pantalla. */
   facing: 1 | -1;
   alpha: number;
   /** Se desvanece y se borra: salio por la puerta o ya no viene en el sondeo. */
@@ -36,6 +39,8 @@ export type Sprite = {
 };
 
 const SKINS = ["#f1c7a5", "#d9a37c", "#a8714f", "#7a4b32"];
+const PANTS = ["#2b3a55", "#3c4f6e", "#4a3b32", "#2f4a43"];
+export const OUTLINE = "#14213a";
 
 function destination(sprite: Sprite): Point {
   return sprite.path.length > 0 ? sprite.path[sprite.path.length - 1] : sprite;
@@ -72,6 +77,7 @@ function newSprite(person: MapPerson, at: Point): Sprite {
     speed: SPEED * (0.85 + a * 0.3),
     phase: b * Math.PI * 2,
     skin: SKINS[Math.floor(a * SKINS.length) % SKINS.length],
+    pants: PANTS[Math.floor(b * PANTS.length) % PANTS.length],
     facing: 1,
     alpha: 1,
     fading: false,
@@ -81,6 +87,7 @@ function newSprite(person: MapPerson, at: Point): Sprite {
 /**
  * Aplica un sondeo. En la primera carga cada quien aparece ya en su lugar;
  * despues, quien llega nuevo entra por la puerta y camina a su estacion.
+ * Cancha y vestibulo no tienen muros entre si: se camina en linea recta.
  */
 export function applySnapshot(
   sprites: Map<string, Sprite>,
@@ -123,10 +130,9 @@ export function applySnapshot(
         sprite.path = [];
       } else if (person.status === "leaving") {
         // Pasa por la mesa de premios y de ahi a la puerta.
-        const pickup = prizeSlot(person.id);
-        sprite.path = [...route(sprite, pickup), ...route(pickup, DOOR)];
+        sprite.path = [prizeSlot(person.id), DOOR];
       } else {
-        sprite.path = route(sprite, target);
+        sprite.path = [target];
       }
     }
   }
@@ -145,7 +151,8 @@ export function step(sprites: Map<string, Sprite>, dt: number) {
       const dx = next.x - sprite.x;
       const dy = next.y - sprite.y;
       const dist = Math.hypot(dx, dy);
-      if (Math.abs(dx) > 0.5) sprite.facing = dx > 0 ? 1 : -1;
+      // En la pantalla, avanzar en x va a la derecha y avanzar en y a la izquierda.
+      if (Math.abs(dx - dy) > 0.5) sprite.facing = dx - dy > 0 ? 1 : -1;
       if (dist <= budget) {
         sprite.x = next.x;
         sprite.y = next.y;
@@ -180,9 +187,26 @@ function hatFor(profile: string): "white" | "cap" | "yellow" {
   return "yellow";
 }
 
+/** Estrella de cinco picos (solo el trazo; quien llama rellena). */
+export function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const radius = i % 2 === 0 ? r : r * 0.45;
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const px = x + Math.cos(a) * radius;
+    const py = y + Math.sin(a) * radius;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+/** Altura del personaje en la pantalla, de los pies a la punta del casco. */
+const SPRITE_HEIGHT = 40;
+
 /**
- * Un trabajador de caricatura parado en (x, y), que son sus pies. Mide unas
- * 34 unidades. `t` en segundos para caminar y respirar.
+ * Un trabajador de caricatura cabezon, con los pies en su lugar del piso.
+ * `t` en segundos para caminar y respirar.
  */
 export function drawSprite(
   ctx: CanvasRenderingContext2D,
@@ -191,119 +215,129 @@ export function drawSprite(
   highlighted: boolean,
 ) {
   const walking = isWalking(sprite);
-  const swing = walking ? Math.sin(t * 13 + sprite.phase) * 5 : 0;
-  const bob = walking ? Math.abs(Math.sin(t * 13 + sprite.phase)) * 1.6 : Math.sin(t * 2 + sprite.phase) * 0.7;
-  const x = sprite.x;
-  const y = sprite.y - bob;
+  const cycle = t * 11 + sprite.phase;
+  const swing = walking ? Math.sin(cycle) * 4 : 0;
+  const bob = walking ? Math.abs(Math.sin(cycle)) * 2 : Math.sin(t * 2 + sprite.phase) * 0.6;
+  const feet = project(sprite);
+  const x = feet.x;
+  const y = feet.y - bob;
+  const f = sprite.facing;
 
   ctx.save();
   ctx.globalAlpha = Math.max(0, Math.min(1, sprite.alpha));
 
-  // Sombra
-  ctx.fillStyle = "rgba(0,0,0,0.28)";
+  // Sombra en el piso, achatada como el piso isometrico
+  ctx.fillStyle = "rgba(10,20,35,0.32)";
   ctx.beginPath();
-  ctx.ellipse(sprite.x, sprite.y + 1, 9, 3.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(feet.x, feet.y, 10 - bob, 4.6 - bob * 0.4, 0, 0, Math.PI * 2);
   ctx.fill();
 
   if (highlighted) {
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.ellipse(sprite.x, sprite.y + 1, 15, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(feet.x, feet.y, 17, 8.5, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
 
+  ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  ctx.strokeStyle = "#1d2b3a";
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 1.5;
 
   // Piernas
-  ctx.lineWidth = 3.6;
-  ctx.beginPath();
-  ctx.moveTo(x - 3, y - 11);
-  ctx.lineTo(x - 3 + swing * 0.6, y);
-  ctx.moveTo(x + 3, y - 11);
-  ctx.lineTo(x + 3 - swing * 0.6, y);
-  ctx.stroke();
+  ctx.fillStyle = sprite.pants;
+  for (const [side, s] of [
+    [-1, swing],
+    [1, -swing],
+  ] as const) {
+    ctx.beginPath();
+    ctx.roundRect(x + side * 3.4 - 2.4 + s * 0.5, y - 11, 4.8, 11, 2);
+    ctx.fill();
+    ctx.stroke();
+  }
 
   // Brazos
-  ctx.lineWidth = 3;
   ctx.strokeStyle = sprite.skin;
+  ctx.lineWidth = 3.4;
   ctx.beginPath();
   ctx.moveTo(x - 7, y - 20);
-  ctx.lineTo(x - 9 - swing * 0.5, y - 11);
+  ctx.lineTo(x - 9 - swing * 0.6, y - 12);
   ctx.moveTo(x + 7, y - 20);
-  ctx.lineTo(x + 9 + swing * 0.5, y - 11);
+  ctx.lineTo(x + 9 + swing * 0.6, y - 12);
   ctx.stroke();
 
-  // Torso con la playera del color del perfil
+  // Torso con la playera del color del perfil y la franja reflejante
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = 1.5;
   ctx.fillStyle = sprite.color;
-  ctx.strokeStyle = "#1d2b3a";
-  ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.roundRect(x - 7.5, y - 24, 15, 14, 4);
+  ctx.roundRect(x - 7.5, y - 23, 15, 13.5, 5);
   ctx.fill();
   ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.fillRect(x - 7, y - 16.5, 14, 2);
 
-  // Cabeza
+  // Cabeza grande
   ctx.fillStyle = sprite.skin;
   ctx.beginPath();
-  ctx.arc(x, y - 29, 6, 0, Math.PI * 2);
+  ctx.arc(x, y - 29.5, 7.6, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
-  // Ojo hacia donde camina
-  ctx.fillStyle = "#1d2b3a";
+  // Ojos y cachete hacia donde camina
+  ctx.fillStyle = OUTLINE;
   ctx.beginPath();
-  ctx.arc(x + 2.4 * sprite.facing, y - 29, 1.1, 0, Math.PI * 2);
+  ctx.arc(x + 2 * f, y - 29.5, 1.15, 0, Math.PI * 2);
+  ctx.arc(x + 5 * f, y - 29.5, 1.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(226,0,26,0.22)";
+  ctx.beginPath();
+  ctx.arc(x + 4.2 * f, y - 26.6, 1.8, 0, Math.PI * 2);
   ctx.fill();
 
   const hat = hatFor(sprite.profile);
   if (hat === "cap") {
     // Birrete
-    ctx.fillStyle = "#1d2b3a";
+    ctx.fillStyle = OUTLINE;
     ctx.beginPath();
-    ctx.moveTo(x - 9, y - 35);
-    ctx.lineTo(x, y - 39);
-    ctx.lineTo(x + 9, y - 35);
-    ctx.lineTo(x, y - 31.5);
+    ctx.moveTo(x - 10, y - 36);
+    ctx.lineTo(x, y - 40.5);
+    ctx.lineTo(x + 10, y - 36);
+    ctx.lineTo(x, y - 32);
     ctx.closePath();
     ctx.fill();
     ctx.strokeStyle = "#f5b301";
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
-    ctx.moveTo(x, y - 35);
-    ctx.lineTo(x + 7, y - 31);
+    ctx.moveTo(x, y - 36);
+    ctx.lineTo(x + 7 * f, y - 31.5);
     ctx.stroke();
   } else {
-    // Casco
+    // Casco con visera hacia donde mira
     ctx.fillStyle = hat === "white" ? "#f7f7f2" : "#ffd23f";
     ctx.beginPath();
-    ctx.arc(x, y - 31, 6.6, Math.PI, 0);
+    ctx.arc(x, y - 32, 8, Math.PI, 0);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.roundRect(x - 8.5 + sprite.facing * 1.5, y - 32, 17, 2.6, 1.2);
+    ctx.roundRect(x - 9 + f * 2.5, y - 33, 18, 3, 1.4);
     ctx.fill();
     ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.beginPath();
+    ctx.ellipse(x - 3 * f, y - 36, 2.2, 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Esperando su premio: estrella dorada encima
   if (sprite.status === "prize") {
-    const sy = y - 46 + Math.sin(t * 3 + sprite.phase) * 1.5;
+    const sy = y - SPRITE_HEIGHT - 8 + Math.sin(t * 3 + sprite.phase) * 1.6;
     ctx.fillStyle = "#f5b301";
-    ctx.strokeStyle = "#1d2b3a";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < 10; i++) {
-      const r = i % 2 === 0 ? 5 : 2.2;
-      const a = -Math.PI / 2 + (i * Math.PI) / 5;
-      const px = x + Math.cos(a) * r;
-      const py = sy + Math.sin(a) * r;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 1.1;
+    star(ctx, x, sy, 5.5);
     ctx.fill();
     ctx.stroke();
   }
