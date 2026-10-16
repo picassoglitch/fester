@@ -46,6 +46,10 @@ function shortName(name: string): string {
   return name.trim().split(/\s+/).slice(0, 2).join(" ");
 }
 
+function zoomStateOf(zoom: number): "fit" | "mid" | "max" {
+  return zoom <= 1 ? "fit" : zoom >= MAX_ZOOM ? "max" : "mid";
+}
+
 function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -126,7 +130,8 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
   const [updatedAt, setUpdatedAt] = useState(() => Date.now());
   const [live, setLive] = useState(true);
   const [selection, setSelection] = useState<Selection | null>(null);
-  const [zoom, setZoom] = useState(1);
+  /** Solo lo que necesitan los botones y el cursor, para no repintar en cada paso del pellizco. */
+  const [zoomState, setZoomState] = useState<"fit" | "mid" | "max">("fit");
   const [, setTick] = useState(0);
 
   const frameRef = useRef<HTMLDivElement>(null);
@@ -148,6 +153,8 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
 
   const cam = useRef<Camera>({ cx: 800, cy: 480, zoom: 1 });
   const size = useRef({ w: 0, h: 0 });
+  /** Pixeles del canvas por pixel CSS, del ultimo `resize`. */
+  const dprRef = useRef(1);
   /** Si el usuario ya movio la camara, no se la regresamos al cambiar el tamaño. */
   const touchedCamera = useRef(false);
 
@@ -175,7 +182,7 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
       cam.current = next;
       touchedCamera.current = true;
       applyView();
-      setZoom(next.zoom);
+      setZoomState(zoomStateOf(next.zoom));
     },
     [applyView],
   );
@@ -290,14 +297,29 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
       const dpr = window.devicePixelRatio || 1;
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
+      dprRef.current = dpr;
       size.current = { w, h };
       cam.current = touchedCamera.current ? clampCamera(cam.current, w, h) : defaultCamera(w, h);
-      setZoom(cam.current.zoom);
+      setZoomState(zoomStateOf(cam.current.zoom));
       applyView();
     };
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(stage);
+
+    // Pasar la ventana a otra pantalla (laptop -> proyector) cambia la
+    // densidad de pixeles sin cambiar el tamaño: tambien hay que medir.
+    let dprQuery: MediaQueryList | null = null;
+    const watchDpr = () => {
+      dprQuery?.removeEventListener("change", onDprChange);
+      dprQuery = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+      dprQuery.addEventListener("change", onDprChange);
+    };
+    const onDprChange = () => {
+      resize();
+      watchDpr();
+    };
+    watchDpr();
 
     let raf = 0;
     let last = performance.now();
@@ -308,7 +330,7 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
       step(sprites.current, dt);
 
       const { w, h } = size.current;
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = dprRef.current;
       const view = viewRect(cam.current, w, h);
       const k = view.scale * dpr;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -349,6 +371,7 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
+      dprQuery?.removeEventListener("change", onDprChange);
     };
   }, [applyView]);
 
@@ -383,7 +406,16 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   };
 
+  /** Si quedan dos dedos, el pellizco sigue desde su distancia actual (sin saltos). */
+  const resetPinch = () => {
+    if (pointers.current.size < 2) return;
+    const [a, b] = [...pointers.current.values()];
+    gesture.current.pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
   const onPointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    // Clic derecho o con Ctrl en Mac: abre el menu y nunca llega el pointerup.
+    if (event.pointerType === "mouse" && event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     pointers.current.set(event.pointerId, local(event));
     if (pointers.current.size === 1) gesture.current.moved = 0;
@@ -398,6 +430,8 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
     (event: React.PointerEvent<HTMLCanvasElement>) => {
       const p = local(event);
       const { w, h } = size.current;
+      // Un mouse sin botones apretados ya no esta arrastrando.
+      if (event.pointerType === "mouse" && event.buttons === 0) pointers.current.delete(event.pointerId);
       const prev = pointers.current.get(event.pointerId);
 
       if (!prev) {
@@ -438,6 +472,7 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
       const wasTap = pointers.current.size === 1 && gesture.current.moved <= DRAG_PX;
       pointers.current.delete(event.pointerId);
       if (pointers.current.size === 1) gesture.current.moved = DRAG_PX + 1;
+      resetPinch();
       if (!wasTap) return;
       const hit = pick(p.x, p.y, event.pointerType === "mouse" ? PICK_PX.mouse : PICK_PX.touch);
       select(hit ? { id: hit.id, pinned: true } : null);
@@ -447,6 +482,7 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
 
   const onPointerCancel = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     pointers.current.delete(event.pointerId);
+    resetPinch();
   }, []);
 
   const onPointerLeave = useCallback(() => {
@@ -555,11 +591,12 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
           <VenueArt ref={artRef} />
           <canvas
             ref={canvasRef}
-            className={`absolute inset-0 h-full w-full touch-none ${zoom > 1 ? "cursor-grab active:cursor-grabbing" : ""}`}
+            className={`absolute inset-0 h-full w-full touch-none ${zoomState !== "fit" ? "cursor-grab active:cursor-grabbing" : ""}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerCancel}
+            onLostPointerCapture={onPointerCancel}
             onPointerLeave={onPointerLeave}
           />
           <VenueLabels ref={labelsRef} booths={booths} prizeCount={waitingPrize} />
@@ -590,13 +627,13 @@ export default function LiveMap({ initial }: { initial: MapSnapshot }) {
           )}
 
           <div className="absolute right-2 top-2 flex gap-2 sm:right-3 sm:top-3">
-            <button type="button" aria-label="Acercar" className={MAP_BUTTON} disabled={zoom >= MAX_ZOOM} onClick={() => zoomBy(1.4)}>
+            <button type="button" aria-label="Acercar" className={MAP_BUTTON} disabled={zoomState === "max"} onClick={() => zoomBy(1.4)}>
               +
             </button>
-            <button type="button" aria-label="Alejar" className={MAP_BUTTON} disabled={zoom <= 1} onClick={() => zoomBy(1 / 1.4)}>
+            <button type="button" aria-label="Alejar" className={MAP_BUTTON} disabled={zoomState === "fit"} onClick={() => zoomBy(1 / 1.4)}>
               −
             </button>
-            <button type="button" aria-label="Ver todo el recinto" className={`${MAP_BUTTON} text-sm`} disabled={zoom <= 1} onClick={resetCamera}>
+            <button type="button" aria-label="Ver todo el recinto" className={`${MAP_BUTTON} text-sm`} disabled={zoomState === "fit"} onClick={resetCamera}>
               ⤢
             </button>
           </div>

@@ -1,4 +1,4 @@
-import type { Ref } from "react";
+import { memo, type Ref } from "react";
 import {
   COURT,
   DOOR,
@@ -66,11 +66,14 @@ function BoothLabel({ booth }: { booth: BoothInfo }) {
       <text y={4.5} textAnchor="middle" fontSize={13} fontWeight={700} fill="#ffffff">
         {name}
       </text>
-      <g key={booth.count} className="map-bump" transform={`translate(${w / 2 + 2} -10)`}>
-        <circle r={14} fill={booth.count > 0 ? "#f5b301" : "#9fb3c8"} stroke="#14213a" strokeWidth={2} />
-        <text y={4.5} textAnchor="middle" fontSize={13} fontWeight={800} fill="#14213a">
-          {booth.count}
-        </text>
+      {/* El rebote va en un grupo aparte: la animacion CSS pisa el transform del SVG. */}
+      <g transform={`translate(${w / 2 + 2} -10)`}>
+        <g key={booth.count} className="map-bump">
+          <circle r={14} fill={booth.count > 0 ? "#f5b301" : "#9fb3c8"} stroke="#14213a" strokeWidth={2} />
+          <text y={4.5} textAnchor="middle" fontSize={13} fontWeight={800} fill="#14213a">
+            {booth.count}
+          </text>
+        </g>
       </g>
     </g>
   );
@@ -105,11 +108,13 @@ export function VenueLabels({
         <text y={5.5} textAnchor="middle" fontSize={15} fontWeight={800} fill="#14213a">
           🎁 PREMIOS
         </text>
-        <g key={prizeCount} className="map-bump" transform="translate(64 -12)">
-          <circle r={14} fill={prizeCount > 0 ? "#23c77f" : "#9fb3c8"} stroke="#14213a" strokeWidth={2} />
-          <text y={4.5} textAnchor="middle" fontSize={13} fontWeight={800} fill="#14213a">
-            {prizeCount}
-          </text>
+        <g transform="translate(64 -12)">
+          <g key={prizeCount} className="map-bump">
+            <circle r={14} fill={prizeCount > 0 ? "#23c77f" : "#9fb3c8"} stroke="#14213a" strokeWidth={2} />
+            <text y={4.5} textAnchor="middle" fontSize={13} fontWeight={800} fill="#14213a">
+              {prizeCount}
+            </text>
+          </g>
         </g>
       </g>
     </svg>
@@ -120,7 +125,7 @@ export function VenueLabels({
  * El Fronton Bucareli en caricatura isometrica, sin la gente ni los kioskos
  * (esos van en el canvas para taparse bien entre si).
  */
-export default function VenueArt({ ref }: { ref?: Ref<SVGSVGElement> }) {
+function VenueArt({ ref }: { ref?: Ref<SVGSVGElement> }) {
   const doorS = W - DOOR.y; // posicion de la puerta en el canto derecho
   return (
     <svg
@@ -327,3 +332,6 @@ export default function VenueArt({ ref }: { ref?: Ref<SVGSVGElement> }) {
     </svg>
   );
 }
+
+/** Es estatico: no se vuelve a pintar con cada gesto ni cada sondeo. */
+export default memo(VenueArt);
