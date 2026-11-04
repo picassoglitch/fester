@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Icon from "@/components/landing/Icon";
-import { AGENDA_IMAGE, CAPACITY_NOTICE, EVENT } from "@/lib/event";
+import { AGENDA_IMAGE, CAPACITY_NOTICE, EVENT, REGISTRATION_CLOSED, REGISTRATION_OPEN } from "@/lib/event";
 
 /**
  * Hero: el arte oficial de la landing. Las piezas ya traen el titulo, el claim,
@@ -39,14 +39,14 @@ export default function Hero() {
 
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-4 py-8 sm:flex-row sm:justify-center">
         <a
-          href="#registro"
+          href={REGISTRATION_OPEN ? "#registro" : "/mi-cuenta"}
           className="btn btn-primary w-full max-w-sm justify-between px-7 py-4 text-lg uppercase tracking-wide sm:w-auto sm:min-w-[18rem]"
         >
-          Regístrate <span aria-hidden>→</span>
+          {REGISTRATION_OPEN ? "Regístrate" : REGISTRATION_CLOSED.cta} <span aria-hidden>→</span>
         </a>
         <p className="inline-flex items-center justify-center gap-2 rounded-full border-2 border-gold px-5 py-2.5 text-center text-xs font-bold uppercase tracking-wide text-gold sm:text-sm">
           <Icon name="user" className="h-4 w-4" />
-          {EVENT.registrationDeadline} · Entrada sin costo
+          {REGISTRATION_OPEN ? `${EVENT.registrationDeadline} · Entrada sin costo` : REGISTRATION_CLOSED.chip}
         </p>
       </div>
 

@@ -11,6 +11,8 @@ import { confirmEmailCode, issueEmailCode, normalizeEmail } from "@/lib/verifica
 import {
   AGE_LIMITS,
   INDEPENDENT_LABEL,
+  REGISTRATION_CLOSED,
+  REGISTRATION_OPEN,
   INDUSTRIES,
   OTHER_OPTION,
   POSITIONS,
@@ -50,6 +52,8 @@ export async function registerAttendee(
   _prev: RegisterState,
   formData: FormData,
 ): Promise<RegisterState> {
+  // Cerrado en el servidor, no solo en la vista: un POST directo tampoco crea pases.
+  if (!REGISTRATION_OPEN) return { error: REGISTRATION_CLOSED.error };
   const name = pick(formData, "name");
   // Quien trabaja por su cuenta marca la casilla y "Empresa" se guarda como "Independiente".
   const independent = formData.get("independent") !== null;

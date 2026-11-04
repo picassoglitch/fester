@@ -11,6 +11,8 @@ vi.mock("@/lib/auth", () => ({ setAttendeeSessionCookie: vi.fn() }));
 vi.mock("@/lib/db", () => ({ prisma: {} }));
 vi.mock("@/lib/mail", () => ({ sendMail: vi.fn() }));
 vi.mock("@/lib/throttle", () => ({ clientIpHash: vi.fn(async () => "iphash") }));
+// Estas pruebas cubren el formulario con el registro abierto; el cierre se prueba en registro-cerrado.test.tsx.
+vi.mock("@/lib/event", async (orig) => ({ ...(await orig<typeof import("@/lib/event")>()), REGISTRATION_OPEN: true }));
 vi.mock("@/lib/verification", async (orig) => ({
   ...(await orig<typeof import("@/lib/verification")>()),
   issueEmailCode,

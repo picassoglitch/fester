@@ -243,6 +243,17 @@ export const DIRECTIONS = { title: "¿Cómo llegar?", items: DIRECTION_ITEMS } a
 
 /* --- Registro --- */
 
+// Aldo 2026-11-04: cupo lleno, se cierra el registro. true lo reabre (form, botones y servidor).
+export const REGISTRATION_OPEN = false;
+
+export const REGISTRATION_CLOSED = {
+  banner: "Registro cerrado: alcanzamos el cupo del evento.",
+  detail: "Si ya te registraste, tu pase sigue activo. Recupéralo con tu correo.",
+  cta: "Recuperar mi pase",
+  chip: "Registro cerrado · Cupo lleno",
+  error: "El registro ya está cerrado: alcanzamos el cupo del evento. Si ya te registraste, recupera tu pase en Mi cuenta.",
+} as const;
+
 export const REGISTRATION = {
   title: "Registro",
   lead: "Regístrate sin costo y recibe tu pase digital con código QR. Cupo limitado.",

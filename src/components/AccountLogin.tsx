@@ -9,6 +9,7 @@ import {
   type AccountState,
   type PassCodeState,
 } from "@/app/actions/account";
+import { REGISTRATION_CLOSED, REGISTRATION_OPEN } from "@/lib/event";
 
 /**
  * `secondary` se usa cuando el correo no tiene registro: ahi el boton rojo es
@@ -166,12 +167,16 @@ export default function AccountLogin() {
           <input type="hidden" name="stage" value={verifying ? "code" : "email"} />
           <SubmitButton>{verifying ? "Entrar a mi cuenta" : "Enviarme un código"}</SubmitButton>
 
-          <p className="text-center text-xs text-white/50">
-            ¿Aún no te registras?{" "}
-            <Link href="/#registro" className="underline underline-offset-4 hover:text-white">
-              Crear mi pase
-            </Link>
-          </p>
+          {REGISTRATION_OPEN ? (
+            <p className="text-center text-xs text-white/50">
+              ¿Aún no te registras?{" "}
+              <Link href="/#registro" className="underline underline-offset-4 hover:text-white">
+                Crear mi pase
+              </Link>
+            </p>
+          ) : (
+            <p className="text-center text-xs text-white/50">{REGISTRATION_CLOSED.banner}</p>
+          )}
         </form>
       ) : (
         <form action={codeAction} className="card space-y-3 p-5">
