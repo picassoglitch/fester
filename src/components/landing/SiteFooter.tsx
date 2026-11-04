@@ -2,6 +2,7 @@ import Link from "next/link";
 import FesterLogo from "@/components/FesterLogo";
 import Icon from "@/components/landing/Icon";
 import { CONTACT, EVENT, PRIVACY, supportEmail } from "@/lib/event";
+import { TERMS_PATH } from "@/lib/terms";
 
 export default function SiteFooter() {
   return (
@@ -59,6 +60,11 @@ export default function SiteFooter() {
               <li>
                 <Link href="/pase" className="hover:text-white">
                   Ya tengo un pase
+                </Link>
+              </li>
+              <li>
+                <Link href={TERMS_PATH} className="hover:text-white">
+                  Términos y condiciones
                 </Link>
               </li>
               <li>

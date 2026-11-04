@@ -26,9 +26,9 @@ describe("spanishValidityMessage", () => {
     expect(spanishValidityMessage({ ...ok, rangeUnderflow: true }, field)).toBe("Tu edad debe estar entre 15 y 99 años.");
     expect(spanishValidityMessage({ ...ok, rangeOverflow: true }, field)).toBe("Tu edad debe estar entre 15 y 99 años.");
   });
-  it("aviso de privacidad sin aceptar", () => {
+  it("términos y aviso sin aceptar", () => {
     expect(spanishValidityMessage({ ...ok, valueMissing: true }, { type: "checkbox", name: "privacy" })).toBe(
-      "Necesitamos que aceptes el aviso de privacidad.",
+      "Necesitamos que aceptes los términos y condiciones y el aviso de privacidad.",
     );
   });
   it("campo válido no pone mensaje", () => {

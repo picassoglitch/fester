@@ -99,7 +99,9 @@ export async function registerAttendee(
   }
   const referral = withDetail(referralChoice, pick(formData, "referralOther"));
   if (typeof referral !== "string") return referral;
-  if (!privacy) return { error: "Necesitamos que aceptes el aviso de privacidad." };
+  if (!privacy) {
+    return { error: "Necesitamos que aceptes los términos y condiciones y el aviso de privacidad." };
+  }
 
   const address = normalizeEmail(email);
   const verifying = pick(formData, "stage") === "verify";

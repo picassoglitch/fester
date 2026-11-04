@@ -436,8 +436,8 @@ export const INDEPENDENT_LABEL = "Independiente";
 /** Opcion de los catalogos que abre un campo de texto para que la persona escriba su respuesta. */
 export const OTHER_OPTION = "Otro";
 
-/** Rango aceptado para el campo "Edad". */
-export const AGE_LIMITS = { min: 15, max: 99 } as const;
+/** Rango aceptado para el campo "Edad"; el minimo sigue la seccion 6 de los TyC (solo mayores). */
+export const AGE_LIMITS = { min: 18, max: 99 } as const;
 
 export const STATES = [
   "Aguascalientes",
