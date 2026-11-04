@@ -8,6 +8,7 @@ import { useFormStatus } from "react-dom";
 import { registerAttendee, type RegisterState } from "@/app/actions/register";
 import Icon from "@/components/landing/Icon";
 import { trackPixel } from "@/lib/meta-pixel";
+import { TERMS_PATH } from "@/lib/terms";
 import {
   AGE_LIMITS,
   EVENT,
@@ -475,7 +476,16 @@ export default function RegisterForm() {
               className="mt-0.5 h-4 w-4 shrink-0 accent-[#e2001a]"
             />
             <span>
-              Acepto el{" "}
+              Acepto los{" "}
+              <a
+                href={TERMS_PATH}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2"
+              >
+                términos y condiciones
+              </a>
+              , el{" "}
               <a
                 href={PRIVACY_PATH}
                 target="_blank"

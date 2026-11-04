@@ -17,7 +17,7 @@ export type FieldInfo = {
 
 export function spanishValidityMessage(validity: ValidityLike, field: FieldInfo): string {
   if (field.type === "checkbox" && field.name === "privacy" && validity.valueMissing) {
-    return "Necesitamos que aceptes el aviso de privacidad.";
+    return "Necesitamos que aceptes los términos y condiciones y el aviso de privacidad.";
   }
   if (field.name === "age" && (validity.rangeUnderflow || validity.rangeOverflow || validity.badInput)) {
     return `Tu edad debe estar entre ${field.min} y ${field.max} años.`;
