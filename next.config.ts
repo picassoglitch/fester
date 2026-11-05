@@ -44,8 +44,6 @@ export const securityHeaders = [
 const nextConfig: NextConfig = {
   serverExternalPackages: ["bcryptjs"],
   poweredByHeader: false,
-  // El Excel de aprobados de Fester pesa ~2.7 MB; Vercel corta en 4.5 MB.
-  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

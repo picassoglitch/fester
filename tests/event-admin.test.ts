@@ -49,7 +49,7 @@ describe("approvedFromSheets", () => {
   });
 });
 
-describe.skipIf(!hasLocalDb)("importApproved y resetEvent (base local)", () => {
+describe.skipIf(!hasLocalDb)("lista de aprobados y resetEvent (base local)", () => {
   const yes = testCode();
   const byMail = testCode();
   const nope = testCode();
@@ -79,79 +79,65 @@ describe.skipIf(!hasLocalDb)("importApproved y resetEvent (base local)", () => {
     await prisma.$disconnect();
   });
 
-  function upload(rows: (string | null)[][], name = "30-10 Registros.xlsx") {
+  /** Mismo camino que el script: .xlsx real -> lector -> parser -> base. */
+  async function load(rows: (string | null)[][], apply = true) {
+    const readXlsxFile = (await import("read-excel-file/node")).default;
+    const { prisma } = await import("@/lib/db");
+    const { applyApprovedList } = await import("@/lib/approved-apply");
     const buf = buildXlsx([
       { name: "REGISTROS", columns: HEADER.map((header) => ({ header })), rows: rows.map((r) => r.map((c) => c ?? "")) },
     ]);
-    const data = new FormData();
-    data.set("file", new File([new Uint8Array(buf)], name));
-    return data;
+    const list = approvedFromSheets(await readXlsxFile(buf));
+    if (!list.ok) throw new Error(list.error);
+    return applyApprovedList(prisma, list.rows, { apply });
   }
 
-  it("aprueba por código y por correo, y quita a quien ya no viene con Sí", async () => {
+  async function approvedMap() {
     const { prisma } = await import("@/lib/db");
-    const { importApproved } = await import("@/app/actions/event");
-    const state = await importApproved(
-      {},
-      upload([
-        ["1", yes, "Sí", "Import Sí", ""],
-        ["2", "", "Sí", "Import Correo", mail],
-        ["3", nope, "No", "Import No", ""],
-        ["4", "NOEXISTE", "Sí", "Fantasma", ""],
-      ]),
-    );
-    expect(state.error).toBeUndefined();
-    expect(state.ok).toMatchObject({ approved: 2, byEmail: 1, notFound: ["NOEXISTE"] });
     const rows = await prisma.attendee.findMany({ where: { code: { in: [yes, byMail, nope] } } });
-    const approved = Object.fromEntries(rows.map((r) => [r.code, r.approved]));
-    expect(approved).toEqual({ [yes]: true, [byMail]: true, [nope]: false });
+    return Object.fromEntries(rows.map((r) => [r.code, r.approved]));
+  }
+
+  it("vista previa no escribe; aplicar aprueba por código y correo y quita a quien ya no viene con Sí", async () => {
+    const rows = [
+      ["1", yes, "Sí", "Import Sí", ""],
+      ["2", "", "Sí", "Import Correo", mail],
+      ["3", nope, "No", "Import No", ""],
+      ["4", "NOEXISTE", "Sí", "Fantasma", ""],
+    ];
+    expect(await load(rows, false)).toMatchObject({ ok: true, approved: 2, applied: false });
+    expect(await approvedMap()).toEqual({ [yes]: false, [byMail]: false, [nope]: true });
+
+    expect(await load(rows)).toMatchObject({ ok: true, approved: 2, byEmail: 1, notFound: ["NOEXISTE"], applied: true });
+    expect(await approvedMap()).toEqual({ [yes]: true, [byMail]: true, [nope]: false });
   });
 
-  it("sin rol de administrador no se importa ni se reinicia", async () => {
-    const { importApproved, resetEvent } = await import("@/app/actions/event");
-    requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
-    await expect(importApproved({}, upload([["1", yes, "Sí", "x", ""]]))).rejects.toThrow();
+  it("un Excel que casi no coincide con la base no toca la lista", async () => {
+    const result = await load([
+      ["1", "NADA01", "Sí", "x", ""],
+      ["2", "NADA02", "Sí", "y", ""],
+      ["3", nope, "Sí", "z", ""],
+    ]);
+    expect(result).toMatchObject({ ok: false });
+    expect(!result.ok && result.error).toMatch(/1 de 3/);
+    expect(await approvedMap()).toEqual({ [yes]: true, [byMail]: true, [nope]: false });
+  });
+
+  it("un código equivocado en el Excel se rescata por correo", async () => {
+    expect(
+      await load([
+        ["1", yes, "Sí", "Import Sí", ""],
+        ["2", "MAL999", "Sí", "Import Correo", mail],
+      ]),
+    ).toMatchObject({ ok: true, approved: 2, byEmail: 1, notFound: [] });
+  });
+
+  it("sin rol de administrador no se reinicia", async () => {
+    const { resetEvent } = await import("@/app/actions/event");
     requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
     const data = new FormData();
     data.set("confirm", "REINICIAR");
     await expect(resetEvent({}, data)).rejects.toThrow();
-  });
-
-  it("un Excel que casi no coincide con la base no toca la lista", async () => {
-    const { prisma } = await import("@/lib/db");
-    const { importApproved } = await import("@/app/actions/event");
-    const state = await importApproved(
-      {},
-      upload([
-        ["1", "NADA01", "Sí", "x", ""],
-        ["2", "NADA02", "Sí", "y", ""],
-        ["3", nope, "Sí", "z", ""],
-      ]),
-    );
-    expect(state.error).toMatch(/1 de 3/);
-    expect((await prisma.attendee.findUniqueOrThrow({ where: { code: yes } })).approved).toBe(true);
-    expect((await prisma.attendee.findUniqueOrThrow({ where: { code: nope } })).approved).toBe(false);
-  });
-
-  it("un código equivocado en el Excel se rescata por correo", async () => {
-    const { prisma } = await import("@/lib/db");
-    const { importApproved } = await import("@/app/actions/event");
-    const state = await importApproved(
-      {},
-      upload([
-        ["1", yes, "Sí", "Import Sí", ""],
-        ["2", "MAL999", "Sí", "Import Correo", mail],
-      ]),
-    );
-    expect(state.ok).toMatchObject({ approved: 2, byEmail: 1, notFound: [] });
-    expect((await prisma.attendee.findUniqueOrThrow({ where: { code: byMail } })).approved).toBe(true);
-  });
-
-  it("un archivo que no es Excel no cambia nada", async () => {
-    const { importApproved } = await import("@/app/actions/event");
-    const data = new FormData();
-    data.set("file", new File(["hola"], "lista.ods"));
-    expect((await importApproved({}, data)).error).toMatch(/xlsx/);
   });
 
   it("reiniciar exige la palabra y borra la actividad pero conserva registros y aprobados", async () => {

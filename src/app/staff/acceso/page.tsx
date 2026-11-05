@@ -11,8 +11,13 @@ import FesterLogo from "@/components/FesterLogo";
 
 export const dynamic = "force-dynamic";
 
-export default async function AccessPage() {
-  const session = await requireSession();
+export default async function AccessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ puerta?: string }>;
+}) {
+  const [{ puerta }, session] = await Promise.all([searchParams, requireSession()]);
+  const initialKind = puerta === "ENTRY" || puerta === "EXIT" ? puerta : undefined;
   if (!canRecordStations(session.role)) redirect(staffHome(session.role));
   const inside = await prisma.attendee.count({ where: INSIDE });
 
@@ -27,6 +32,9 @@ export default async function AccessPage() {
           <p className="text-xs text-white/50">{session.name}</p>
         </div>
         <div className="flex items-center gap-3 text-xs">
+          <Link href="/staff/escanear" className="text-white/60 underline underline-offset-4">
+            Estaciones
+          </Link>
           {session.role === "ADMIN" && (
             <Link href="/admin/aforo" className="text-white/60 underline underline-offset-4">
               Panel
@@ -39,7 +47,13 @@ export default async function AccessPage() {
           </form>
         </div>
       </header>
-      <AccessConsole inside={inside} capacity={CAPACITY} staffName={session.name} showStationsLink />
+      <AccessConsole
+        inside={inside}
+        capacity={CAPACITY}
+        staffName={session.name}
+        initialKind={initialKind}
+        showStationsLink
+      />
     </main>
   );
 }

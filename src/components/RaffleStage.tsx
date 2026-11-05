@@ -218,6 +218,7 @@ export default function RaffleStage({
   }, [draw]);
 
   async function voidCurrent(id: string) {
+    setError(null);
     setVoiding(true);
     try {
       const res = await voidWinner(id).catch(() => null);
@@ -278,12 +279,14 @@ export default function RaffleStage({
             <p className="font-display text-[clamp(2rem,6vw,7rem)] font-black uppercase leading-none">
               ¿Quién se lo lleva?
             </p>
-            {error && (
-              <p role="alert" className="rounded-xl bg-brand px-6 py-3 text-xl font-semibold">
-                {error}
-              </p>
-            )}
           </>
+        )}
+
+        {/* Fuera de "idle": un anular fallido se ve aunque el ganador siga en pantalla. */}
+        {error && phase !== "spinning" && (
+          <p role="alert" className="rounded-xl bg-brand px-6 py-3 text-xl font-semibold">
+            {error}
+          </p>
         )}
 
         {phase === "spinning" && (

@@ -45,11 +45,14 @@ export default function AccessConsole({
   inside,
   capacity,
   staffName,
+  initialKind,
   showStationsLink,
 }: {
   inside: number;
   capacity: number;
   staffName: string;
+  /** Viene del menu de estaciones (?puerta=): gana sobre lo guardado. */
+  initialKind?: AccessKindValue;
   showStationsLink: boolean;
 }) {
   const [kind, setKind] = useState<AccessKindValue | null>(null);
@@ -68,10 +71,11 @@ export default function AccessConsole({
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(KIND_KEY);
+      if (initialKind) localStorage.setItem(KIND_KEY, initialKind);
+      const stored = initialKind ?? localStorage.getItem(KIND_KEY);
       if (stored === "ENTRY" || stored === "EXIT") setKind(stored);
     } catch {
-      /* modo privado */
+      if (initialKind) setKind(initialKind);
     }
     const m = readScanSoundMuted();
     mutedRef.current = m;
@@ -83,7 +87,7 @@ export default function AccessConsole({
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
-  }, []);
+  }, [initialKind]);
 
   function choose(next: AccessKindValue) {
     setKind(next);

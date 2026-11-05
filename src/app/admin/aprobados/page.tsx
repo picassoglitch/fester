@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import ApprovedImport from "@/components/ApprovedImport";
 
 export const dynamic = "force-dynamic";
 
@@ -9,21 +8,15 @@ export default async function ApprovedPage() {
     prisma.attendee.count(),
   ]);
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <header>
         <h1 className="text-2xl font-bold">Aprobados</h1>
-        <p className="text-sm text-white/60">
-          {approved} de {total} pases aprobados. Entran a la rifa y pasan la puerta sin aviso.
-        </p>
+        <p className="text-sm text-white/60">Lista validada por Fester (30-10 Registros, «Sí» en la hoja REGISTROS).</p>
       </header>
-      <section className="card max-w-2xl space-y-3 p-5">
-        <h2 className="font-semibold">Subir lista de Fester</h2>
-        <p className="text-sm text-white/60">
-          Excel (.xlsx) con la hoja <b>REGISTROS</b>: aprobado = «Sí» en la columna <b>ok</b> (C). Reemplaza la lista
-          anterior completa; quien no venga con «Sí» queda no aprobado.
-        </p>
-        <ApprovedImport />
-      </section>
+      <div className="card max-w-md p-6">
+        <p className="font-display text-6xl font-bold tabular-nums">{approved}</p>
+        <p className="text-sm text-white/60">de {total} pases aprobados. Entran a la rifa y pasan la puerta sin aviso.</p>
+      </div>
     </div>
   );
 }

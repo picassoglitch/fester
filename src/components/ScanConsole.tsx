@@ -23,6 +23,11 @@ type Result =
   | { kind: "error"; message: string; retryCode: string | null };
 
 const STATION_KEY = "fester_station";
+// Junta Fester 2026-11-04 — la puerta del foro se elige en el mismo menu que las estaciones.
+const DOOR_OPTIONS = [
+  { value: "__puerta_entrada", kind: "ENTRY", label: "🚪 Entrada al foro" },
+  { value: "__puerta_salida", kind: "EXIT", label: "🚪 Salida del foro" },
+] as const;
 /** Estrella, completo, premio y "ya registrado" se cierran solos para el siguiente. */
 export const AUTO_CLOSE_MS = 1500;
 /** El mismo QR frente a la camara no vuelve a contar durante este tiempo. */
@@ -272,6 +277,11 @@ export default function ScanConsole({
             className="field appearance-none"
             value={stationId}
             onChange={(event) => {
+              const door = DOOR_OPTIONS.find((o) => o.value === event.target.value);
+              if (door) {
+                router.push(`/staff/acceso?puerta=${door.kind}`);
+                return;
+              }
               chooseStation(event.target.value);
               // Cambiar de estacion descarta el pase cargado: no se registra nada.
               setLoadedCode(null);
@@ -290,6 +300,13 @@ export default function ScanConsole({
                 {station.emoji} {station.name}
               </option>
             ))}
+            <optgroup label="Puerta del foro (aforo)" className="bg-ink">
+              {DOOR_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value} className="bg-ink">
+                  {o.label}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </div>
       )}
