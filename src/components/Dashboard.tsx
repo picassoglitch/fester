@@ -98,18 +98,19 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
       </div>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi label="Registrados" value={totals.attendees} hint="pases creados (web y puerta)" />
         <Kpi
-          label="Asistentes"
-          value={totals.attendees}
+          label="Llegaron"
+          value={totals.arrived}
           hint={`${totals.stations} estaciones activas`}
         />
         <Kpi
-          label="Completaron"
+          label="Pasaporte completo"
           value={totals.completed}
           tone="success"
           hint={
-            totals.attendees > 0
-              ? `${Math.round((totals.completed / totals.attendees) * 100)}% del total`
+            totals.arrived > 0
+              ? `${Math.round((totals.completed / totals.arrived) * 100)}% de los que llegaron`
               : "sin datos"
           }
         />
@@ -119,21 +120,24 @@ export default function Dashboard({ initial }: { initial: DashboardStats }) {
           tone="gold"
           hint={`${totals.redeemed} entregados`}
         />
-        <Kpi
-          label="Escaneos 15 min"
-          value={totals.scansLast15}
-          hint={`${totals.scansLastHour} en la última hora`}
-        />
       </section>
 
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Kpi label="Escaneos totales" value={totals.scans} />
-        <Kpi label="Estrellas promedio" value={totals.avgStars.toFixed(1)} />
-        <Kpi label="Avance global" value={`${Math.round(totals.progressRate * 100)}%`} />
+        <Kpi
+          label="Escaneos (últimos 15 min)"
+          value={totals.scansLast15}
+          hint={`${totals.scansLastHour} en la última hora · ${totals.scans} en total`}
+        />
+        <Kpi label="Estrellas promedio" value={totals.avgStars.toFixed(1)} hint="por persona que llegó" />
+        <Kpi
+          label="Avance de los que llegaron"
+          value={`${Math.round(totals.progressRate * 100)}%`}
+          hint="estrellas hechas / posibles"
+        />
         <Kpi
           label="Tiempo mediano"
           value={totals.medianCompletionMs ? formatDuration(totals.medianCompletionMs) : "—"}
-          hint="registro → recorrido completo"
+          hint="Entrada → pasaporte completo"
         />
       </section>
 

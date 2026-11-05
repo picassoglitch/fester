@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { ARRIVED } from "@/lib/access";
 import { braceletOf } from "@/lib/bracelet";
 import { RAFFLE_PRIZES, type RaffleCategory } from "@/lib/raffle-prizes";
 
@@ -33,7 +34,7 @@ export async function getRafflePools(
 export const RAFFLE_PENDING: Prisma.AttendeeWhereInput = {
   ...RAFFLE_POOL,
   completedAt: null,
-  OR: [{ accesses: { some: { kind: "ENTRY" } } }, { scans: { some: {} } }],
+  ...ARRIVED,
 };
 
 // Aldo 2026-11-05 — botón «habilitar a todos»: exactamente los que cuenta «llegaron sin completar pasaporte».
