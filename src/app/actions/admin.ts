@@ -268,6 +268,19 @@ export async function setPrizeState(formData: FormData) {
   revalidatePath("/admin");
 }
 
+// Aldo 2026-11-05 — quien no alcanzó a escanear todo: el admin lo habilita a mano para premio y rifa.
+export async function enableWithoutPassport(formData: FormData) {
+  await requireAdmin();
+  const code = String(formData.get("code") ?? "");
+  if (!code) return;
+
+  await prisma.attendee.updateMany({ where: { code, completedAt: null }, data: { completedAt: new Date() } });
+
+  revalidatePath(`/admin/asistentes/${code}`);
+  revalidatePath("/admin");
+  revalidatePath("/admin/rifa");
+}
+
 export async function deleteAttendee(formData: FormData) {
   await requireAdmin();
   const code = String(formData.get("code") ?? "");
