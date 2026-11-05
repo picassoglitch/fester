@@ -16,12 +16,14 @@ export default function Scanner({
   const controlsRef = useRef<IScannerControls | null>(null);
   const lastRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
   const pausedRef = useRef(paused);
+  const onCodeRef = useRef(onCode);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     pausedRef.current = paused;
-  }, [paused]);
+    onCodeRef.current = onCode;
+  }, [paused, onCode]);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,7 +41,7 @@ export default function Scanner({
             const now = Date.now();
             if (lastRef.current.code === text && now - lastRef.current.at < REPEAT_GUARD_MS) return;
             lastRef.current = { code: text, at: now };
-            onCode(text);
+            onCodeRef.current(text);
           },
         );
         if (cancelled) {
@@ -67,7 +69,8 @@ export default function Scanner({
       controlsRef.current?.stop();
       controlsRef.current = null;
     };
-  }, [onCode]);
+    // Se abre una sola vez: en iPhone un reinicio deja el video en negro (la apertura vieja limpia el <video>).
+  }, []);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-black">
