@@ -154,8 +154,8 @@ describe("escenario de la rifa por premio", () => {
   it("muestra cuántos participan por categoría, el total y los que faltan de pasaporte", async () => {
     const { container } = await renderStage({}, [], { Aplicador: 22, Profesionista: 1234 }, { Aplicador: 8, Profesionista: 0 });
     const counts = container.querySelector('dl[aria-label="Participantes"]')!.textContent!.replace(/\s+/g, " ");
-    expect(counts).toContain("aplicadores22 participan · 8 por completar pasaporte");
-    expect(counts).toContain("profesionistas1,234 participan · 0 por completar pasaporte");
+    expect(counts).toContain("aplicadores22 participan · 8 llegaron sin completar pasaporte");
+    expect(counts).toContain("profesionistas1,234 participan · 0 llegaron sin completar pasaporte");
     expect(counts).toContain("Total1,256 participan");
     // En la vista del premio, el pool de su categoría.
     expect(screen.getByText(/^Participan/).textContent).toBe("Participan 22 aplicadores");
