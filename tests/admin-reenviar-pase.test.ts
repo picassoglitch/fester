@@ -133,13 +133,16 @@ describe.skipIf(!hasLocalDb)("resendPassAsAdmin (base local)", () => {
     Object.defineProperty(prisma, "$queryRaw", { value: () => Promise.reject(new Error("Neon caido")), configurable: true });
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    const result = await resendPassAsAdmin({}, form(attendee.code));
+    try {
+      const result = await resendPassAsAdmin({}, form(attendee.code));
 
-    expect(result).toEqual({ error: "No se pudo reenviar el pase por un error del servidor. Intenta en un momento." });
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(errorLog.mock.calls.some(([msg]) => String(msg).includes(`[admin] Fallo el reenvio del pase ${attendee.code}`))).toBe(true);
-    delete (prisma as { $queryRaw?: unknown }).$queryRaw;
-    errorLog.mockRestore();
+      expect(result).toEqual({ error: "No se pudo reenviar el pase por un error del servidor. Intenta en un momento." });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(errorLog.mock.calls.some(([msg]) => String(msg).includes(`[admin] Fallo el reenvio del pase ${attendee.code}`))).toBe(true);
+    } finally {
+      delete (prisma as { $queryRaw?: unknown }).$queryRaw;
+      errorLog.mockRestore();
+    }
   });
 
   it("límite: 5 reenvíos por asistente por hora; el sexto no sale y otro asistente no se ve afectado", async () => {
