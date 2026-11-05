@@ -9,6 +9,9 @@ import { syncCompletion } from "@/lib/attendee";
 import { markCompletedAttendees } from "@/lib/stations";
 import { newPinError } from "@/lib/pin";
 import { parseRole, ROLE_LABELS } from "@/lib/roles";
+import { passEmail } from "@/lib/emails";
+import { sendMail } from "@/lib/mail";
+import { consumeRateLimit } from "@/lib/throttle";
 
 export type ActionState = { error?: string; ok?: string };
 
@@ -277,4 +280,42 @@ export async function deleteAttendee(formData: FormData) {
   revalidatePath("/admin/asistentes");
   revalidatePath("/admin");
   redirect("/admin/asistentes");
+}
+
+/** Reenvios del pase por asistente y por hora desde el admin: frena dobles clics, no al staff. */
+const ADMIN_RESEND_PER_HOUR = 5;
+
+/** Reenvia el pase al correo que ya tiene guardado el asistente; no cambia ningun dato. */
+export async function resendPassAsAdmin(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const code = String(formData.get("code") ?? "");
+  try {
+    return await resendPass(code);
+  } catch (error) {
+    // Base caida: mensaje en linea en vez de tumbar la pagina del admin.
+    console.error(`[admin] Fallo el reenvio del pase ${code}:`, error);
+    return { error: "No se pudo reenviar el pase por un error del servidor. Intenta en un momento." };
+  }
+}
+
+async function resendPass(code: string): Promise<ActionState> {
+  const attendee = await prisma.attendee.findUnique({
+    where: { code },
+    select: { id: true, code: true, name: true, email: true },
+  });
+  if (!attendee) return { error: "Ese asistente ya no existe." };
+  if (!attendee.email) return { error: "Este asistente no tiene correo registrado." };
+
+  const limit = await consumeRateLimit(`admin:reenvio:${attendee.id}`, ADMIN_RESEND_PER_HOUR, 60 * 60_000);
+  if (!limit.allowed) {
+    return { error: `Ya se intentó reenviar ${ADMIN_RESEND_PER_HOUR} veces en la última hora. Espera un poco.` };
+  }
+
+  const sent = await sendMail(passEmail({ to: attendee.email, name: attendee.name, code: attendee.code }));
+  if (!sent.ok) {
+    console.error(`[admin] No se pudo reenviar el pase ${attendee.code}: status=${sent.status ?? "-"} ${sent.error}`);
+    const reason = sent.status ? ` (Resend respondió ${sent.status})` : "";
+    return { error: `No se pudo reenviar el pase a ${attendee.email}${reason}. Intenta de nuevo.` };
+  }
+  return { ok: `Pase reenviado a ${attendee.email}` };
 }

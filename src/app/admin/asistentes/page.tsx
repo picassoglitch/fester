@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/format";
 import { countByProfile, parseProfile, profileColor, profileLabel, profileOf, profileWhere } from "@/lib/profiles";
 import { getActiveStations } from "@/lib/stations";
+import ResendPassButton from "@/components/ResendPassButton";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -193,7 +194,7 @@ export default async function AttendeesPage({
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full min-w-[940px] text-sm">
+        <table className="w-full min-w-[1060px] text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-white/45">
             <tr className="border-b border-white/10">
               <th className="px-4 py-3">Asistente</th>
@@ -204,12 +205,13 @@ export default async function AttendeesPage({
               <th className="px-4 py-3">Registro</th>
               <th className="px-4 py-3">Última actividad</th>
               <th className="px-4 py-3">Estado</th>
+              <th className="px-4 py-3">Pase</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/8">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-white/45">
+                <td colSpan={9} className="px-4 py-8 text-center text-white/45">
                   Sin resultados.
                 </td>
               </tr>
@@ -249,18 +251,21 @@ export default async function AttendeesPage({
                 </td>
                 <td className="px-4 py-3">
                   {attendee.redeemedAt ? (
-                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs">
+                    <span className="whitespace-nowrap rounded-full bg-white/10 px-2.5 py-1 text-xs">
                       🎁 Premio entregado
                     </span>
                   ) : attendee.completedAt ? (
-                    <span className="rounded-full bg-gold/15 px-2.5 py-1 text-xs text-gold">
+                    <span className="whitespace-nowrap rounded-full bg-gold/15 px-2.5 py-1 text-xs text-gold">
                       Listo para premio
                     </span>
                   ) : (
-                    <span className="rounded-full bg-white/6 px-2.5 py-1 text-xs text-white/55">
+                    <span className="whitespace-nowrap rounded-full bg-white/6 px-2.5 py-1 text-xs text-white/55">
                       En curso
                     </span>
                   )}
+                </td>
+                <td className="max-w-[200px] px-4 py-3">
+                  {attendee.email ? <ResendPassButton code={attendee.code} compact /> : <span className="text-white/30">—</span>}
                 </td>
               </tr>
             ))}
