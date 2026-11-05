@@ -55,7 +55,6 @@ const TONE: Record<Result["kind"], ScanTone> = {
 };
 
 const REASONS: Record<string, string> = {
-  "no-aprobado": "No está en la lista de aprobados",
   "aforo-lleno": "El foro está lleno",
 };
 
