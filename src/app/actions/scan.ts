@@ -6,6 +6,8 @@ import { prisma } from "@/lib/db";
 import { requireSession } from "@/lib/auth";
 import { getStaffAttendeeProgress, syncCompletion, type StaffAttendeeProgress } from "@/lib/attendee";
 import { normalizeCode } from "@/lib/codes";
+import { searchAttendeesByName } from "@/lib/attendee-search";
+import type { NameMatch } from "@/lib/name-search";
 import { canRecordStations, canRedeemPrizes } from "@/lib/roles";
 import { doorKindOf } from "@/lib/stations";
 import { CAPACITY, checkEntry, INSIDE, type EntryReason } from "@/lib/access";
@@ -25,6 +27,13 @@ export type ScanOutcome =
 
 const NO_STATIONS = "No tienes permiso para registrar estaciones.";
 const NO_PRIZES = "No tienes permiso para entregar premios.";
+
+/** Quien no trae su QR: el staff lo busca por nombre (sin correo ni teléfono). */
+export async function findAttendeesByName(query: string): Promise<NameMatch[]> {
+  const session = await requireSession();
+  if (!canRecordStations(session.role) && !canRedeemPrizes(session.role)) return [];
+  return searchAttendeesByName(query);
+}
 
 export async function lookupAttendee(rawCode: string): Promise<ScanOutcome> {
   const session = await requireSession();

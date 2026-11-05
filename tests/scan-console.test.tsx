@@ -13,7 +13,8 @@ const replace = vi.fn();
 const playScanFeedback = vi.fn();
 const unlockScanFeedback = vi.fn();
 
-vi.mock("@/app/actions/scan", () => ({ recordScan, redeemPrize }));
+const findAttendeesByName = vi.fn<(...args: any[]) => Promise<any>>(async () => []);
+vi.mock("@/app/actions/scan", () => ({ recordScan, redeemPrize, findAttendeesByName }));
 vi.mock("@/lib/scan-feedback", () => ({
   playScanFeedback,
   unlockScanFeedback,
@@ -314,6 +315,23 @@ describe("ScanConsole", () => {
       const dialog = await screen.findByRole("alertdialog");
       expect(dialog.querySelector("[data-bracelet]")?.getAttribute("data-bracelet")).toBe("AZUL");
       expect(dialog.textContent).toContain("Según su puesto");
+    });
+
+    it("sin QR: buscar por nombre y tocar el resultado registra ese código en la estación", async () => {
+      findAttendeesByName.mockImplementation(async () => [
+        { code: "NOMB12", name: "José Peña", company: "Obras", state: "Puebla" },
+      ]);
+      recordScan.mockImplementation(async () => ({ ok: true, status: "nuevo", message: "ok", attendee: progress({ code: "NOMB12" }) }));
+      await renderAt();
+      fireEvent.change(screen.getByPlaceholderText("¿Sin QR? Buscar por nombre"), { target: { value: "pe" } });
+      await new Promise((r) => setTimeout(r, 400));
+      expect(findAttendeesByName).not.toHaveBeenCalled();
+      fireEvent.change(screen.getByPlaceholderText("¿Sin QR? Buscar por nombre"), { target: { value: "pena" } });
+      const hit = await screen.findByRole("button", { name: /José Peña/ });
+      expect(findAttendeesByName).toHaveBeenLastCalledWith("pena");
+      await act(async () => fireEvent.click(hit));
+      await vi.waitFor(() => expect(recordScan).toHaveBeenLastCalledWith("NOMB12", "s2", false));
+      expect(await screen.findByRole("alertdialog")).toBeTruthy();
     });
 
     it("sin perfil de Fester pide revisar el brazalete", async () => {
