@@ -521,7 +521,7 @@ export default function RaffleStage({
               </span>{" "}
               <span className="text-[clamp(0.85rem,1.1vw,1.2rem)] font-semibold text-white/85">participan</span>{" "}
               <span className="text-[clamp(0.75rem,0.95vw,1rem)] text-white/55">
-                · {pending[c].toLocaleString("es-MX")} por completar pasaporte
+                · {pending[c].toLocaleString("es-MX")} llegaron sin completar pasaporte
               </span>
             </dd>
           </div>

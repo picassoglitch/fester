@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { hasLocalDb, testCode } from "./db";
+import { ensureStations, hasLocalDb, testCode } from "./db";
 import { emptyPoolMessage, fullPrizeMessage, rafflePrize, RAFFLE_PRIZES, type RafflePrize } from "@/lib/raffle-prizes";
 
 const revalidatePath = vi.fn();
@@ -74,6 +74,15 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
         data: { code: codes[who as Who], name: `Rifa ${who}`, approved: true, completedAt: done, ...extra },
       });
       ids.push(row.id);
+    }
+    // Llegaron sin completar: uno con Entrada, otro con una estrella. aplPending2 no vino.
+    await ensureStations();
+    const station = await prisma.station.findFirstOrThrow({ where: { active: true } });
+    const idOf = async (who: Who) => (await prisma.attendee.findUniqueOrThrow({ where: { code: codes[who] } })).id;
+    await prisma.access.create({ data: { attendeeId: await idOf("aplPending"), kind: "ENTRY" } });
+    await prisma.scan.create({ data: { attendeeId: await idOf("notCompleted"), stationId: station.id } });
+    for (const who of ["studentPending", "doorPending", "notApprovedPending"] as const) {
+      await prisma.access.create({ data: { attendeeId: await idOf(who), kind: "ENTRY" } });
     }
   });
 
@@ -242,8 +251,8 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
     const pools = await getRafflePools();
     expect(state.pools).toEqual({ Aplicador: pools.Aplicador.length, Profesionista: pools.Profesionista.length });
     expect(state.pools).toEqual({ Aplicador: 3, Profesionista: 3 });
-    // Fuera: estudiante, puerta y no aprobado aunque les falte el pasaporte.
-    expect(state.pending).toEqual({ Aplicador: 2, Profesionista: 1 });
+    // Solo quien llegó (Entrada o estrella); fuera estudiante, puerta, no aprobado y aplPending2 (no vino).
+    expect(state.pending).toEqual({ Aplicador: 1, Profesionista: 1 });
     // Tras un sorteo el conteo baja con el pool.
     expect((await draw("kit-01")).ok).toBe(true);
     expect((await getRaffleState()).pools).toEqual({ Aplicador: 2, Profesionista: 3 });

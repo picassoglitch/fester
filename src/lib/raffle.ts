@@ -28,8 +28,13 @@ export async function getRafflePools(
   return poolsWhere(RAFFLE_POOL, db);
 }
 
-// Aldo 2026-11-05 — «o participaran»: mismo pool, pero con el pasaporte aun sin completar.
-export const RAFFLE_PENDING: Prisma.AttendeeWhereInput = { ...RAFFLE_POOL, completedAt: null };
+// Aldo 2026-11-05 — mismo pool sin pasaporte completo, pero solo quien ya llegó (Entrada o
+// alguna estrella); los aprobados que no vinieron no cuentan.
+export const RAFFLE_PENDING: Prisma.AttendeeWhereInput = {
+  ...RAFFLE_POOL,
+  completedAt: null,
+  OR: [{ accesses: { some: { kind: "ENTRY" } } }, { scans: { some: {} } }],
+};
 
 async function poolsWhere(
   where: Prisma.AttendeeWhereInput,
@@ -73,7 +78,7 @@ export type RaffleWinnerRow = {
 
 export type RaffleState = {
   pools: Record<RaffleCategory, number>;
-  /** Aprobados de la categoria que aun no completan el pasaporte. */
+  /** Aprobados de la categoria que ya llegaron y aun no completan el pasaporte. */
   pending: Record<RaffleCategory, number>;
   filled: Record<string, number>;
   winners: RaffleWinnerRow[];
