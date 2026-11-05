@@ -232,4 +232,20 @@ describe("escenario de la rifa por premio", () => {
     await waitFor(() => expect(drawWinner).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
+
+  it("en pantalla completa no se ven los conteos de participantes; al salir vuelven", async () => {
+    await renderStage({});
+    const dl = screen.getByLabelText("Participantes");
+    const stage = dl.parentElement!;
+    expect(screen.getByLabelText("Participantes")).toBeTruthy();
+
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => stage });
+    fireEvent(document, new Event("fullscreenchange"));
+    await waitFor(() => expect(screen.queryByLabelText("Participantes")).toBeNull());
+    expect(screen.queryByText(/participan/)).toBeNull();
+
+    Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => null });
+    fireEvent(document, new Event("fullscreenchange"));
+    await waitFor(() => expect(screen.getByLabelText("Participantes")).toBeTruthy());
+  });
 });
