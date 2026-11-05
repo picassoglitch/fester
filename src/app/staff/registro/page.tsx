@@ -4,12 +4,13 @@ import { requireSession } from "@/lib/auth";
 import { canRecordStations, staffHome } from "@/lib/roles";
 import { prisma } from "@/lib/db";
 import { CAPACITY, INSIDE } from "@/lib/access";
-import { createDoorToken, DOOR_SIGNUP_UNTIL } from "@/lib/door-token";
+import { createDoorToken, doorSignupOpen } from "@/lib/door-token";
 import { appUrl } from "@/lib/site";
 import { logout } from "@/app/actions/session";
 import DoorRegister from "@/components/DoorRegister";
 import QrCode from "@/components/QrCode";
 import FesterLogo from "@/components/FesterLogo";
+import AutoRefresh from "@/components/AutoRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +20,12 @@ export default async function DoorRegisterPage() {
 
   const [inside, token] = await Promise.all([prisma.attendee.count({ where: INSIDE }), createDoorToken()]);
   const selfSignupUrl = `${appUrl()}/puerta?t=${encodeURIComponent(token)}`;
-  const qrActive = Date.now() < DOOR_SIGNUP_UNTIL.getTime();
+  const qrActive = doorSignupOpen();
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
+      {/* Renueva el token del QR (vence a los 30 min) y el contador, sin perder el formulario. */}
+      <AutoRefresh seconds={300} />
       <header className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-sky/12 pb-4">
         <FesterLogo className="h-7" />
         <div className="min-w-0 flex-1">

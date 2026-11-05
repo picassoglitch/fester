@@ -298,12 +298,54 @@ describe.skipIf(!hasLocalDb)("registro en la puerta (base local)", () => {
       expect(sendMail).not.toHaveBeenCalled();
     });
 
-    it("el token deja de valer al terminar el día del evento", async () => {
-      const { isValidDoorToken, DOOR_SIGNUP_UNTIL } = await import("@/lib/door-token");
+    it("cada token vale 30 min, solo el día del evento y con iat/nbf", async () => {
+      const { createDoorToken, isValidDoorToken, DOOR_SIGNUP_FROM, DOOR_SIGNUP_UNTIL } = await import("@/lib/door-token");
+      const { getSecret } = await import("@/lib/auth");
+      const at = (base: Date, minutes: number) => new Date(base.getTime() + minutes * 60_000);
+      const t = await createDoorToken(DURING_EVENT);
+      expect(await isValidDoorToken(t, at(DURING_EVENT, 29))).toBe(true);
+      expect(await isValidDoorToken(t, at(DURING_EVENT, 31))).toBe(false);
+
+      // Antes del dia del evento: ni un token recien firmado sirve.
+      const early = new Date(DOOR_SIGNUP_FROM.getTime() - 10 * 60_000);
+      expect(await isValidDoorToken(await createDoorToken(early), at(early, 1))).toBe(false);
+
+      // A 10 min del cierre el token vence con el dia, no 30 min despues.
+      const late = at(DOOR_SIGNUP_UNTIL, -10);
+      const lateToken = await createDoorToken(late);
+      expect(await isValidDoorToken(lateToken, at(late, 9))).toBe(true);
+      expect(await isValidDoorToken(lateToken, at(late, 11))).toBe(false);
+
+      // Firmado con el secreto pero sin iat/nbf o con vida larga: no vale.
+      const longLived = await new SignJWT({ scope: "puerta" })
+        .setProtectedHeader({ alg: "HS256" })
+        .setExpirationTime(Math.floor(DOOR_SIGNUP_UNTIL.getTime() / 1000))
+        .sign(getSecret());
+      expect(await isValidDoorToken(longLived, DURING_EVENT)).toBe(false);
+      const oldIat = await new SignJWT({ scope: "puerta" })
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt(Math.floor(at(DURING_EVENT, -60).getTime() / 1000))
+        .setNotBefore(Math.floor(DOOR_SIGNUP_FROM.getTime() / 1000))
+        .setExpirationTime(Math.floor(DOOR_SIGNUP_UNTIL.getTime() / 1000))
+        .sign(getSecret());
+      expect(await isValidDoorToken(oldIat, DURING_EVENT)).toBe(false);
+    });
+
+    it("con el token vencido el formulario responde registro cerrado", async () => {
+      const { prisma } = await import("@/lib/db");
+      const { selfRegisterAtDoor } = await import("@/app/actions/door");
+      const { REGISTRATION_CLOSED } = await import("@/lib/event");
       const t = await token();
-      expect(await token()).toBe(t);
-      expect(await isValidDoorToken(t, new Date(DOOR_SIGNUP_UNTIL.getTime() - 1000))).toBe(true);
-      expect(await isValidDoorToken(t, new Date(DOOR_SIGNUP_UNTIL.getTime() + 1000))).toBe(false);
+      vi.setSystemTime(new Date(DURING_EVENT.getTime() + 31 * 60_000));
+      try {
+        const email = mail("vencido");
+        expect(await selfRegisterAtDoor({}, form({ t, email, name: "Tito Tarde", position: "DIY" }))).toEqual({
+          error: REGISTRATION_CLOSED.error,
+        });
+        expect(await prisma.attendee.count({ where: { email } })).toBe(0);
+      } finally {
+        vi.setSystemTime(DURING_EVENT);
+      }
     });
 
     it("el token de la puerta no sirve como sesión de staff", async () => {
