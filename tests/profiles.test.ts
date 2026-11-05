@@ -94,7 +94,8 @@ describe.skipIf(!hasLocalDb)("perfiles en la base local", () => {
   it("el panel reparte las visitas de cada estacion por perfil", async () => {
     const { prisma } = await import("@/lib/db");
     const { getDashboardStats } = await import("@/lib/stats");
-    const station = await prisma.station.findFirstOrThrow({ where: { active: true } });
+    // Con orden: sin el, Postgres puede devolver la misma estacion que la prueba siguiente.
+    const station = await prisma.station.findFirstOrThrow({ where: { active: true }, orderBy: { order: "asc" } });
     const attendees = await prisma.attendee.findMany({ where: { code: { in: codes } } });
     const before = (await getDashboardStats()).stations.find((s) => s.id === station.id)!;
     await prisma.scan.createMany({

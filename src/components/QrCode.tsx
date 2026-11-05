@@ -3,7 +3,15 @@
 import { useEffect, useRef } from "react";
 import QRCode from "qrcode";
 
-export default function QrCode({ value, size = 220 }: { value: string; size?: number }) {
+export default function QrCode({
+  value,
+  size = 220,
+  className = "h-auto w-full max-w-[260px]",
+}: {
+  value: string;
+  size?: number;
+  className?: string;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -19,7 +27,7 @@ export default function QrCode({ value, size = 220 }: { value: string; size?: nu
   return (
     <canvas
       ref={canvasRef}
-      className="h-auto w-full max-w-[260px] rounded-2xl bg-white p-3"
+      className={`${className} rounded-2xl bg-white p-3`}
       aria-label="Código QR del pase"
     />
   );

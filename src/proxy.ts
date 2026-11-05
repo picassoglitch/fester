@@ -27,6 +27,7 @@ export const config = {
   matcher: [
     "/admin/:path*",
     "/staff/escanear/:path*",
+    "/staff/registro/:path*",
     "/staff/premios/:path*",
   ],
 };
