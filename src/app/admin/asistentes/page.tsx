@@ -7,6 +7,15 @@ import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
+// Aldo 2026-11-05 — los de la puerta se distinguen porque no entran a la rifa.
+function OriginBadge({ origin }: { origin: "WEB" | "PUERTA" }) {
+  return origin === "PUERTA" ? (
+    <span className="whitespace-nowrap rounded-full bg-gold/15 px-2.5 py-1 text-xs text-gold">Puerta</span>
+  ) : (
+    <span className="rounded-full bg-white/6 px-2.5 py-1 text-xs text-white/55">Web</span>
+  );
+}
+
 const PAGE_SIZE = 50;
 
 const FILTERS = [
@@ -184,12 +193,13 @@ export default async function AttendeesPage({
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full min-w-[860px] text-sm">
+        <table className="w-full min-w-[940px] text-sm">
           <thead className="text-left text-xs uppercase tracking-wide text-white/45">
             <tr className="border-b border-white/10">
               <th className="px-4 py-3">Asistente</th>
               <th className="px-4 py-3">Perfil</th>
               <th className="px-4 py-3">Código</th>
+              <th className="px-4 py-3">Origen</th>
               <th className="px-4 py-3">Estrellas</th>
               <th className="px-4 py-3">Registro</th>
               <th className="px-4 py-3">Última actividad</th>
@@ -199,7 +209,7 @@ export default async function AttendeesPage({
           <tbody className="divide-y divide-white/8">
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-white/45">
+                <td colSpan={8} className="px-4 py-8 text-center text-white/45">
                   Sin resultados.
                 </td>
               </tr>
@@ -226,6 +236,9 @@ export default async function AttendeesPage({
                 </td>
                 <td className="px-4 py-3 font-mono text-xs tracking-widest text-white/60">
                   {attendee.code}
+                </td>
+                <td className="px-4 py-3">
+                  <OriginBadge origin={attendee.origin} />
                 </td>
                 <td className="px-4 py-3 tabular-nums">
                   <span className="text-gold">★</span> {stars}/{activeIds.size}

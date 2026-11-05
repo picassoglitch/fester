@@ -2,8 +2,10 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 // Junta Fester 2026-11-04 — aprobados con pasaporte completo; quien ya salio sorteado (incluso anulado) no repite.
+// Aldo 2026-11-05 — quien se registro en la puerta no entra aunque este en la lista de aprobados.
 export const RAFFLE_POOL: Prisma.AttendeeWhereInput = {
   approved: true,
+  origin: "WEB",
   completedAt: { not: null },
   raffleWins: { none: {} },
 };
@@ -46,7 +48,7 @@ export async function getRaffleState(): Promise<{ pool: number; winners: RaffleW
 export async function getReelNames(limit = 80): Promise<string[]> {
   const rows = await prisma.$queryRaw<{ name: string }[]>`
     SELECT name FROM "Attendee"
-    WHERE approved = true AND "completedAt" IS NOT NULL
+    WHERE approved = true AND origin = 'WEB' AND "completedAt" IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM "RaffleWinner" w WHERE w."attendeeId" = "Attendee".id)
     ORDER BY random() LIMIT ${limit}`;
   return rows.map((r) => r.name);

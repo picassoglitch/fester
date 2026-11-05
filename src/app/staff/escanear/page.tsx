@@ -42,6 +42,9 @@ export default async function ScanPage({
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs">
+          <Link href="/staff/registro" className="font-semibold text-white underline underline-offset-4">
+            Registro en puerta
+          </Link>
           {session.role === "ADMIN" && (
             <>
               <Link href="/staff/premios" className="text-white/60 underline underline-offset-4">

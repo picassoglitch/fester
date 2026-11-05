@@ -3,19 +3,17 @@
 import { redirect } from "next/navigation";
 import { setAttendeeSessionCookie } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { generateCode } from "@/lib/codes";
 import { passEmail } from "@/lib/emails";
 import { sendMail } from "@/lib/mail";
 import { clientIpHash } from "@/lib/throttle";
 import { confirmEmailCode, issueEmailCode, normalizeEmail } from "@/lib/verification";
+import { createAttendee, emailError, nameError, parsePosition, pick, withDetail } from "@/lib/registration";
 import {
   AGE_LIMITS,
   INDEPENDENT_LABEL,
   REGISTRATION_CLOSED,
   REGISTRATION_OPEN,
   INDUSTRIES,
-  OTHER_OPTION,
-  POSITIONS,
   REFERRAL_SOURCES,
   STATES,
 } from "@/lib/event";
@@ -32,21 +30,6 @@ export type RegisterState = {
   /** Solo con stage "done": el cliente manda el evento del pixel y navega aqui. */
   passPath?: string;
 };
-
-function pick(formData: FormData, key: string): string {
-  return String(formData.get(key) ?? "").trim();
-}
-
-/**
- * Cuando en un catalogo se elige "Otro", la persona escribe su respuesta y se
- * guarda como "Otro: <texto>" para que siga siendo filtrable.
- */
-function withDetail(value: string, detail: string): string | { error: string } {
-  if (value !== OTHER_OPTION) return value;
-  if (detail.length < 2) return { error: "Escribe tu respuesta en el campo de \"Otro\"." };
-  if (detail.length > 60) return { error: "La respuesta de \"Otro\" es demasiado larga." };
-  return `${OTHER_OPTION}: ${detail}`;
-}
 
 export async function registerAttendee(
   _prev: RegisterState,
@@ -67,25 +50,20 @@ export async function registerAttendee(
   const referralChoice = pick(formData, "referral");
   const privacy = formData.get("privacy") !== null;
 
-  if (name.length < 2) return { error: "Escribe tu nombre completo." };
-  if (name.length > 80) return { error: "El nombre es demasiado largo." };
+  const badName = nameError(name);
+  if (badName) return { error: badName };
   if (company.length < 2) {
     return { error: "Escribe el nombre de tu empresa o marca que eres independiente." };
   }
   if (company.length > 100) return { error: "El nombre de la empresa es demasiado largo." };
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return { error: "El correo no parece válido." };
-  }
+  const badEmail = emailError(email);
+  if (badEmail) return { error: badEmail };
   if (!/^[\d+\s()-]{7,20}$/.test(phone)) {
     return { error: "El teléfono no parece válido." };
   }
-  // Los catalogos vienen de un <select>: validamos contra la lista para no
-  // guardar valores manipulados desde el cliente.
-  if (!POSITIONS.includes(positionChoice as (typeof POSITIONS)[number])) {
-    return { error: "Selecciona tu puesto o cargo." };
-  }
-  const position = withDetail(positionChoice, pick(formData, "positionOther"));
+  const position = parsePosition(positionChoice, pick(formData, "positionOther"));
   if (typeof position !== "string") return position;
+  // Los demas catalogos tambien vienen de un <select>: se validan contra la lista.
   if (!INDUSTRIES.includes(industryChoice as (typeof INDUSTRIES)[number])) {
     return { error: "Selecciona el giro de tu empresa." };
   }
@@ -157,46 +135,30 @@ export async function registerAttendee(
     redirect(`/pase/${existing.code}`);
   }
 
-  let code = "";
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const candidate = generateCode();
-    const taken = await prisma.attendee.findUnique({
-      where: { code: candidate },
-      select: { id: true },
-    });
-    if (!taken) {
-      code = candidate;
-      break;
-    }
-  }
-  if (!code) {
+  const created = await createAttendee({
+    name,
+    email: address,
+    phone,
+    company,
+    position,
+    industry,
+    state,
+    age,
+    referral,
+    privacyAt: new Date(),
+    emailVerifiedAt: new Date(),
+  });
+  if (!created) {
     return { stage: "verify", email: address, error: "No pudimos generar tu código. Intenta de nuevo." };
   }
-
-  const attendee = await prisma.attendee.create({
-    data: {
-      code,
-      name,
-      email: address,
-      phone,
-      company,
-      position,
-      industry,
-      state,
-      age,
-      referral,
-      privacyAt: new Date(),
-      emailVerifiedAt: new Date(),
-    },
-    select: { id: true },
-  });
+  const { code } = created;
 
   // El pase ya existe: si el correo de confirmacion falla, se avisa en el log
   // pero no se bloquea a la persona, que va directo a su pase.
   const delivered = await sendMail(passEmail({ to: address, name, code }));
   if (!delivered.ok) console.error(`[registro] No se pudo enviar el pase ${code}: ${delivered.error}`);
 
-  await setAttendeeSessionCookie({ id: attendee.id, code, name, email: address });
+  await setAttendeeSessionCookie({ id: created.id, code, name, email: address });
 
   // Sin redirect: el formulario manda CompleteRegistration al pixel desde la
   // landing (la URL del pase lleva el codigo y no debe llegar a Meta) y navega.

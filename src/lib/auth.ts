@@ -52,9 +52,9 @@ export async function verifySessionToken(token: string): Promise<Session | null>
   try {
     const { payload } = await jwtVerify(token, getSecret());
     if (!payload.sub) return null;
-    // Los dos tipos de sesion se firman con el mismo secreto: sin esta linea,
-    // una cookie de asistente serviria como sesion de staff.
-    if (payload.scope === "attendee") return null;
+    // Asistente y QR de puerta se firman con el mismo secreto: sin esta linea
+    // servirian como sesion de staff.
+    if (payload.scope === "attendee" || payload.scope === "puerta") return null;
     // Los tokens de antes de sessionVersion no sirven: todos entran otra vez.
     if (typeof payload.sv !== "number") return null;
     // Un rol desconocido no se degrada a STAFF: la sesion simplemente no vale.
