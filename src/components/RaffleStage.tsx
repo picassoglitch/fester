@@ -449,7 +449,7 @@ export default function RaffleStage({
                 }`}
               >
                 <span>{w.name}</span>
-                {!w.voided && !fullscreen && (
+                {!w.voided && !fullscreen && phase !== "spinning" && (
                   <button
                     type="button"
                     onClick={() => void voidCurrent(w.id)}
