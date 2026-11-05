@@ -52,7 +52,7 @@ export async function recordScan(
   const [attendee, station] = await Promise.all([
     prisma.attendee.findUnique({
       where: { code },
-      select: { id: true, name: true, approved: true, insideAt: true },
+      select: { id: true, name: true, insideAt: true },
     }),
     prisma.station.findUnique({ where: { id: stationId }, select: { id: true, name: true, active: true } }),
   ]);
@@ -90,7 +90,7 @@ export async function recordScan(
   let entered = false;
   if (door === "ENTRY" && attendee.insideAt === null) {
     const insideCount = await prisma.attendee.count({ where: INSIDE });
-    const check = checkEntry({ approved: attendee.approved, inside: false, insideCount, override });
+    const check = checkEntry({ inside: false, insideCount, override });
     if (check.action === "confirm") {
       const progress = await getStaffAttendeeProgress(code);
       if (!progress) return { ok: false, error: "No pudimos leer el avance del pase." };
@@ -103,7 +103,7 @@ export async function recordScan(
         reasons: check.reasons,
       };
     }
-    const forced = override && (!attendee.approved || insideCount >= CAPACITY);
+    const forced = override && insideCount >= CAPACITY;
     entered = await prisma.$transaction(async (tx) => {
       const moved = await tx.attendee.updateMany({
         where: { id: attendee.id, insideAt: null },

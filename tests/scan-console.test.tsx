@@ -376,9 +376,9 @@ describe("ScanConsole", () => {
 
   it("Registro: REVISAR no se cierra solo; Dejar pasar reenvía con override y se ve el conteo del foro", async () => {
     localStorage.setItem("fester_station", "s1");
-    const attendee = { code: "NOAP12", name: "No Aprobado", stars: 0, total: 3, pending: 3, completedAt: null, redeemedAt: null, redeemedByName: null, stations: [] };
+    const attendee = { code: "NOAP12", name: "Foro Lleno", stars: 0, total: 3, pending: 3, completedAt: null, redeemedAt: null, redeemedByName: null, stations: [] };
     recordScan.mockImplementationOnce(async () => ({
-      ok: true, status: "confirmar", message: "", attendee, inside: 12, reasons: ["no-aprobado"],
+      ok: true, status: "confirmar", message: "", attendee, inside: 450, reasons: ["aforo-lleno"],
     }));
     recordScan.mockImplementationOnce(async () => ({ ok: true, status: "nuevo", message: "", attendee, inside: 13 }));
     const { default: ScanConsole } = await import("@/components/ScanConsole");
@@ -386,7 +386,7 @@ describe("ScanConsole", () => {
     expect(screen.getByText("Foro 12/450")).toBeTruthy();
 
     await act(async () => cameraOnCode?.("NOAP12"));
-    expect(await screen.findByText("No está en la lista de aprobados")).toBeTruthy();
+    expect(await screen.findByText("El foro está lleno")).toBeTruthy();
     fireEvent.click(screen.getByRole("alertdialog"));
     expect(screen.getByRole("alertdialog")).toBeTruthy();
 

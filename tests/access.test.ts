@@ -11,20 +11,14 @@ const session: { id: string; name: string; role: "STAFF" | "PRIZES" | "ADMIN" } 
 vi.mock("@/lib/auth", () => ({ requireSession: vi.fn(async () => session) }));
 
 describe("checkEntry", () => {
-  const base = { approved: true, inside: false, insideCount: 0, override: false };
-  it("aprobado con lugar entra", () => expect(checkEntry(base)).toEqual({ action: "enter" }));
+  const base = { inside: false, insideCount: 0, override: false };
+  it("con lugar entra", () => expect(checkEntry(base)).toEqual({ action: "enter" }));
   it("quien ya está dentro no cuenta doble", () =>
     expect(checkEntry({ ...base, inside: true, override: true })).toEqual({ action: "already" }));
-  it("no aprobado pide confirmar y con override entra", () => {
-    expect(checkEntry({ ...base, approved: false })).toEqual({ action: "confirm", reasons: ["no-aprobado"] });
-    expect(checkEntry({ ...base, approved: false, override: true })).toEqual({ action: "enter" });
-  });
-  it("foro lleno pide confirmar, con las dos razones si aplica", () => {
+  it("foro lleno pide confirmar y con override entra", () => {
     expect(checkEntry({ ...base, insideCount: CAPACITY - 1 })).toEqual({ action: "enter" });
-    expect(checkEntry({ ...base, approved: false, insideCount: CAPACITY })).toEqual({
-      action: "confirm",
-      reasons: ["no-aprobado", "aforo-lleno"],
-    });
+    expect(checkEntry({ ...base, insideCount: CAPACITY })).toEqual({ action: "confirm", reasons: ["aforo-lleno"] });
+    expect(checkEntry({ ...base, insideCount: CAPACITY, override: true })).toEqual({ action: "enter" });
   });
 });
 
@@ -121,19 +115,18 @@ describe.skipIf(!hasLocalDb)("Registro y Salida en el escáner (base local)", ()
     expect((await prisma.attendee.findUniqueOrThrow({ where: { id: a.id } })).completedAt).not.toBeNull();
   });
 
-  it("no aprobado en Registro: REVISAR sin estrella ni entrada; Dejar pasar entra marcado", async () => {
+  it("no aprobado en Registro entra directo: la lista solo filtra la rifa", async () => {
     const { prisma } = await import("@/lib/db");
     const { recordScan } = await import("@/app/actions/scan");
     const first = await recordScan(no, registro);
-    expect(first).toMatchObject({ ok: true, status: "confirmar", reasons: ["no-aprobado"] });
+    expect(first).toMatchObject({ ok: true, status: "nuevo" });
     const a = await prisma.attendee.findUniqueOrThrow({ where: { code: no } });
-    expect(a.insideAt).toBeNull();
-    expect(await prisma.scan.count({ where: { attendeeId: a.id } })).toBe(0);
-
-    expect(await recordScan(no, registro, true)).toMatchObject({ ok: true, status: "nuevo" });
+    expect(a.insideAt).not.toBeNull();
+    expect(await prisma.scan.count({ where: { attendeeId: a.id, stationId: registro } })).toBe(1);
     const log = await prisma.access.findFirstOrThrow({ where: { attendeeId: a.id } });
-    expect(log).toMatchObject({ kind: "ENTRY", override: true, staffId: session.id });
+    expect(log).toMatchObject({ kind: "ENTRY", override: false, staffId: session.id });
     expect(JSON.stringify(first)).not.toMatch(/"email"|"phone"/);
+    await recordScan(no, salida);
   });
 
   it("foro lleno: aun aprobado pide confirmar y con Dejar pasar queda marcado", async () => {
