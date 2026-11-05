@@ -49,7 +49,7 @@ export default async function DoorRegisterPage() {
       <div className="grid gap-5 lg:grid-cols-[minmax(0,26rem)_1fr] lg:items-start">
         <section className="card min-w-0 p-5">
           <h2 className="mb-1 text-base font-bold">Registrar a quien llega</h2>
-          <p className="mb-4 text-xs text-white/55">Se crea el pase, se marca la Entrada y no entra a la rifa.</p>
+          <p className="mb-4 text-xs text-white/55">Se crea el pase, se marca la Entrada y no entra a la dinámica.</p>
           <DoorRegister capacity={CAPACITY} />
         </section>
 
