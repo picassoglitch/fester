@@ -5,7 +5,8 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { RAFFLE_POOL } from "@/lib/raffle";
+import { getRafflePools } from "@/lib/raffle";
+import { emptyPoolMessage, fullPrizeMessage, rafflePrize } from "@/lib/raffle-prizes";
 
 export type RaffleWinnerView = {
   id: string;
@@ -13,45 +14,42 @@ export type RaffleWinnerView = {
   code: string;
   company: string | null;
   state: string | null;
+  prizeKey: string | null;
 };
 
 export type DrawResult = { ok: true; winner: RaffleWinnerView } | { ok: false; error: string };
 
-const EMPTY = "No hay participantes: nadie aprobado con pasaporte completo queda sin premio.";
+/** Llave del candado de Postgres que pone los sorteos en fila. */
+const DRAW_LOCK = 20261105;
 
-export async function drawWinner(): Promise<DrawResult> {
+export async function drawWinner(prizeKey: string): Promise<DrawResult> {
   await requireAdmin();
+  const prize = rafflePrize(prizeKey);
+  if (!prize) return { ok: false, error: "Elige un premio para sortear." };
 
-  // Dos sorteos a la vez pueden caer en la misma persona: el indice unico
-  // de RaffleWinner rechaza al segundo y se vuelve a tirar.
   for (let attempt = 0; attempt < 3; attempt++) {
-    const pool = await prisma.attendee.count({ where: RAFFLE_POOL });
-    if (pool === 0) return { ok: false, error: EMPTY };
-
-    const attendee = await prisma.attendee.findFirst({
-      where: RAFFLE_POOL,
-      orderBy: { id: "asc" },
-      skip: randomInt(pool),
-      select: { id: true, name: true, code: true, company: true, state: true },
-    });
-    if (!attendee) continue;
-
     try {
-      const winner = await prisma.raffleWinner.create({
-        data: { attendeeId: attendee.id },
-        select: { id: true },
-      });
-      // Sin revalidatePath: la lista se refresca hasta revelar al ganador en pantalla.
-      return {
-        ok: true,
-        winner: {
-          id: winner.id,
-          name: attendee.name,
-          code: attendee.code,
-          company: attendee.company,
-          state: attendee.state,
+      return await prisma.$transaction(
+        async (tx): Promise<DrawResult> => {
+          // Un sorteo a la vez: dos pantallas no llenan de mas un premio. El indice
+          // unico de RaffleWinner sigue impidiendo que alguien gane dos veces.
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(${DRAW_LOCK})`;
+          const filled = await tx.raffleWinner.count({ where: { prizeKey: prize.key, voidedAt: null } });
+          if (filled >= prize.slots) return { ok: false, error: fullPrizeMessage(prize) };
+
+          const pool = (await getRafflePools(tx))[prize.category];
+          if (pool.length === 0) return { ok: false, error: emptyPoolMessage(prize) };
+
+          const attendee = pool[randomInt(pool.length)];
+          const winner = await tx.raffleWinner.create({
+            data: { attendeeId: attendee.id, prizeKey: prize.key },
+            select: { id: true },
+          });
+          // Sin revalidatePath: la lista se refresca hasta revelar al ganador en pantalla.
+          return { ok: true, winner: { ...attendee, id: winner.id, prizeKey: prize.key } };
         },
-      };
+        { maxWait: 10_000, timeout: 20_000 },
+      );
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") continue;
       throw error;
@@ -60,7 +58,7 @@ export async function drawWinner(): Promise<DrawResult> {
   return { ok: false, error: "No se pudo sortear. Intenta de nuevo." };
 }
 
-/** Anula a quien no esta en el foro. Sigue fuera de la rifa: no se vuelve a sortear. */
+/** Anula a quien no esta en el foro: libera el lugar del premio, pero esa persona ya no se vuelve a sortear. */
 export async function voidWinner(id: string): Promise<{ ok: boolean }> {
   await requireAdmin();
   if (!id) return { ok: false };

@@ -4,6 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import FesterLogo from "@/components/FesterLogo";
 import { drawWinner, voidWinner, type RaffleWinnerView } from "@/app/actions/raffle";
+import { PrizeImage, SlotDots } from "@/components/RafflePrizeCard";
+import {
+  RAFFLE_CATEGORIES,
+  RAFFLE_PRIZES,
+  emptyPoolMessage,
+  fullPrizeMessage,
+  prizeTitle,
+  rafflePrize,
+  type RaffleCategory,
+  type RafflePrize,
+} from "@/lib/raffle-prizes";
 
 type WinnerRow = RaffleWinnerView & { voided: boolean };
 type Phase = "idle" | "spinning" | "revealed";
@@ -141,13 +152,25 @@ function launchConfetti(canvas: HTMLCanvasElement): () => void {
 
 /* ------------------------------- escena ------------------------------- */
 
+// Color del brazalete de cada categoria (ROJO aplicador, AZUL profesionista).
+const CATEGORY_CHIP: Record<RaffleCategory, string> = {
+  Aplicador: "bg-brand text-white",
+  Profesionista: "bg-sky text-navy",
+};
+
+function firstOpen(filled: Record<string, number>): RafflePrize {
+  return RAFFLE_PRIZES.find((p) => (filled[p.key] ?? 0) < p.slots) ?? RAFFLE_PRIZES[0];
+}
+
 export default function RaffleStage({
-  pool,
-  reel,
+  pools,
+  reels,
+  filled,
   winners,
 }: {
-  pool: number;
-  reel: string[];
+  pools: Record<RaffleCategory, number>;
+  reels: Record<RaffleCategory, string[]>;
+  filled: Record<string, number>;
   winners: WinnerRow[];
 }) {
   const router = useRouter();
@@ -156,13 +179,20 @@ export default function RaffleStage({
   const busy = useRef(false);
   const stopConfetti = useRef<() => void>(() => {});
   const [phase, setPhase] = useState<Phase>("idle");
+  const [prizeKey, setPrizeKey] = useState<string>(() => firstOpen(filled).key);
   const [tiles, setTiles] = useState<Tile[]>([]);
-  const [left, setLeft] = useState(pool);
+  const [left, setLeft] = useState(0);
   const [stage, setStage] = useState("");
   const [winner, setWinner] = useState<RaffleWinnerView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [voiding, setVoiding] = useState(false);
+
+  const prize = rafflePrize(prizeKey) ?? RAFFLE_PRIZES[0];
+  const pool = pools[prize.category];
+  const reel = reels[prize.category];
+  const taken = filled[prize.key] ?? 0;
+  const full = taken >= prize.slots;
 
   useEffect(() => {
     const onChange = () => setFullscreen(document.fullscreenElement === stageRef.current);
@@ -171,6 +201,15 @@ export default function RaffleStage({
   }, []);
 
   useEffect(() => () => stopConfetti.current(), []);
+
+  function choose(key: string) {
+    if (busy.current) return;
+    stopConfetti.current();
+    setError(null);
+    setWinner(null);
+    setPhase("idle");
+    setPrizeKey(key);
+  }
 
   // El ganador ya lo eligio el servidor (azar criptografico); esto solo lo muestra en pantalla.
   const playWall = useCallback(
@@ -200,14 +239,16 @@ export default function RaffleStage({
       setStage(`¡${finalists.length} finalistas!`);
       setLeft(finalists.length);
       await wait(900);
-      const hops = 14;
-      let at = 0;
-      for (let h = 0; h < hops; h++) {
-        at = h === hops - 1 ? 0 : (at + 1 + Math.floor(Math.random() * (finalists.length - 1))) % finalists.length;
-        const spot = finalists[at];
-        setTiles((prev) => prev.map((t, i) => ({ ...t, hot: i === spot })));
-        tone(600 + h * 40, 0, 0.08, 0.08, "square");
-        await wait(90 + 45 * h);
+      if (finalists.length > 1) {
+        const hops = 14;
+        let at = 0;
+        for (let h = 0; h < hops; h++) {
+          at = h === hops - 1 ? 0 : (at + 1 + Math.floor(Math.random() * (finalists.length - 1))) % finalists.length;
+          const spot = finalists[at];
+          setTiles((prev) => prev.map((t, i) => ({ ...t, hot: i === spot })));
+          tone(600 + h * 40, 0, 0.08, 0.08, "square");
+          await wait(90 + 45 * h);
+        }
       }
       setTiles((prev) => prev.map((t, i) => ({ ...t, out: i !== winnerAt, hot: i === winnerAt })));
       setLeft(1);
@@ -217,7 +258,7 @@ export default function RaffleStage({
   );
 
   const draw = useCallback(async () => {
-    if (busy.current) return;
+    if (busy.current || full || pool === 0) return;
     busy.current = true;
     stopConfetti.current();
     setError(null);
@@ -229,7 +270,7 @@ export default function RaffleStage({
     setStage("Mezclando participantes…");
     setTiles(shuffled(reel).slice(0, WALL).map((name) => ({ name, out: false, hot: false })));
     // Sin respuesta no sabemos si quedo registrado: se pide revisar la lista antes de repetir.
-    const result = drawWinner().catch(() => ({
+    const result = drawWinner(prize.key).catch(() => ({
       ok: false as const,
       error: "Se perdió la conexión. Revisa la lista de ganadores antes de volver a sortear.",
     }));
@@ -247,7 +288,7 @@ export default function RaffleStage({
       }
     })();
     const outcome = await result;
-    await wait(calm ? 0 : 1600);
+    await wait(calm || !outcome.ok ? 0 : 1600);
     mixing = false;
     await mix;
 
@@ -266,7 +307,17 @@ export default function RaffleStage({
     if (!calm && canvasRef.current) stopConfetti.current = launchConfetti(canvasRef.current);
     busy.current = false;
     router.refresh();
-  }, [reel, pool, router, playWall]);
+  }, [reel, pool, full, prize.key, router, playWall]);
+
+  // Lleno el premio, el boton avanza al siguiente con lugares libres.
+  const next = RAFFLE_PRIZES.find((p) => p.key !== prize.key && (filled[p.key] ?? 0) < p.slots) ?? null;
+  const primary = useCallback(() => {
+    if (phase === "revealed" && full) {
+      if (next) choose(next.key);
+      return;
+    }
+    void draw();
+  }, [phase, full, next, draw]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -274,11 +325,11 @@ export default function RaffleStage({
       const target = event.target as HTMLElement | null;
       if (target?.closest("button, a, input, textarea, select")) return;
       event.preventDefault();
-      void draw();
+      primary();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [draw]);
+  }, [primary]);
 
   async function voidCurrent(id: string) {
     setError(null);
@@ -307,11 +358,27 @@ export default function RaffleStage({
   }
 
   const valid = winners.filter((w) => !w.voided);
+  const won = winner ? (rafflePrize(winner.prizeKey) ?? prize) : prize;
+  const blocked = full ? fullPrizeMessage(prize) : pool === 0 ? emptyPoolMessage(prize) : null;
+  const buttonLabel =
+    phase === "spinning"
+      ? "Sorteando…"
+      : phase === "revealed" && full
+        ? next
+          ? "Siguiente premio"
+          : "Rifa completa"
+        : full
+          ? "Premio completo"
+          : phase === "revealed"
+            ? "Sortear otro lugar"
+            : "Sortear";
+  const buttonDisabled =
+    phase === "spinning" || (phase === "revealed" && full ? !next : full || pool === 0);
 
   return (
     <div
       ref={stageRef}
-      className="relative isolate flex min-h-[calc(100dvh-8rem)] flex-col overflow-hidden rounded-2xl bg-[radial-gradient(60rem_35rem_at_50%_-10%,rgba(255,255,255,0.14),transparent_65%),radial-gradient(45rem_30rem_at_100%_100%,rgba(226,0,26,0.28),transparent_60%),linear-gradient(180deg,#00559c_0%,#004f92_45%,#002a52_100%)] p-[clamp(1rem,2.5vw,3rem)] data-[fs=true]:min-h-dvh data-[fs=true]:rounded-none"
+      className="relative isolate flex min-h-[calc(100dvh-8rem)] flex-col overflow-hidden rounded-2xl bg-[radial-gradient(60rem_35rem_at_50%_-10%,rgba(255,255,255,0.14),transparent_65%),radial-gradient(45rem_30rem_at_100%_100%,rgba(226,0,26,0.28),transparent_60%),linear-gradient(180deg,#00559c_0%,#004f92_45%,#002a52_100%)] px-[clamp(1rem,2.5vw,3rem)] py-[clamp(0.75rem,2.2vh,2rem)] data-[fs=true]:min-h-dvh data-[fs=true]:overflow-y-auto data-[fs=true]:rounded-none"
       data-fs={fullscreen}
     >
       <div aria-hidden className="blueprint pointer-events-none absolute inset-0 -z-10 opacity-60" />
@@ -324,7 +391,8 @@ export default function RaffleStage({
             Rifa Encuentro Fester 2026
           </p>
           <p className="mt-1 text-[clamp(0.8rem,1.2vw,1.25rem)] text-white/70">
-            {pool.toLocaleString("es-MX")} participantes con pasaporte completo
+            {pools.Aplicador.toLocaleString("es-MX")} aplicadores · {pools.Profesionista.toLocaleString("es-MX")}{" "}
+            profesionistas con pasaporte completo
           </p>
         </div>
         <button
@@ -336,13 +404,87 @@ export default function RaffleStage({
         </button>
       </header>
 
-      <section className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] py-8 text-center">
+      <nav aria-label="Premios" className="mt-[clamp(0.75rem,2vh,1.5rem)] flex flex-wrap items-center gap-x-6 gap-y-2">
+        {RAFFLE_CATEGORIES.map((category) => (
+          <div key={category} className="flex flex-wrap items-center gap-2">
+            <span
+              className={`rounded-full px-3 py-1 text-[clamp(0.7rem,0.9vw,0.95rem)] font-bold uppercase tracking-widest ${CATEGORY_CHIP[category]}`}
+            >
+              {category}
+            </span>
+            {RAFFLE_PRIZES.filter((p) => p.category === category).map((p) => {
+              const n = filled[p.key] ?? 0;
+              const selected = p.key === prize.key;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={(event) => {
+                    // Sin foco en el boton, Espacio/Enter sortean el premio elegido.
+                    event.currentTarget.blur();
+                    choose(p.key);
+                  }}
+                  disabled={phase === "spinning"}
+                  aria-pressed={selected}
+                  title={`${prizeTitle(p)} · ${n} de ${p.slots}`}
+                  className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-[clamp(0.75rem,0.95vw,1rem)] font-semibold transition disabled:cursor-not-allowed ${
+                    selected
+                      ? "border-white bg-white text-navy"
+                      : n >= p.slots
+                        ? "border-white/15 text-white/45"
+                        : "border-white/30 text-white hover:bg-white/10"
+                  }`}
+                >
+                  <span>{p.label}</span>
+                  <SlotDots filled={n} slots={p.slots} size="sm" dark={selected} />
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+
+      <section className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] py-[clamp(1rem,3vh,2rem)] text-center">
         {phase === "idle" && (
-          <>
-            <p className="font-display text-[clamp(2rem,6vw,7rem)] font-black uppercase leading-none">
-              ¿Quién se lo lleva?
-            </p>
-          </>
+          <div
+            key={prize.key}
+            className="animate-scan-in grid w-full max-w-[min(96vw,120rem)] items-center gap-[clamp(1.5rem,4vw,5rem)] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]"
+          >
+            <div className="flex justify-center">
+              <PrizeImage prize={prize} />
+            </div>
+            <div className="flex flex-col items-center gap-[clamp(0.5rem,1.6vh,1.25rem)] text-center lg:items-start lg:text-left">
+              <span
+                className={`rounded-full px-4 py-1 text-[clamp(0.8rem,1.1vw,1.15rem)] font-bold uppercase tracking-[0.2em] ${CATEGORY_CHIP[prize.category]}`}
+              >
+                Premio para {prize.category}
+              </span>
+              <p className="font-display text-[clamp(1.4rem,2.6vw,3rem)] font-black uppercase leading-none tracking-widest text-gold">
+                {prize.label}
+              </p>
+              <h2 className="font-display text-[clamp(2rem,min(4.6vw,7.5vh),5.5rem)] font-black uppercase leading-[0.95]">
+                {prize.name}
+              </h2>
+              {prize.items.length > 1 && (
+                <ul className="mt-1 grid gap-[clamp(0.2rem,0.8vh,0.6rem)] text-[clamp(0.95rem,min(1.5vw,2.4vh),1.7rem)] text-white/90">
+                  {prize.items.map((item) => (
+                    <li key={item} className="flex items-baseline gap-3">
+                      <span aria-hidden className="h-2 w-2 shrink-0 translate-y-[-0.15em] rounded-full bg-gold" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="mt-2 flex items-center gap-3 text-[clamp(0.9rem,1.3vw,1.4rem)] text-white/75">
+                <SlotDots filled={taken} slots={prize.slots} />
+                {prize.slots === 1
+                  ? taken
+                    ? "Ya tiene ganador"
+                    : "1 ganador"
+                  : `${taken} de ${prize.slots} ganadores`}
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Fuera de "idle": un anular fallido se ve aunque el ganador siga en pantalla. */}
@@ -354,6 +496,9 @@ export default function RaffleStage({
 
         {phase === "spinning" && (
           <div className="flex w-full flex-col items-center gap-4">
+            <p className="text-[clamp(0.9rem,1.4vw,1.5rem)] font-semibold uppercase tracking-[0.2em] text-white/70">
+              Sorteando {prizeTitle(prize)} · {prize.category}
+            </p>
             <div className="flex items-baseline gap-4">
               <p className="font-display text-[clamp(1.6rem,3.5vw,4rem)] font-black uppercase">{stage}</p>
               {!stage.startsWith("¡") && (
@@ -382,42 +527,54 @@ export default function RaffleStage({
               ))}
             </ul>
             <p className="text-sm text-white/55">
-              Muestra al azar de los {pool.toLocaleString("es-MX")} participantes · el ganador lo elige el servidor con azar
-              criptográfico
+              Muestra al azar de los {pool.toLocaleString("es-MX")} participantes {prize.category.toLowerCase()}s · el
+              ganador lo elige el servidor con azar criptográfico
             </p>
           </div>
         )}
 
         {phase === "revealed" && winner && (
-          <div className="animate-scan-in flex flex-col items-center gap-[clamp(0.5rem,2vh,1.5rem)]">
+          <div className="animate-scan-in flex w-full flex-col items-center gap-[clamp(0.5rem,2vh,1.5rem)]">
             <p className="rounded-full bg-gold px-6 py-1.5 font-display text-[clamp(1.1rem,2.2vw,2.4rem)] font-black uppercase tracking-widest text-navy">
               ¡Ganador!
             </p>
             <p
               aria-live="assertive"
-              className="max-w-[90vw] font-display text-[clamp(2.6rem,8vw,10rem)] font-black uppercase leading-[0.95] drop-shadow-[0_6px_0_rgba(226,0,26,0.9)]"
+              className="max-w-[90vw] font-display text-[clamp(2.4rem,min(7vw,10vh),9rem)] font-black uppercase leading-[0.95] drop-shadow-[0_6px_0_rgba(226,0,26,0.9)]"
             >
               {winner.name}
             </p>
             {(winner.company || winner.state) && (
-              <p className="text-[clamp(1.1rem,2.4vw,2.6rem)] font-semibold text-white/85">
+              <p className="text-[clamp(1.1rem,2.2vw,2.4rem)] font-semibold text-white/85">
                 {[winner.company, winner.state].filter(Boolean).join(" · ")}
               </p>
             )}
-            <p className="font-mono text-[clamp(0.9rem,1.4vw,1.5rem)] tracking-[0.35em] text-white/60">
-              {winner.code}
-            </p>
+            <p className="font-mono text-[clamp(0.9rem,1.4vw,1.5rem)] tracking-[0.35em] text-white/60">{winner.code}</p>
+            <div className="mt-[clamp(0.25rem,1.5vh,1rem)] flex items-center gap-[clamp(1rem,2vw,2rem)] rounded-3xl bg-white/10 p-[clamp(0.6rem,1.2vw,1rem)] pr-[clamp(1.25rem,2.5vw,2.5rem)] text-left ring-1 ring-white/20">
+              <PrizeImage prize={won} compact />
+              <div>
+                <p className="text-[clamp(0.8rem,1.1vw,1.15rem)] font-semibold uppercase tracking-[0.25em] text-white/65">
+                  Se lleva
+                </p>
+                <p className="font-display text-[clamp(1.1rem,2vw,2.2rem)] font-black uppercase leading-none text-gold">
+                  {won.label}
+                </p>
+                <p className="font-display text-[clamp(1.4rem,2.8vw,3.2rem)] font-black uppercase leading-tight">
+                  {won.name}
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
         <div className="flex flex-wrap items-center justify-center gap-4">
           <button
             type="button"
-            onClick={() => void draw()}
-            disabled={phase === "spinning" || pool === 0}
-            className="rounded-2xl bg-brand px-[clamp(2rem,5vw,5rem)] py-[clamp(0.9rem,2.2vh,1.6rem)] font-display text-[clamp(1.6rem,3.2vw,3.6rem)] font-black uppercase tracking-wider text-white shadow-[0_10px_0_#a80014] transition active:translate-y-1 active:shadow-[0_5px_0_#a80014] disabled:opacity-50"
+            onClick={primary}
+            disabled={buttonDisabled}
+            className="rounded-2xl bg-brand px-[clamp(2rem,5vw,5rem)] py-[clamp(0.7rem,2vh,1.6rem)] font-display text-[clamp(1.4rem,min(3.2vw,5.2vh),3.6rem)] font-black uppercase tracking-wider text-white shadow-[0_10px_0_#a80014] transition active:translate-y-1 active:shadow-[0_5px_0_#a80014] disabled:opacity-50"
           >
-            {phase === "revealed" ? "Sortear otro" : phase === "spinning" ? "Sorteando…" : "Sortear"}
+            {buttonLabel}
           </button>
           {phase === "revealed" && winner && (
             <button
@@ -430,9 +587,7 @@ export default function RaffleStage({
             </button>
           )}
         </div>
-        {pool === 0 && phase !== "spinning" && (
-          <p className="text-white/70">No quedan participantes por sortear.</p>
-        )}
+        {phase === "idle" && blocked && !error && <p className="text-white/70">{blocked}</p>}
       </section>
 
       {winners.length > 0 && (
@@ -441,27 +596,33 @@ export default function RaffleStage({
             Ganadores ({valid.length})
           </p>
           <ol className="flex flex-wrap gap-2">
-            {winners.map((w) => (
-              <li
-                key={w.id}
-                className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-[clamp(0.85rem,1.1vw,1.15rem)] ${
-                  w.voided ? "bg-white/5 text-white/40 line-through" : "bg-white/12 font-semibold"
-                }`}
-              >
-                <span>{w.name}</span>
-                {!w.voided && !fullscreen && phase !== "spinning" && (
-                  <button
-                    type="button"
-                    onClick={() => void voidCurrent(w.id)}
-                    disabled={voiding}
-                    className="text-xs font-normal text-white/60 underline underline-offset-2"
-                    aria-label={`Anular a ${w.name}`}
-                  >
-                    anular
-                  </button>
-                )}
-              </li>
-            ))}
+            {winners.map((w) => {
+              const p = rafflePrize(w.prizeKey);
+              return (
+                <li
+                  key={w.id}
+                  className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-[clamp(0.85rem,1.1vw,1.15rem)] ${
+                    w.voided ? "bg-white/5 text-white/40 line-through" : "bg-white/12 font-semibold"
+                  }`}
+                >
+                  <span>{w.name}</span>
+                  <span className={`text-[0.85em] font-normal ${w.voided ? "" : "text-gold"}`}>
+                    · {p ? prizeTitle(p) : "sin premio"}
+                  </span>
+                  {!w.voided && !fullscreen && phase !== "spinning" && (
+                    <button
+                      type="button"
+                      onClick={() => void voidCurrent(w.id)}
+                      disabled={voiding}
+                      className="text-xs font-normal text-white/60 underline underline-offset-2"
+                      aria-label={`Anular a ${w.name}`}
+                    >
+                      anular
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </footer>
       )}

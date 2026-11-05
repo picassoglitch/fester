@@ -1,20 +1,49 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasLocalDb, testCode } from "./db";
+import { emptyPoolMessage, fullPrizeMessage, rafflePrize, RAFFLE_PRIZES } from "@/lib/raffle-prizes";
 
 const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath }));
 const requireAdmin = vi.fn(async () => ({ id: "admin", name: "Admin", role: "ADMIN" }));
 vi.mock("@/lib/auth", () => ({ requireAdmin }));
 
-describe.skipIf(!hasLocalDb)("rifa (base local)", () => {
-  const codes = {
-    eligible: testCode(),
-    notApproved: testCode(),
-    notCompleted: testCode(),
-    pastWinner: testCode(),
-    voided: testCode(),
+const prize = (key: string) => rafflePrize(key)!;
+
+describe("premios de la rifa", () => {
+  it("son 8 lugares: 4 por categoría, Kit 02 y Kit 04 con dos", () => {
+    const slots = (category: string) =>
+      RAFFLE_PRIZES.filter((p) => p.category === category).reduce((n, p) => n + p.slots, 0);
+    expect(slots("Aplicador")).toBe(4);
+    expect(slots("Profesionista")).toBe(4);
+    expect(prize("kit-02").slots).toBe(2);
+    expect(prize("kit-04").slots).toBe(2);
+    expect(new Set(RAFFLE_PRIZES.map((p) => p.key)).size).toBe(RAFFLE_PRIZES.length);
+    expect(RAFFLE_PRIZES.every((p) => p.image === `/rifa/${p.key}.webp`)).toBe(true);
+  });
+});
+
+describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
+  const done = new Date();
+  const people = {
+    apl1: { festerProfile: "Aplicador" },
+    apl2: { festerProfile: "DIY" },
+    // Sin perfil de Fester: el puesto decide (catálogo, no Arquitecto ni Estudiante = Aplicador).
+    apl3: { position: "Contratista" },
+    prof1: { festerProfile: "Profesionista" },
+    prof2: { festerProfile: "Constructora" },
+    prof3: { position: "Arquitecto" },
+    student: { festerProfile: "Estudiante" },
+    studentByPosition: { position: "Estudiante" },
+    noCategory: {},
+    door: { festerProfile: "Aplicador", origin: "PUERTA" as const },
+    notApproved: { festerProfile: "Aplicador", approved: false },
+    notCompleted: { festerProfile: "Profesionista", completedAt: null },
   };
-  const all = Object.values(codes);
+  type Who = keyof typeof people;
+  const codes = Object.fromEntries(Object.keys(people).map((k) => [k, testCode()])) as Record<Who, string>;
+  const APLICADORES = [codes.apl1, codes.apl2, codes.apl3];
+  const PROFESIONISTAS = [codes.prof1, codes.prof2, codes.prof3];
+  const ids: string[] = [];
 
   // La rifa sortea entre todo el pool de la base; para aislar la prueba, el
   // resto de los asistentes queda fuera mientras corre y se restaura al final.
@@ -22,81 +51,143 @@ describe.skipIf(!hasLocalDb)("rifa (base local)", () => {
 
   beforeAll(async () => {
     const { prisma } = await import("@/lib/db");
-    const others = await prisma.attendee.findMany({
-      where: { approved: true, completedAt: { not: null }, raffleWins: { none: {} } },
-      select: { id: true },
-    });
+    const others = await prisma.attendee.findMany({ where: { approved: true }, select: { id: true } });
     parked = others.map((a) => a.id);
     await prisma.attendee.updateMany({ where: { id: { in: parked } }, data: { approved: false } });
 
-    const done = new Date();
-    await prisma.attendee.createMany({
-      data: [
-        { code: codes.eligible, name: "Rifa Elegible", approved: true, completedAt: done },
-        { code: codes.notApproved, name: "Rifa No Aprobado", approved: false, completedAt: done },
-        { code: codes.notCompleted, name: "Rifa Sin Pasaporte", approved: true },
-        { code: codes.pastWinner, name: "Rifa Ya Ganó", approved: true, completedAt: done },
-        { code: codes.voided, name: "Rifa Anulado", approved: true, completedAt: done },
-      ],
-    });
-    const past = await prisma.attendee.findUniqueOrThrow({ where: { code: codes.pastWinner } });
-    const voided = await prisma.attendee.findUniqueOrThrow({ where: { code: codes.voided } });
-    await prisma.raffleWinner.create({ data: { attendeeId: past.id } });
-    await prisma.raffleWinner.create({ data: { attendeeId: voided.id, voidedAt: done } });
+    for (const [who, extra] of Object.entries(people)) {
+      const row = await prisma.attendee.create({
+        data: { code: codes[who as Who], name: `Rifa ${who}`, approved: true, completedAt: done, ...extra },
+      });
+      ids.push(row.id);
+    }
   });
 
   beforeEach(async () => {
     const { prisma } = await import("@/lib/db");
-    const eligible = await prisma.attendee.findUniqueOrThrow({ where: { code: codes.eligible } });
-    await prisma.raffleWinner.deleteMany({ where: { attendeeId: eligible.id } });
+    await prisma.raffleWinner.deleteMany({ where: { attendeeId: { in: ids } } });
   });
 
   afterAll(async () => {
     const { prisma } = await import("@/lib/db");
-    await prisma.attendee.deleteMany({ where: { code: { in: all } } });
+    await prisma.attendee.deleteMany({ where: { id: { in: ids } } });
     await prisma.attendee.updateMany({ where: { id: { in: parked } }, data: { approved: true } });
     await prisma.$disconnect();
   });
 
-  it("el pool solo tiene aprobados con pasaporte completo que no han salido", async () => {
-    const { getRaffleState } = await import("@/lib/raffle");
+  async function draw(key: string) {
+    const { drawWinner } = await import("@/app/actions/raffle");
+    return drawWinner(key);
+  }
+
+  it("divide el pool por brazalete; fuera estudiantes, puerta, sin categoría, no aprobados y sin pasaporte", async () => {
+    const { getRafflePools, getRaffleState } = await import("@/lib/raffle");
+    const pools = await getRafflePools();
+    expect(pools.Aplicador.map((c) => c.code).sort()).toEqual([...APLICADORES].sort());
+    expect(pools.Profesionista.map((c) => c.code).sort()).toEqual([...PROFESIONISTAS].sort());
     const state = await getRaffleState();
-    expect(state.pool).toBe(1);
-    const names = state.winners.map((w) => w.code);
-    expect(names).toContain(codes.pastWinner);
-    expect(names).toContain(codes.voided);
+    expect(state.pools).toEqual({ Aplicador: 3, Profesionista: 3 });
+    expect(state.reels.Aplicador.sort()).toEqual(["Rifa apl1", "Rifa apl2", "Rifa apl3"]);
   });
 
-  it("drawWinner saca al único elegible y luego se queda sin participantes", async () => {
-    const { drawWinner } = await import("@/app/actions/raffle");
+  it("cada premio sortea solo en su categoría y guarda el premio", async () => {
+    const { prisma } = await import("@/lib/db");
     revalidatePath.mockClear();
-    const first = await drawWinner();
-    expect(first).toMatchObject({ ok: true, winner: { code: codes.eligible } });
+    const apl = await draw("kit-01");
+    const prof = await draw("moto-profesionista");
+    if (!apl.ok || !prof.ok) throw new Error("debió sortear");
+    expect(APLICADORES).toContain(apl.winner.code);
+    expect(PROFESIONISTAS).toContain(prof.winner.code);
+    expect(apl.winner.prizeKey).toBe("kit-01");
+    expect(await prisma.raffleWinner.findUnique({ where: { id: prof.winner.id } })).toMatchObject({
+      prizeKey: "moto-profesionista",
+    });
     // Refrescar aqui pintaria al ganador en la lista antes de la animacion.
     expect(revalidatePath).not.toHaveBeenCalled();
-    expect(JSON.stringify(first)).not.toMatch(/"email"|"phone"/);
-
-    const second = await drawWinner();
-    expect(second.ok).toBe(false);
+    expect(JSON.stringify(apl)).not.toMatch(/"email"|"phone"|festerProfile|position/);
   });
 
-  it("anular deja al ganador fuera de futuros sorteos", async () => {
-    const { drawWinner, voidWinner } = await import("@/app/actions/raffle");
-    const first = await drawWinner();
+  it("un premio lleno no se vuelve a sortear (Kit 02 tiene dos lugares)", async () => {
+    const first = await draw("kit-02");
+    const second = await draw("kit-02");
+    expect(first.ok && second.ok).toBe(true);
+    expect(await draw("kit-02")).toEqual({ ok: false, error: fullPrizeMessage(prize("kit-02")) });
+    expect(await draw("kit-01")).toMatchObject({ ok: true });
+    expect(await draw("kit-01")).toEqual({ ok: false, error: "Kit 01 · Constructor Premium ya tiene ganador." });
+  });
+
+  it("sorteos simultáneos del mismo premio no pasan del cupo", async () => {
+    const { prisma } = await import("@/lib/db");
+    const results = await Promise.all(Array.from({ length: 6 }, () => draw("kit-04")));
+    expect(results.filter((r) => r.ok)).toHaveLength(2);
+    for (const r of results.filter((r) => !r.ok)) expect(r).toEqual({ ok: false, error: fullPrizeMessage(prize("kit-04")) });
+    expect(await prisma.raffleWinner.count({ where: { prizeKey: "kit-04", voidedAt: null } })).toBe(2);
+  });
+
+  it("nadie gana dos veces, aunque se sorteen varios premios a la vez", async () => {
+    const { prisma } = await import("@/lib/db");
+    const keys = ["kit-03", "kit-04", "kit-04", "moto-profesionista", "kit-03", "moto-profesionista"];
+    const results = await Promise.all(keys.map(draw));
+    const winners = results.flatMap((r) => (r.ok ? [r.winner.code] : []));
+    // Hay 3 profesionistas: solo 3 premios se entregan y cada uno a alguien distinto.
+    expect(winners).toHaveLength(3);
+    expect(new Set(winners).size).toBe(3);
+    expect(winners.every((c) => PROFESIONISTAS.includes(c))).toBe(true);
+    const rows = await prisma.raffleWinner.groupBy({ by: ["prizeKey"], where: { attendeeId: { in: ids } }, _count: { _all: true } });
+    for (const row of rows) expect(row._count._all).toBeLessThanOrEqual(prize(row.prizeKey!).slots);
+  });
+
+  it("anular libera el lugar del premio, pero el anulado no vuelve a salir", async () => {
+    const { voidWinner } = await import("@/app/actions/raffle");
+    const { getRafflePools, filledSlots } = await import("@/lib/raffle");
+    const first = await draw("kit-01");
     if (!first.ok) throw new Error(first.error);
+    expect((await draw("kit-01")).ok).toBe(false);
+
     expect(await voidWinner(first.winner.id)).toEqual({ ok: true });
     expect(await voidWinner(first.winner.id)).toEqual({ ok: false });
-    expect((await drawWinner()).ok).toBe(false);
+    expect((await filledSlots())["kit-01"]).toBe(0);
+    expect((await getRafflePools()).Aplicador.map((c) => c.code)).not.toContain(first.winner.code);
+
+    const again = await draw("kit-01");
+    if (!again.ok) throw new Error(again.error);
+    expect(again.winner.code).not.toBe(first.winner.code);
+  });
+
+  it("sin participantes de la categoría avisa por premio", async () => {
+    for (const key of ["kit-01", "kit-02", "kit-02"]) expect((await draw(key)).ok).toBe(true);
+    expect(await draw("moto-aplicador")).toEqual({ ok: false, error: emptyPoolMessage(prize("moto-aplicador")) });
+    expect(emptyPoolMessage(prize("moto-aplicador"))).toBe(
+      "No quedan aplicadores por sortear para Moto · VENTO TERRA DS 170 – 2026.",
+    );
+    // Los profesionistas siguen intactos.
+    expect(await draw("moto-profesionista")).toMatchObject({ ok: true });
+  });
+
+  it("un ganador de antes de los premios (sin premio) no ocupa lugar y sale en la lista", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { getRaffleState } = await import("@/lib/raffle");
+    const legacy = await prisma.attendee.findUniqueOrThrow({ where: { code: codes.apl1 } });
+    await prisma.raffleWinner.create({ data: { attendeeId: legacy.id } });
+    const state = await getRaffleState();
+    expect(Object.values(state.filled).every((n) => n === 0)).toBe(true);
+    expect(state.pools.Aplicador).toBe(2);
+    expect(state.winners.find((w) => w.code === codes.apl1)).toMatchObject({ prizeKey: null, voidedAt: null });
+  });
+
+  it("premio desconocido no sortea", async () => {
+    const { prisma } = await import("@/lib/db");
+    expect(await draw("moto-estudiante")).toEqual({ ok: false, error: "Elige un premio para sortear." });
+    expect(await prisma.raffleWinner.count({ where: { attendeeId: { in: ids } } })).toBe(0);
   });
 
   it("sin rol de administrador no se sortea ni se anula", async () => {
     const { prisma } = await import("@/lib/db");
     const { drawWinner, voidWinner } = await import("@/app/actions/raffle");
     requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
-    await expect(drawWinner()).rejects.toThrow();
+    await expect(drawWinner("kit-01")).rejects.toThrow();
     requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
     await expect(voidWinner("x")).rejects.toThrow();
-    const eligible = await prisma.attendee.findUniqueOrThrow({ where: { code: codes.eligible } });
-    expect(await prisma.raffleWinner.count({ where: { attendeeId: eligible.id } })).toBe(0);
+    expect(await prisma.raffleWinner.count({ where: { attendeeId: { in: ids } } })).toBe(0);
   });
 });

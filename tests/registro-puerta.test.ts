@@ -229,18 +229,20 @@ describe.skipIf(!hasLocalDb)("registro en la puerta (base local)", () => {
 
     it("los de la puerta no entran a la rifa aunque estén aprobados y completos", async () => {
       const { prisma } = await import("@/lib/db");
-      const { RAFFLE_POOL, getReelNames } = await import("@/lib/raffle");
+      const { RAFFLE_POOL, getRafflePools } = await import("@/lib/raffle");
       const done = new Date();
       const name = `Rifa Puerta ${RUN}`;
       await prisma.attendee.createMany({
         data: [
-          { code: `RP${RUN.slice(-6).toUpperCase()}`, name, email: mail("rifa-puerta"), origin: "PUERTA", approved: true, completedAt: done },
-          { code: `RW${RUN.slice(-6).toUpperCase()}`, name: `Rifa Web ${RUN}`, email: mail("rifa-web"), approved: true, completedAt: done },
+          { code: `RP${RUN.slice(-6).toUpperCase()}`, name, email: mail("rifa-puerta"), origin: "PUERTA", approved: true, completedAt: done, festerProfile: "Aplicador" },
+          { code: `RW${RUN.slice(-6).toUpperCase()}`, name: `Rifa Web ${RUN}`, email: mail("rifa-web"), approved: true, completedAt: done, festerProfile: "Aplicador" },
         ],
       });
       const pool = await prisma.attendee.findMany({ where: { AND: [RAFFLE_POOL, { email: { endsWith: `-${RUN}@example.com` } }] } });
       expect(pool.map((a) => a.name)).toEqual([`Rifa Web ${RUN}`]);
-      expect(await getReelNames(100_000)).not.toContain(name);
+      const aplicadores = (await getRafflePools()).Aplicador.map((a) => a.name);
+      expect(aplicadores).toContain(`Rifa Web ${RUN}`);
+      expect(aplicadores).not.toContain(name);
     });
   });
 
