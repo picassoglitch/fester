@@ -38,7 +38,7 @@ export const RAFFLE_PRIZES = [
     category: "Aplicador",
     label: "Kit 02",
     name: "Constructor de Aplicación",
-    slots: 2,
+    slots: 1,
     image: "/rifa/kit-02.webp",
     items: [
       "Mezcladora RUBI RUBIMIX-9 SUPERTORQUE",
@@ -78,7 +78,7 @@ export const RAFFLE_PRIZES = [
     category: "Profesionista",
     label: "Kit 04",
     name: "Arquitecto Tecnología",
-    slots: 2,
+    slots: 1,
     image: "/rifa/kit-04.webp",
     items: [
       "Samsung Galaxy Tab S9 FE",
