@@ -1,7 +1,6 @@
 import { getAccessCounts } from "@/lib/access";
 import AutoRefresh from "@/components/AutoRefresh";
 import CapacityBoard from "@/components/CapacityBoard";
-import ResetEvent from "@/components/ResetEvent";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +16,6 @@ export default async function CapacityPage() {
         </div>
       </header>
       <CapacityBoard counts={counts} />
-      <div className="pt-8">
-        <ResetEvent />
-      </div>
     </div>
   );
 }

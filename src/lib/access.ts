@@ -42,6 +42,3 @@ export async function getAccessCounts() {
 }
 
 export type AccessCounts = Awaited<ReturnType<typeof getAccessCounts>>;
-
-/** Palabra que el admin escribe para borrar la actividad del evento. */
-export const RESET_WORD = "REINICIAR";

@@ -1,11 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { hasLocalDb, testCode } from "./db";
 import { approvedFromSheets } from "@/lib/approved";
 import { buildXlsx } from "@/lib/xlsx";
-
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-const requireAdmin = vi.fn(async () => ({ id: "admin", name: "Admin", role: "ADMIN" }));
-vi.mock("@/lib/auth", () => ({ requireAdmin }));
 
 const HEADER = ["# registro", "codigo", "ok", "nombre", "correo"];
 
@@ -49,12 +45,11 @@ describe("approvedFromSheets", () => {
   });
 });
 
-describe.skipIf(!hasLocalDb)("lista de aprobados y resetEvent (base local)", () => {
+describe.skipIf(!hasLocalDb)("lista de aprobados (base local)", () => {
   const yes = testCode();
   const byMail = testCode();
   const nope = testCode();
   const mail = `${byMail.toLowerCase()}@pruebas.mx`;
-  let stationId = "";
   // La importacion reemplaza la lista de toda la base local: se restaura al final.
   let wasApproved: string[] = [];
 
@@ -68,13 +63,11 @@ describe.skipIf(!hasLocalDb)("lista de aprobados y resetEvent (base local)", () 
         { code: nope, name: "Import No", approved: true },
       ],
     });
-    stationId = (await prisma.station.create({ data: { name: `Prueba ${yes}` } })).id;
   });
 
   afterAll(async () => {
     const { prisma } = await import("@/lib/db");
     await prisma.attendee.deleteMany({ where: { code: { in: [yes, byMail, nope] } } });
-    await prisma.station.deleteMany({ where: { id: stationId } });
     await prisma.attendee.updateMany({ where: { id: { in: wasApproved } }, data: { approved: true } });
     await prisma.$disconnect();
   });
@@ -132,38 +125,4 @@ describe.skipIf(!hasLocalDb)("lista de aprobados y resetEvent (base local)", () 
     ).toMatchObject({ ok: true, approved: 2, byEmail: 1, notFound: [] });
   });
 
-  it("sin rol de administrador no se reinicia", async () => {
-    const { resetEvent } = await import("@/app/actions/event");
-    requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
-    const data = new FormData();
-    data.set("confirm", "REINICIAR");
-    await expect(resetEvent({}, data)).rejects.toThrow();
-  });
-
-  it("reiniciar exige la palabra y borra la actividad pero conserva registros y aprobados", async () => {
-    const { prisma } = await import("@/lib/db");
-    const { resetEvent } = await import("@/app/actions/event");
-    const a = await prisma.attendee.update({
-      where: { code: yes },
-      data: { completedAt: new Date(), redeemedAt: new Date(), insideAt: new Date() },
-    });
-    await prisma.scan.create({ data: { attendeeId: a.id, stationId } });
-    await prisma.access.create({ data: { attendeeId: a.id, kind: "ENTRY" } });
-    await prisma.raffleWinner.create({ data: { attendeeId: a.id } });
-
-    const wrong = new FormData();
-    wrong.set("confirm", "si");
-    expect((await resetEvent({}, wrong)).error).toBeDefined();
-    expect(await prisma.scan.count({ where: { attendeeId: a.id } })).toBe(1);
-
-    const right = new FormData();
-    right.set("confirm", " reiniciar ");
-    expect((await resetEvent({}, right)).ok).toBeDefined();
-    const after = await prisma.attendee.findUniqueOrThrow({ where: { code: yes } });
-    expect(after).toMatchObject({ approved: true, completedAt: null, redeemedAt: null, insideAt: null });
-    expect(await prisma.scan.count({ where: { attendeeId: a.id } })).toBe(0);
-    expect(await prisma.access.count({ where: { attendeeId: a.id } })).toBe(0);
-    expect(await prisma.raffleWinner.count({ where: { attendeeId: a.id } })).toBe(0);
-    expect(await prisma.station.count({ where: { id: stationId } })).toBe(1);
-  });
 });
