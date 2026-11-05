@@ -504,38 +504,41 @@ export default function RaffleStage({
         </p>
       )}
 
-      <dl
-        aria-label="Participantes"
-        className="mt-[clamp(0.6rem,1.6vh,1.25rem)] flex flex-wrap items-stretch gap-[clamp(0.4rem,0.8vw,0.8rem)]"
-      >
-        {RAFFLE_CATEGORIES.map((c) => (
-          <div key={c} className="flex items-center gap-2.5 rounded-2xl bg-white/10 px-3 py-1.5 ring-1 ring-white/15">
-            <dt
-              className={`rounded-full px-3 py-0.5 text-[clamp(0.7rem,0.9vw,0.95rem)] font-bold uppercase tracking-widest ${CATEGORY_CHIP[c]}`}
-            >
-              {categoryPlural(c)}
-            </dt>
+      {/* Aldo 2026-11-05 — en pantalla completa (la que ve el público) no se muestran los conteos. */}
+      {!fullscreen && (
+        <dl
+          aria-label="Participantes"
+          className="mt-[clamp(0.6rem,1.6vh,1.25rem)] flex flex-wrap items-stretch gap-[clamp(0.4rem,0.8vw,0.8rem)]"
+        >
+          {RAFFLE_CATEGORIES.map((c) => (
+            <div key={c} className="flex items-center gap-2.5 rounded-2xl bg-white/10 px-3 py-1.5 ring-1 ring-white/15">
+              <dt
+                className={`rounded-full px-3 py-0.5 text-[clamp(0.7rem,0.9vw,0.95rem)] font-bold uppercase tracking-widest ${CATEGORY_CHIP[c]}`}
+              >
+                {categoryPlural(c)}
+              </dt>
+              <dd className="flex items-baseline gap-2">
+                <span className="font-display text-[clamp(1.4rem,2.2vw,2.6rem)] font-black leading-none tabular-nums">
+                  {pools[c].toLocaleString("es-MX")}
+                </span>{" "}
+                <span className="text-[clamp(0.85rem,1.1vw,1.2rem)] font-semibold text-white/85">participan</span>{" "}
+                <span className="text-[clamp(0.75rem,0.95vw,1rem)] text-white/55">
+                  · {pending[c].toLocaleString("es-MX")} llegaron sin completar pasaporte
+                </span>
+              </dd>
+            </div>
+          ))}
+          <div className="flex items-center gap-2.5 rounded-2xl bg-gold px-3 py-1.5 text-navy">
+            <dt className="text-[clamp(0.7rem,0.9vw,0.95rem)] font-bold uppercase tracking-widest">Total</dt>
             <dd className="flex items-baseline gap-2">
               <span className="font-display text-[clamp(1.4rem,2.2vw,2.6rem)] font-black leading-none tabular-nums">
-                {pools[c].toLocaleString("es-MX")}
+                {totalPool.toLocaleString("es-MX")}
               </span>{" "}
-              <span className="text-[clamp(0.85rem,1.1vw,1.2rem)] font-semibold text-white/85">participan</span>{" "}
-              <span className="text-[clamp(0.75rem,0.95vw,1rem)] text-white/55">
-                · {pending[c].toLocaleString("es-MX")} llegaron sin completar pasaporte
-              </span>
+              <span className="text-[clamp(0.85rem,1.1vw,1.2rem)] font-semibold">participan</span>
             </dd>
           </div>
-        ))}
-        <div className="flex items-center gap-2.5 rounded-2xl bg-gold px-3 py-1.5 text-navy">
-          <dt className="text-[clamp(0.7rem,0.9vw,0.95rem)] font-bold uppercase tracking-widest">Total</dt>
-          <dd className="flex items-baseline gap-2">
-            <span className="font-display text-[clamp(1.4rem,2.2vw,2.6rem)] font-black leading-none tabular-nums">
-              {totalPool.toLocaleString("es-MX")}
-            </span>{" "}
-            <span className="text-[clamp(0.85rem,1.1vw,1.2rem)] font-semibold">participan</span>
-          </dd>
-        </div>
-      </dl>
+        </dl>
+      )}
 
       <nav aria-label="Premios" className="mt-[clamp(0.75rem,2vh,1.5rem)] flex flex-wrap items-center gap-x-6 gap-y-2">
         {RAFFLE_CATEGORIES.map((category) => (
