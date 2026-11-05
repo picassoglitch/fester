@@ -302,6 +302,20 @@ describe("ScanConsole", () => {
       }
     });
 
+    it("brazalete por puesto avisa que no viene en la lista de Fester", async () => {
+      recordScan.mockImplementation(async () => ({
+        ok: true,
+        status: "nuevo",
+        message: "ok",
+        attendee: progress({ festerProfile: null, position: "Arquitecto", bracelet: { color: "AZUL", category: "Profesionista", source: "puesto" } }),
+      }));
+      await renderAt();
+      await scanManual();
+      const dialog = await screen.findByRole("alertdialog");
+      expect(dialog.querySelector("[data-bracelet]")?.getAttribute("data-bracelet")).toBe("AZUL");
+      expect(dialog.textContent).toContain("Según su puesto");
+    });
+
     it("sin perfil de Fester pide revisar el brazalete", async () => {
       recordScan.mockImplementation(async () => ({
         ok: true,

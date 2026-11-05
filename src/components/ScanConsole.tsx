@@ -497,6 +497,7 @@ function BraceletCard({ attendee }: { attendee: StaffAttendeeProgress }) {
           <p className="text-xs font-bold tracking-[0.3em] opacity-80">BRAZALETE</p>
           <p className="text-4xl font-black tracking-wide">{bracelet.color}</p>
           <p className="text-lg font-semibold">{bracelet.category}</p>
+          {bracelet.source === "puesto" && <p className="text-xs font-semibold opacity-80">Según su puesto (no viene en la lista de Fester)</p>}
         </div>
       ) : (
         <div className="bg-neutral-200 px-5 py-4 text-center text-navy">

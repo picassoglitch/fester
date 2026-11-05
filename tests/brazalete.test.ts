@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { hasLocalDb, testCode } from "./db";
-import { braceletFor } from "@/lib/bracelet";
+import { braceletFor, braceletOf } from "@/lib/bracelet";
 import { profilesFromSheets } from "@/lib/fester-profiles";
 
 describe("braceletFor (tabla de Fester, lámina 11B)", () => {
@@ -28,6 +28,34 @@ describe("braceletFor (tabla de Fester, lámina 11B)", () => {
     for (const p of ["No específica", "N/A", "REGISTRO REPETIDO", "Inmobiliaria", "", null, undefined]) {
       expect(braceletFor(p)).toBeNull();
     }
+  });
+});
+
+describe("braceletOf: sin perfil de Fester usa el puesto", () => {
+  it.each([
+    ["Arquitecto", "AZUL"],
+    ["Estudiante", "BLANCO"],
+    ["Otro: estudiante de arquitectura", "BLANCO"],
+    ["Albañil", "ROJO"],
+    ["Carpintero", "ROJO"],
+    ["Contratista", "ROJO"],
+    ["DIY", "ROJO"],
+    ["Inspector de obras", "ROJO"],
+    ["Maestro de obra", "ROJO"],
+    ["Proveedor de materiales de construcción", "ROJO"],
+    ["Técnico de la construcción", "ROJO"],
+    ["Técnico de impermeabilización", "ROJO"],
+  ])("%s → %s", (position, color) => {
+    expect(braceletOf(null, position)).toMatchObject({ color, source: "puesto" });
+    expect(braceletOf("No específica", position)).toMatchObject({ color, source: "puesto" });
+  });
+
+  it("el perfil de Fester gana sobre el puesto", () => {
+    expect(braceletOf("Aplicador", "Arquitecto")).toEqual({ color: "ROJO", category: "Aplicador", source: "fester" });
+  });
+
+  it("«Otro» o sin puesto: revisar", () => {
+    for (const position of ["Otro: Ventas", "", null]) expect(braceletOf(null, position)).toBeNull();
   });
 });
 
@@ -101,7 +129,7 @@ describe.skipIf(!hasLocalDb)("perfiles en la base y en el escaneo", () => {
     const one = await getStaffAttendeeProgress(a);
     expect(one).toMatchObject({
       festerProfile: "Distribuidor-ventas",
-      bracelet: { color: "ROJO", category: "Aplicador" },
+      bracelet: { color: "ROJO", category: "Aplicador", source: "fester" },
       company: "Obras Peña",
       position: "Albañil",
       state: "Puebla",
