@@ -4,11 +4,12 @@ import RaffleStage from "@/components/RaffleStage";
 export const dynamic = "force-dynamic";
 
 export default async function RafflePage() {
-  const { pools, reels, filled, winners } = await getRaffleState();
+  const { pools, pending, reels, filled, winners } = await getRaffleState();
 
   return (
     <RaffleStage
       pools={pools}
+      pending={pending}
       reels={reels}
       filled={filled}
       winners={winners.map((w) => ({

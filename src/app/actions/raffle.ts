@@ -70,3 +70,18 @@ export async function voidWinner(id: string): Promise<{ ok: boolean }> {
   revalidatePath("/admin/rifa");
   return { ok: count === 1 };
 }
+
+// Aldo 2026-11-05 — tras la prueba la rifa vuelve a 0: borra todos los ganadores (anulados incluidos).
+export async function resetRaffle(): Promise<{ deleted: number }> {
+  await requireAdmin();
+  const deleted = await prisma.$transaction(
+    async (tx) => {
+      // Mismo candado que el sorteo: no se reinicia a la mitad de uno.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${DRAW_LOCK}))`;
+      return (await tx.raffleWinner.deleteMany({})).count;
+    },
+    { maxWait: 10_000, timeout: 20_000 },
+  );
+  revalidatePath("/admin/rifa");
+  return { deleted };
+}
