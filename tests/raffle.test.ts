@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasLocalDb, testCode } from "./db";
 
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+const revalidatePath = vi.fn();
+vi.mock("next/cache", () => ({ revalidatePath }));
 const requireAdmin = vi.fn(async () => ({ id: "admin", name: "Admin", role: "ADMIN" }));
 vi.mock("@/lib/auth", () => ({ requireAdmin }));
 
@@ -68,8 +69,11 @@ describe.skipIf(!hasLocalDb)("rifa (base local)", () => {
 
   it("drawWinner saca al único elegible y luego se queda sin participantes", async () => {
     const { drawWinner } = await import("@/app/actions/raffle");
+    revalidatePath.mockClear();
     const first = await drawWinner();
     expect(first).toMatchObject({ ok: true, winner: { code: codes.eligible } });
+    // Refrescar aqui pintaria al ganador en la lista antes de la animacion.
+    expect(revalidatePath).not.toHaveBeenCalled();
     expect(JSON.stringify(first)).not.toMatch(/"email"|"phone"/);
 
     const second = await drawWinner();

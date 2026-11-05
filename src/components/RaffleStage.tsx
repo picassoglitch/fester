@@ -8,8 +8,22 @@ import { drawWinner, voidWinner, type RaffleWinnerView } from "@/app/actions/raf
 type WinnerRow = RaffleWinnerView & { voided: boolean };
 type Phase = "idle" | "spinning" | "revealed";
 
-/** Duracion del carrete; se frena poco a poco hasta el ganador. */
-export const SPIN_MS = 4200;
+/** Mosaico de participantes que se proyecta mientras se elimina al azar. */
+const WALL = 36;
+const FINALISTS = 3;
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function shuffled<T>(items: readonly T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+type Tile = { name: string; out: boolean; hot: boolean };
 const CONFETTI_MS = 6000;
 const BRAND = ["#e2001a", "#ffffff", "#f5b301", "#9fd0ff", "#1e6fc0"];
 
@@ -142,7 +156,9 @@ export default function RaffleStage({
   const busy = useRef(false);
   const stopConfetti = useRef<() => void>(() => {});
   const [phase, setPhase] = useState<Phase>("idle");
-  const [shown, setShown] = useState<string>("");
+  const [tiles, setTiles] = useState<Tile[]>([]);
+  const [left, setLeft] = useState(pool);
+  const [stage, setStage] = useState("");
   const [winner, setWinner] = useState<RaffleWinnerView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -156,6 +172,50 @@ export default function RaffleStage({
 
   useEffect(() => () => stopConfetti.current(), []);
 
+  // El ganador ya lo eligio el servidor (azar criptografico); esto solo lo muestra en pantalla.
+  const playWall = useCallback(
+    async (winnerName: string) => {
+      const others = shuffled(reel.filter((n) => n !== winnerName)).slice(0, WALL - 1);
+      const winnerAt = Math.floor(Math.random() * (others.length + 1));
+      const names = [...others.slice(0, winnerAt), winnerName, ...others.slice(winnerAt)];
+      const total = names.length;
+      setTiles(names.map((name) => ({ name, out: false, hot: false })));
+      setStage("Eliminando al azar · quedan");
+
+      const order = shuffled(names.map((_, i) => i).filter((i) => i !== winnerAt));
+      const knockouts = order.slice(0, Math.max(0, total - FINALISTS));
+      const finalists = [winnerAt, ...order.slice(knockouts.length)];
+      const gone = new Set<number>();
+      for (let k = 0; k < knockouts.length; k++) {
+        gone.add(knockouts[k]);
+        const remaining = total - gone.size;
+        setTiles((prev) => prev.map((t, i) => ({ ...t, out: gone.has(i), hot: i === knockouts[k] })));
+        // El contador baja del total real de participantes a los finalistas.
+        setLeft(Math.max(FINALISTS, Math.round((pool * remaining) / total)));
+        tick();
+        const t = k / knockouts.length;
+        await wait(170 - 120 * Math.sin(Math.PI * t));
+      }
+
+      setStage(`¡${finalists.length} finalistas!`);
+      setLeft(finalists.length);
+      await wait(900);
+      const hops = 14;
+      let at = 0;
+      for (let h = 0; h < hops; h++) {
+        at = h === hops - 1 ? 0 : (at + 1 + Math.floor(Math.random() * (finalists.length - 1))) % finalists.length;
+        const spot = finalists[at];
+        setTiles((prev) => prev.map((t, i) => ({ ...t, hot: i === spot })));
+        tone(600 + h * 40, 0, 0.08, 0.08, "square");
+        await wait(90 + 45 * h);
+      }
+      setTiles((prev) => prev.map((t, i) => ({ ...t, out: i !== winnerAt, hot: i === winnerAt })));
+      setLeft(1);
+      await wait(1100);
+    },
+    [reel, pool],
+  );
+
   const draw = useCallback(async () => {
     if (busy.current) return;
     busy.current = true;
@@ -164,31 +224,35 @@ export default function RaffleStage({
     setWinner(null);
     setPhase("spinning");
 
-    const names = reel.length > 0 ? reel : ["…"];
     const calm = reducedMotion();
+    setLeft(pool);
+    setStage("Mezclando participantes…");
+    setTiles(shuffled(reel).slice(0, WALL).map((name) => ({ name, out: false, hot: false })));
     // Sin respuesta no sabemos si quedo registrado: se pide revisar la lista antes de repetir.
     const result = drawWinner().catch(() => ({
       ok: false as const,
       error: "Se perdió la conexión. Revisa la lista de ganadores antes de volver a sortear.",
     }));
 
-    // Carrete: cada nombre dura un poco mas que el anterior (frenado cuadratico).
-    if (!calm) {
-      const started = performance.now();
-      let i = Math.floor(Math.random() * names.length);
-      await new Promise<void>((resolve) => {
-        const next = () => {
-          const t = (performance.now() - started) / SPIN_MS;
-          if (t >= 1) return resolve();
-          setShown(names[i++ % names.length]);
-          tick();
-          setTimeout(next, 45 + 380 * t * t);
-        };
-        next();
-      });
-    }
-
+    // Mientras responde el servidor, los nombres se revuelven en el mosaico.
+    let mixing = true;
+    const mix = (async () => {
+      while (mixing) {
+        setTiles((prev) => {
+          const names = shuffled(prev.map((t) => t.name));
+          return prev.map((t, i) => ({ ...t, name: names[i], hot: Math.random() < 0.12 }));
+        });
+        tick();
+        await wait(90);
+      }
+    })();
     const outcome = await result;
+    await wait(calm ? 0 : 1600);
+    mixing = false;
+    await mix;
+
+    if (outcome.ok && !calm) await playWall(outcome.winner.name);
+
     if (!outcome.ok) {
       setError(outcome.error);
       setPhase("idle");
@@ -197,13 +261,12 @@ export default function RaffleStage({
       return;
     }
     setWinner(outcome.winner);
-    setShown(outcome.winner.name);
     setPhase("revealed");
     fanfare();
     if (!calm && canvasRef.current) stopConfetti.current = launchConfetti(canvasRef.current);
     busy.current = false;
     router.refresh();
-  }, [reel, router]);
+  }, [reel, pool, router, playWall]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -290,12 +353,37 @@ export default function RaffleStage({
         )}
 
         {phase === "spinning" && (
-          <div className="w-full max-w-6xl rounded-3xl border-4 border-white/80 bg-navy/70 px-6 py-[clamp(1.5rem,5vh,4rem)] shadow-[0_0_80px_rgba(226,0,26,0.45)]">
-            <p
-              aria-live="off"
-              className="truncate font-display text-[clamp(2.2rem,6.5vw,8rem)] font-black uppercase leading-none"
+          <div className="flex w-full flex-col items-center gap-4">
+            <div className="flex items-baseline gap-4">
+              <p className="font-display text-[clamp(1.6rem,3.5vw,4rem)] font-black uppercase">{stage}</p>
+              {!stage.startsWith("¡") && (
+                <p className="font-display text-[clamp(1.6rem,3.5vw,4rem)] font-black tabular-nums text-gold">
+                  {left.toLocaleString("es-MX")}
+                </p>
+              )}
+            </div>
+            <ul
+              aria-hidden
+              className="grid w-full max-w-[min(96vw,110rem)] grid-cols-3 gap-[clamp(0.25rem,0.6vw,0.6rem)] sm:grid-cols-4 lg:grid-cols-6"
             >
-              {shown || "…"}
+              {tiles.map((tile, i) => (
+                <li
+                  key={i}
+                  className={`truncate rounded-lg px-2 py-[clamp(0.3rem,1vh,0.8rem)] text-[clamp(0.7rem,1.05vw,1.15rem)] font-semibold transition-all duration-150 ${
+                    tile.hot
+                      ? "scale-110 bg-brand text-white shadow-[0_0_30px_rgba(226,0,26,0.8)] ring-4 ring-white"
+                      : tile.out
+                        ? "scale-90 bg-white/5 text-white/20 line-through"
+                        : "bg-white/12 text-white"
+                  }`}
+                >
+                  {tile.name}
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm text-white/55">
+              Muestra al azar de los {pool.toLocaleString("es-MX")} participantes · el ganador lo elige el servidor con azar
+              criptográfico
             </p>
           </div>
         )}

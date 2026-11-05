@@ -41,7 +41,7 @@ export async function drawWinner(): Promise<DrawResult> {
         data: { attendeeId: attendee.id },
         select: { id: true },
       });
-      revalidatePath("/admin/rifa");
+      // Sin revalidatePath: la lista se refresca hasta revelar al ganador en pantalla.
       return {
         ok: true,
         winner: {

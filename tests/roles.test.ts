@@ -102,9 +102,7 @@ describe("canOpenPath (proxy)", () => {
     expect(canOpenPath("STAFF", "/staff/escanear")).toBe(true);
     expect(canOpenPath("STAFF", "/staff/premios")).toBe(false);
     expect(canOpenPath("STAFF", "/admin/staff")).toBe(false);
-    expect(canOpenPath("STAFF", "/staff/acceso")).toBe(true);
-    expect(canOpenPath("PRIZES", "/staff/acceso")).toBe(false);
-    for (const path of ["/admin", "/admin/staff", "/staff/escanear", "/staff/premios", "/staff/acceso"]) {
+    for (const path of ["/admin", "/admin/staff", "/staff/escanear", "/staff/premios"]) {
       expect(canOpenPath("ADMIN", path)).toBe(true);
     }
   });

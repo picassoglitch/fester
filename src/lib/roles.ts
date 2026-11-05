@@ -38,7 +38,6 @@ function under(pathname: string, prefix: string): boolean {
 export function canOpenPath(role: StaffRole, pathname: string): boolean {
   if (under(pathname, "/admin")) return role === "ADMIN";
   if (under(pathname, "/staff/escanear")) return canRecordStations(role);
-  if (under(pathname, "/staff/acceso")) return canRecordStations(role);
   if (under(pathname, "/staff/premios")) return canRedeemPrizes(role);
   return true;
 }

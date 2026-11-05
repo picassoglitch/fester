@@ -47,9 +47,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/staff/escanear" className="underline underline-offset-4">
               Escanear
             </Link>
-            <Link href="/staff/acceso" className="underline underline-offset-4">
-              Puerta
-            </Link>
             <form action={logout}>
               <button type="submit" className="underline underline-offset-4">
                 Salir

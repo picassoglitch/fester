@@ -9,6 +9,8 @@ import ScanConsole from "@/components/ScanConsole";
 import StaffOverview from "@/components/StaffOverview";
 import AutoRefresh from "@/components/AutoRefresh";
 import FesterLogo from "@/components/FesterLogo";
+import { prisma } from "@/lib/db";
+import { CAPACITY, INSIDE } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +24,14 @@ export default async function ScanPage({
   if (!canRecordStations(session.role)) {
     redirect(staffHomeWithCode(session.role, code ? normalizeCode(code) : null));
   }
-  const stats = await getStaffStats(session.id);
+  const [stats, inside] = await Promise.all([
+    getStaffStats(session.id),
+    prisma.attendee.count({ where: INSIDE }),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-5">
-      <AutoRefresh seconds={30} />
+      <AutoRefresh seconds={15} />
 
       <header className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-sky/12 pb-4">
         <FesterLogo className="h-7" />
@@ -69,6 +74,8 @@ export default async function ScanPage({
               mode="estacion"
               showModeLink={session.role === "ADMIN"}
               initialCode={code ? normalizeCode(code) : undefined}
+              inside={inside}
+              capacity={CAPACITY}
             />
           )}
         </div>

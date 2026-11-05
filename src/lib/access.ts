@@ -5,10 +5,12 @@ export const CAPACITY = 450;
 
 export type AccessKindValue = "ENTRY" | "EXIT";
 
+export type EntryReason = "no-aprobado" | "aforo-lleno";
+
 export type EntryCheck =
   | { action: "enter" }
   | { action: "already" }
-  | { action: "confirm"; reasons: ("no-aprobado" | "aforo-lleno")[] };
+  | { action: "confirm"; reasons: EntryReason[] };
 
 // Junta Fester 2026-11-04 — no aprobado o foro lleno no bloquea: el staff decide con "Dejar pasar".
 export function checkEntry(input: {
@@ -18,7 +20,7 @@ export function checkEntry(input: {
   override: boolean;
 }): EntryCheck {
   if (input.inside) return { action: "already" };
-  const reasons: ("no-aprobado" | "aforo-lleno")[] = [];
+  const reasons: EntryReason[] = [];
   if (!input.approved) reasons.push("no-aprobado");
   if (input.insideCount >= CAPACITY) reasons.push("aforo-lleno");
   if (reasons.length > 0 && !input.override) return { action: "confirm", reasons };

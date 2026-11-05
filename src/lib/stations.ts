@@ -1,5 +1,16 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { prisma } from "./db";
+
+export type DoorKind = "ENTRY" | "EXIT";
+
+// Junta Fester 2026-11-04 — la estacion "Registro" es la entrada al foro y "Salida" la salida (aforo 450).
+export function doorKindOf(stationName: string): DoorKind | null {
+  const name = stationName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  return name === "registro" ? "ENTRY" : name === "salida" ? "EXIT" : null;
+}
+
+/** "Salida" no es estrella: no cuenta para el pasaporte ni para la rifa (junta Fester 2026-11-04). */
+const COUNTS_FOR_PASSPORT = Prisma.sql`lower(btrim(s.name)) <> 'salida'`;
 
 /**
  * Estaciones de ejemplo: SOLO para el seed y para "npm run db:stations" en una
@@ -22,7 +33,13 @@ export type ActiveStation = { id: string; name: string; emoji: string; order: nu
  * Las estaciones que cuentan hoy, en el orden del admin. Las estrellas
  * necesarias para el premio son getActiveStations().length, nunca un numero fijo.
  */
-export function getActiveStations(client: PrismaClient = prisma): Promise<ActiveStation[]> {
+export async function getActiveStations(client: PrismaClient = prisma): Promise<ActiveStation[]> {
+  const all = await getScannerStations(client);
+  return all.filter((station) => doorKindOf(station.name) !== "EXIT");
+}
+
+/** Todas las activas, Salida incluida: es el menu del escaner de staff. */
+export function getScannerStations(client: PrismaClient = prisma): Promise<ActiveStation[]> {
   return client.station.findMany({
     where: { active: true },
     orderBy: [{ order: "asc" }, { createdAt: "asc" }],
@@ -66,14 +83,14 @@ export function markCompletedAttendees(client: PrismaClient | Prisma.Transaction
              select max(sc."createdAt")
                from "Scan" sc
                join "Station" s on s.id = sc."stationId"
-              where s.active and sc."attendeeId" = a.id
+              where s.active and ${COUNTS_FOR_PASSPORT} and sc."attendeeId" = a.id
            )
      where a."completedAt" is null
-       and exists (select 1 from "Station" s where s.active)
+       and exists (select 1 from "Station" s where s.active and ${COUNTS_FOR_PASSPORT})
        and not exists (
          select 1
            from "Station" s
-          where s.active
+          where s.active and ${COUNTS_FOR_PASSPORT}
             and not exists (
               select 1 from "Scan" sc where sc."attendeeId" = a.id and sc."stationId" = s.id
             )
@@ -97,14 +114,14 @@ export async function getStationChangeImpact(client: PrismaClient = prisma): Pro
     client.attendee.count({ where: { completedAt: { not: null } } }),
     client.attendee.count({ where: { redeemedAt: { not: null } } }),
     client.attendee.count({ where: { completedAt: null } }),
-    client.station.count({ where: { active: true } }),
+    client.station.count({ where: { active: true, NOT: { name: { equals: "salida", mode: "insensitive" } } } }),
     // Personas en curso a las que solo les falta una estacion activa, agrupadas por esa estacion.
     client.$queryRaw<{ stationId: string; people: number }[]>`
       select missing."stationId", count(*)::int as people
         from (
           select a.id, min(s.id) as "stationId"
             from "Attendee" a
-            join "Station" s on s.active
+            join "Station" s on s.active and ${COUNTS_FOR_PASSPORT}
            where a."completedAt" is null
              and not exists (
                select 1 from "Scan" sc where sc."attendeeId" = a.id and sc."stationId" = s.id

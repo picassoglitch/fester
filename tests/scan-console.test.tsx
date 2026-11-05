@@ -75,7 +75,7 @@ describe("ScanConsole", () => {
     await renderConsole("ABC123");
     fireEvent.click(await screen.findByRole("button", { name: "Registrar estrella en Kiosko 1" }));
     await vi.waitFor(() => expect(recordScan).toHaveBeenCalledTimes(1));
-    expect(recordScan).toHaveBeenCalledWith("ABC123", "s2");
+    expect(recordScan).toHaveBeenCalledWith("ABC123", "s2", false);
   });
 
   it("avisa con pitido y vibración según el resultado del escaneo", async () => {
@@ -126,7 +126,7 @@ describe("ScanConsole", () => {
 
     fireEvent.submit(input.form!);
     await vi.waitFor(() => expect(recordScan).toHaveBeenCalledTimes(1));
-    expect(recordScan).toHaveBeenCalledWith("ABCD1234", "s2");
+    expect(recordScan).toHaveBeenCalledWith("ABCD1234", "s2", false);
 
     act(() => root.unmount());
     container.remove();
@@ -301,7 +301,7 @@ describe("ScanConsole", () => {
       }));
       fireEvent.click(screen.getByRole("button", { name: "Reintentar" }));
       await vi.waitFor(() => expect(recordScan).toHaveBeenCalledTimes(2));
-      expect(recordScan).toHaveBeenLastCalledWith("W5MWGX", "s2");
+      expect(recordScan).toHaveBeenLastCalledWith("W5MWGX", "s2", false);
     });
 
     it("el mismo QR sostenido frente a la cámara cuenta una sola vez", async () => {
@@ -371,6 +371,27 @@ describe("ScanConsole", () => {
     expect(screen.getByRole("dialog", { name: "Pase cargado" }).textContent).toContain("FV28QG");
     expect(localStorage.getItem("fester_station")).toBe("s3");
     fireEvent.click(screen.getByRole("button", { name: "Registrar estrella en Kiosko 2" }));
-    await vi.waitFor(() => expect(recordScan).toHaveBeenCalledWith("FV28QG", "s3"));
+    await vi.waitFor(() => expect(recordScan).toHaveBeenCalledWith("FV28QG", "s3", false));
+  });
+
+  it("Registro: REVISAR no se cierra solo; Dejar pasar reenvía con override y se ve el conteo del foro", async () => {
+    localStorage.setItem("fester_station", "s1");
+    const attendee = { code: "NOAP12", name: "No Aprobado", stars: 0, total: 3, pending: 3, completedAt: null, redeemedAt: null, redeemedByName: null, stations: [] };
+    recordScan.mockImplementationOnce(async () => ({
+      ok: true, status: "confirmar", message: "", attendee, inside: 12, reasons: ["no-aprobado"],
+    }));
+    recordScan.mockImplementationOnce(async () => ({ ok: true, status: "nuevo", message: "", attendee, inside: 13 }));
+    const { default: ScanConsole } = await import("@/components/ScanConsole");
+    render(<ScanConsole stations={stations} staffName="Staff" mode="estacion" inside={12} capacity={450} />);
+    expect(screen.getByText("Foro 12/450")).toBeTruthy();
+
+    await act(async () => cameraOnCode?.("NOAP12"));
+    expect(await screen.findByText("No está en la lista de aprobados")).toBeTruthy();
+    fireEvent.click(screen.getByRole("alertdialog"));
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Dejar pasar" })));
+    expect(recordScan).toHaveBeenLastCalledWith("NOAP12", "s1", true);
+    expect(await screen.findByText("Foro 13/450")).toBeTruthy();
   });
 });
