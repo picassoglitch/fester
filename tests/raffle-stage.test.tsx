@@ -4,8 +4,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 
 const drawWinner = vi.fn(async (_key: string) => ({ ok: false as const, error: "x" }));
 const voidWinner = vi.fn(async () => ({ ok: true }));
-vi.mock("@/app/actions/raffle", () => ({ drawWinner, voidWinner }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+const resetRaffle = vi.fn(async () => ({ deleted: 3 }));
+vi.mock("@/app/actions/raffle", () => ({ drawWinner, voidWinner, resetRaffle }));
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 vi.mock("@/components/FesterLogo", () => ({ default: () => null }));
 
 afterEach(() => {
@@ -17,11 +19,13 @@ async function renderStage(
   filled: Record<string, number>,
   winners: { prizeKey: string | null; voided?: boolean }[] = [],
   pools = { Aplicador: 5, Profesionista: 4 },
+  pending = { Aplicador: 2, Profesionista: 7 },
 ) {
   const { default: RaffleStage } = await import("@/components/RaffleStage");
   return render(
     <RaffleStage
       pools={pools}
+      pending={pending}
       reels={{ Aplicador: ["A1", "A2"], Profesionista: ["P1"] }}
       filled={filled}
       winners={winners.map((w, i) => ({
@@ -145,5 +149,87 @@ describe("escenario de la rifa por premio", () => {
     expect(list.textContent).toContain("sin premio");
     expect(list.textContent).toContain("Kit 04 · Arquitecto Tecnología");
     expect(screen.getByText("Ganadores (2)")).toBeTruthy();
+  });
+
+  it("muestra cuántos participan por categoría, el total y los que faltan de pasaporte", async () => {
+    const { container } = await renderStage({}, [], { Aplicador: 22, Profesionista: 1234 }, { Aplicador: 8, Profesionista: 0 });
+    const counts = container.querySelector('dl[aria-label="Participantes"]')!.textContent!.replace(/\s+/g, " ");
+    expect(counts).toContain("aplicadores22 participan · 8 por completar pasaporte");
+    expect(counts).toContain("profesionistas1,234 participan · 0 por completar pasaporte");
+    expect(counts).toContain("Total1,256 participan");
+    // En la vista del premio, el pool de su categoría.
+    expect(screen.getByText(/^Participan/).textContent).toBe("Participan 22 aplicadores");
+    fireEvent.click(pill(/^Kit 03/));
+    expect(screen.getByText(/^Participan/).textContent).toBe("Participan 1,234 profesionistas");
+  });
+
+  it("reiniciar pide confirmar dentro de la página y luego avisa que quedó en 0", async () => {
+    resetRaffle.mockClear();
+    const confirm = vi.fn();
+    vi.stubGlobal("confirm", confirm);
+    const winners = [{ prizeKey: "kit-01" }, { prizeKey: "kit-04", voided: true }, { prizeKey: null }];
+    const { rerender } = await renderStage({ "kit-01": 1 }, winners);
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    expect(screen.getByRole("alertdialog").textContent).toContain("Esto borra 3 ganadores (anulados incluidos)");
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    expect(resetRaffle).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, reiniciar" }));
+    await waitFor(() => expect(resetRaffle).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(refresh).toHaveBeenCalled());
+    expect(confirm).not.toHaveBeenCalled();
+    // El refresh trae la lista vacía.
+    const { default: RaffleStage } = await import("@/components/RaffleStage");
+    rerender(
+      <RaffleStage
+        pools={{ Aplicador: 5, Profesionista: 4 }}
+        pending={{ Aplicador: 0, Profesionista: 0 }}
+        reels={{ Aplicador: ["A1"], Profesionista: ["P1"] }}
+        filled={{}}
+        winners={[]}
+      />,
+    );
+    expect(screen.getByRole("status").textContent).toBe("Rifa reiniciada: 0 ganadores");
+    expect(screen.queryByRole("button", { name: "Reiniciar rifa" })).toBeNull();
+    expect(screen.getByRole("heading").textContent).toBe("Constructor Premium");
+    vi.unstubAllGlobals();
+  });
+
+  it("si el reinicio falla lo dice y no avisa 0 ganadores", async () => {
+    resetRaffle.mockRejectedValueOnce(new Error("red"));
+    await renderStage({}, [{ prizeKey: "kit-01" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, reiniciar" }));
+    await screen.findByText("No se pudo reiniciar la rifa. Recarga la página e intenta de nuevo.");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("mientras se reinicia, Espacio no arranca un sorteo; Escape cierra la confirmación", async () => {
+    let release: (v: { deleted: number }) => void = () => {};
+    resetRaffle.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+    await renderStage({}, [{ prizeKey: "kit-01" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancelar" }));
+    fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, reiniciar" }));
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.keyDown(document.body, { key: " " });
+    expect(drawWinner).not.toHaveBeenCalled();
+    release({ deleted: 1 });
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  });
+
+  it("al arrancar un sorteo se cierra la confirmación de reinicio", async () => {
+    await renderStage({}, [{ prizeKey: "kit-01" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.keyDown(document.body, { key: " " });
+    await waitFor(() => expect(drawWinner).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });

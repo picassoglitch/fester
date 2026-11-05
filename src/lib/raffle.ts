@@ -25,8 +25,18 @@ export function raffleCategoryOf(festerProfile: string | null, position: string 
 export async function getRafflePools(
   db: Prisma.TransactionClient = prisma,
 ): Promise<Record<RaffleCategory, RaffleCandidate[]>> {
+  return poolsWhere(RAFFLE_POOL, db);
+}
+
+// Aldo 2026-11-05 — «o participaran»: mismo pool, pero con el pasaporte aun sin completar.
+export const RAFFLE_PENDING: Prisma.AttendeeWhereInput = { ...RAFFLE_POOL, completedAt: null };
+
+async function poolsWhere(
+  where: Prisma.AttendeeWhereInput,
+  db: Prisma.TransactionClient,
+): Promise<Record<RaffleCategory, RaffleCandidate[]>> {
   const rows = await db.attendee.findMany({
-    where: RAFFLE_POOL,
+    where,
     orderBy: { id: "asc" },
     select: { id: true, name: true, code: true, company: true, state: true, festerProfile: true, position: true },
   });
@@ -63,6 +73,8 @@ export type RaffleWinnerRow = {
 
 export type RaffleState = {
   pools: Record<RaffleCategory, number>;
+  /** Aprobados de la categoria que aun no completan el pasaporte. */
+  pending: Record<RaffleCategory, number>;
   filled: Record<string, number>;
   winners: RaffleWinnerRow[];
   /** Nombres al azar de cada pool para el carrete de la animacion. */
@@ -81,8 +93,9 @@ function sample<T>(items: readonly T[], n: number): T[] {
 }
 
 export async function getRaffleState(): Promise<RaffleState> {
-  const [pools, filled, winners] = await Promise.all([
+  const [pools, pending, filled, winners] = await Promise.all([
     getRafflePools(),
+    poolsWhere(RAFFLE_PENDING, prisma),
     filledSlots(),
     prisma.raffleWinner.findMany({
       orderBy: { createdAt: "desc" },
@@ -97,6 +110,7 @@ export async function getRaffleState(): Promise<RaffleState> {
   ]);
   return {
     pools: { Aplicador: pools.Aplicador.length, Profesionista: pools.Profesionista.length },
+    pending: { Aplicador: pending.Aplicador.length, Profesionista: pending.Profesionista.length },
     filled,
     reels: {
       Aplicador: sample(pools.Aplicador, REEL).map((c) => c.name),

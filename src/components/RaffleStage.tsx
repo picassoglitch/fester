@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import FesterLogo from "@/components/FesterLogo";
-import { drawWinner, voidWinner, type RaffleWinnerView } from "@/app/actions/raffle";
+import { drawWinner, resetRaffle, voidWinner, type RaffleWinnerView } from "@/app/actions/raffle";
 import { PrizeImage, SlotDots } from "@/components/RafflePrizeCard";
 import {
   RAFFLE_CATEGORIES,
@@ -172,11 +172,13 @@ function firstOpen(filled: Record<string, number>): RafflePrize {
 
 export default function RaffleStage({
   pools,
+  pending,
   reels,
   filled: filledProp,
   winners,
 }: {
   pools: Record<RaffleCategory, number>;
+  pending: Record<RaffleCategory, number>;
   reels: Record<RaffleCategory, string[]>;
   filled: Record<string, number>;
   winners: WinnerRow[];
@@ -200,6 +202,9 @@ export default function RaffleStage({
   const [error, setError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [voiding, setVoiding] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetDone, setResetDone] = useState(false);
 
   const prize = rafflePrize(prizeKey) ?? RAFFLE_PRIZES[0];
   const pool = pools[prize.category];
@@ -276,6 +281,8 @@ export default function RaffleStage({
     stopConfetti.current();
     setError(null);
     setWinner(null);
+    setResetOpen(false);
+    setResetDone(false);
     setPhase("spinning");
 
     const calm = reducedMotion();
@@ -370,12 +377,39 @@ export default function RaffleStage({
     }
   }
 
+  async function confirmReset() {
+    if (busy.current) return;
+    // Con el candado tomado, Espacio/Enter no arrancan un sorteo a mitad del reinicio.
+    busy.current = true;
+    setError(null);
+    setResetting(true);
+    try {
+      const res = await resetRaffle().catch(() => null);
+      if (!res) {
+        setError("No se pudo reiniciar la rifa. Recarga la página e intenta de nuevo.");
+        return;
+      }
+      stopConfetti.current();
+      setJustWon(null);
+      setWinner(null);
+      setPhase("idle");
+      setPrizeKey(RAFFLE_PRIZES[0].key);
+      setResetOpen(false);
+      setResetDone(true);
+    } finally {
+      busy.current = false;
+      setResetting(false);
+      router.refresh();
+    }
+  }
+
   function toggleFullscreen() {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void stageRef.current?.requestFullscreen?.();
   }
 
   const valid = winners.filter((w) => !w.voided);
+  const totalPool = RAFFLE_CATEGORIES.reduce((n, c) => n + pools[c], 0);
   const won = winner ? (rafflePrize(winner.prizeKey) ?? prize) : prize;
   const blocked = full ? fullPrizeMessage(prize) : pool === 0 ? emptyPoolMessage(prize) : null;
   const buttonLabel =
@@ -408,11 +442,20 @@ export default function RaffleStage({
           <p className="font-display text-[clamp(1.4rem,3vw,3.2rem)] font-bold uppercase leading-none tracking-wide">
             Rifa Encuentro Fester 2026
           </p>
-          <p className="mt-1 text-[clamp(0.8rem,1.2vw,1.25rem)] text-white/70">
-            {RAFFLE_CATEGORIES.map((c) => `${pools[c].toLocaleString("es-MX")} ${categoryPlural(c)}`).join(" · ")} con
-            pasaporte completo
-          </p>
         </div>
+        {!fullscreen && phase !== "spinning" && winners.length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              setResetDone(false);
+              setResetOpen((open) => !open);
+            }}
+            aria-expanded={resetOpen}
+            className="rounded-lg px-3 py-1.5 text-sm text-white/60 underline-offset-2 hover:underline"
+          >
+            Reiniciar rifa
+          </button>
+        )}
         <button
           type="button"
           onClick={toggleFullscreen}
@@ -421,6 +464,78 @@ export default function RaffleStage({
           {fullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
         </button>
       </header>
+
+      {!fullscreen && resetOpen && phase !== "spinning" && winners.length > 0 && (
+        <div
+          role="alertdialog"
+          aria-label="Reiniciar rifa"
+          aria-describedby="reiniciar-aviso"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setResetOpen(false);
+          }}
+          className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-brand/70 bg-navy/80 px-4 py-3"
+        >
+          <p id="reiniciar-aviso" className="flex-1 text-base">
+            Esto borra {winners.length.toLocaleString("es-MX")} {winners.length === 1 ? "ganador" : "ganadores"}
+            {winners.length > valid.length ? " (anulados incluidos)" : ""} y todos vuelven a participar.
+          </p>
+          <button
+            type="button"
+            autoFocus
+            onClick={() => setResetOpen(false)}
+            disabled={resetting}
+            className="rounded-lg border border-white/30 px-4 py-2 text-sm font-semibold hover:bg-white/10"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => void confirmReset()}
+            disabled={resetting}
+            className="rounded-lg bg-brand px-4 py-2 text-sm font-bold text-white hover:bg-[#a80014] disabled:opacity-50"
+          >
+            {resetting ? "Reiniciando…" : "Sí, reiniciar"}
+          </button>
+        </div>
+      )}
+      {!fullscreen && resetDone && winners.length === 0 && (
+        <p role="status" className="mt-3 rounded-xl bg-white/10 px-4 py-2 text-base font-semibold">
+          Rifa reiniciada: 0 ganadores
+        </p>
+      )}
+
+      <dl
+        aria-label="Participantes"
+        className="mt-[clamp(0.6rem,1.6vh,1.25rem)] flex flex-wrap items-stretch gap-[clamp(0.4rem,0.8vw,0.8rem)]"
+      >
+        {RAFFLE_CATEGORIES.map((c) => (
+          <div key={c} className="flex items-center gap-2.5 rounded-2xl bg-white/10 px-3 py-1.5 ring-1 ring-white/15">
+            <dt
+              className={`rounded-full px-3 py-0.5 text-[clamp(0.7rem,0.9vw,0.95rem)] font-bold uppercase tracking-widest ${CATEGORY_CHIP[c]}`}
+            >
+              {categoryPlural(c)}
+            </dt>
+            <dd className="flex items-baseline gap-2">
+              <span className="font-display text-[clamp(1.4rem,2.2vw,2.6rem)] font-black leading-none tabular-nums">
+                {pools[c].toLocaleString("es-MX")}
+              </span>{" "}
+              <span className="text-[clamp(0.85rem,1.1vw,1.2rem)] font-semibold text-white/85">participan</span>{" "}
+              <span className="text-[clamp(0.75rem,0.95vw,1rem)] text-white/55">
+                · {pending[c].toLocaleString("es-MX")} por completar pasaporte
+              </span>
+            </dd>
+          </div>
+        ))}
+        <div className="flex items-center gap-2.5 rounded-2xl bg-gold px-3 py-1.5 text-navy">
+          <dt className="text-[clamp(0.7rem,0.9vw,0.95rem)] font-bold uppercase tracking-widest">Total</dt>
+          <dd className="flex items-baseline gap-2">
+            <span className="font-display text-[clamp(1.4rem,2.2vw,2.6rem)] font-black leading-none tabular-nums">
+              {totalPool.toLocaleString("es-MX")}
+            </span>{" "}
+            <span className="text-[clamp(0.85rem,1.1vw,1.2rem)] font-semibold">participan</span>
+          </dd>
+        </div>
+      </dl>
 
       <nav aria-label="Premios" className="mt-[clamp(0.75rem,2vh,1.5rem)] flex flex-wrap items-center gap-x-6 gap-y-2">
         {RAFFLE_CATEGORIES.map((category) => (
@@ -500,6 +615,10 @@ export default function RaffleStage({
                     ? "Ya tiene ganador"
                     : "1 ganador"
                   : `${taken} de ${prize.slots} ganadores`}
+              </p>
+              <p className="text-[clamp(0.9rem,1.3vw,1.4rem)] font-semibold">
+                Participan <span className="tabular-nums text-gold">{pool.toLocaleString("es-MX")}</span>{" "}
+                {categoryPlural(prize.category)}
               </p>
             </div>
           </div>
