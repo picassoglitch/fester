@@ -10,7 +10,10 @@ export const metadata: Metadata = {
 
 const NAV = [
   { href: "/admin", label: "Panel" },
+  { href: "/admin/aforo", label: "Aforo" },
+  { href: "/admin/rifa", label: "Rifa" },
   { href: "/admin/asistentes", label: "Asistentes" },
+  { href: "/admin/aprobados", label: "Aprobados" },
   { href: "/admin/mapa", label: "Mapa" },
   { href: "/admin/premios", label: "Premios" },
   { href: "/admin/estaciones", label: "Estaciones" },
@@ -43,6 +46,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <span className="hidden sm:inline">{session.name}</span>
             <Link href="/staff/escanear" className="underline underline-offset-4">
               Escanear
+            </Link>
+            <Link href="/staff/acceso" className="underline underline-offset-4">
+              Puerta
             </Link>
             <form action={logout}>
               <button type="submit" className="underline underline-offset-4">

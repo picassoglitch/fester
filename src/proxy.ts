@@ -28,5 +28,6 @@ export const config = {
     "/admin/:path*",
     "/staff/escanear/:path*",
     "/staff/premios/:path*",
+    "/staff/acceso/:path*",
   ],
 };
