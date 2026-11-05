@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Scanner from "@/components/Scanner";
 import { recordScan, redeemPrize, type ScanOutcome } from "@/app/actions/scan";
+import type { StaffAttendeeProgress } from "@/lib/attendee";
+import type { BraceletColor } from "@/lib/bracelet";
 import { normalizeCode } from "@/lib/codes";
 import {
   playScanFeedback,
@@ -27,8 +29,6 @@ type Result =
 
 const STATION_KEY = "fester_station";
 
-/** Estrella, completo, premio y "ya registrado" se cierran solos para el siguiente. */
-export const AUTO_CLOSE_MS = 1500;
 /** El mismo QR frente a la camara no vuelve a contar durante este tiempo. */
 export const SAME_CODE_GUARD_MS = 3000;
 const NETWORK_ERROR = "Sin conexión con el servidor. Revisa la red e intenta de nuevo.";
@@ -191,6 +191,12 @@ export default function ScanConsole({
   );
 
   // La camara: el mismo QR sostenido no vuelve a contar hasta pasados 3 s.
+  const closeResult = useCallback(() => {
+    // El guard del mismo QR cuenta desde que se cierra: el pase puede seguir frente a la cámara.
+    lastResult.current = { ...lastResult.current, at: Date.now() };
+    setResult(null);
+  }, []);
+
   const onCameraCode = useCallback(
     (rawCode: string) => {
       const code = normalizeCode(rawCode);
@@ -200,14 +206,6 @@ export default function ScanConsole({
     },
     [submit],
   );
-
-  const closeResult = useCallback(() => setResult(null), []);
-
-  useEffect(() => {
-    if (!result || result.kind === "error" || result.kind === "confirm") return;
-    const timer = setTimeout(closeResult, AUTO_CLOSE_MS);
-    return () => clearTimeout(timer);
-  }, [result, closeResult]);
 
   // Llegar con ?code= solo precarga el pase (una vez por codigo). Antes se
   // registraba solo y cada cambio de estacion volvia a sumar una estrella.
@@ -477,6 +475,52 @@ const SCREEN: Record<Result["kind"], { bg: string; text: string; icon: string; t
   error: { bg: "bg-[#c8102e]", text: "text-white", icon: "✕", title: "NO VÁLIDO" },
 };
 
+const BRACELET_LOOK: Record<BraceletColor, string> = {
+  ROJO: "bg-[#c8102e] text-white",
+  BLANCO: "bg-white text-navy ring-4 ring-navy/20",
+  AZUL: "bg-[#0057b8] text-white",
+};
+
+function BraceletCard({ attendee }: { attendee: StaffAttendeeProgress }) {
+  const { bracelet } = attendee;
+  const details = [
+    ["Perfil", attendee.festerProfile],
+    ["Empresa", attendee.company],
+    ["Puesto", attendee.position],
+    ["Estado", attendee.state],
+  ].filter((row): row is [string, string] => Boolean(row[1]));
+
+  return (
+    <div className="mt-5 w-full overflow-hidden rounded-2xl bg-white text-left text-navy shadow-xl" data-bracelet={bracelet?.color ?? "SIN"}>
+      {bracelet ? (
+        <div className={`px-5 py-4 text-center ${BRACELET_LOOK[bracelet.color]}`}>
+          <p className="text-xs font-bold tracking-[0.3em] opacity-80">BRAZALETE</p>
+          <p className="text-4xl font-black tracking-wide">{bracelet.color}</p>
+          <p className="text-lg font-semibold">{bracelet.category}</p>
+        </div>
+      ) : (
+        <div className="bg-neutral-200 px-5 py-4 text-center text-navy">
+          <p className="text-xs font-bold tracking-[0.3em] opacity-70">BRAZALETE</p>
+          <p className="text-2xl font-black">REVISAR PERFIL</p>
+          <p className="text-sm font-semibold">
+            {attendee.festerProfile ? "Perfil fuera de la tabla de Fester" : "Sin perfil en la base de Fester"}
+          </p>
+        </div>
+      )}
+      {details.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 px-5 py-3 text-sm">
+          {details.map(([label, value]) => (
+            <Fragment key={label}>
+              <dt className="font-semibold text-navy/60">{label}</dt>
+              <dd className="font-semibold">{value}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 function ResultScreen({
   result,
   stationName,
@@ -509,12 +553,11 @@ function ResultScreen({
       aria-live="assertive"
       aria-label={look.title}
       data-result={result.kind}
-      // REVISAR no se cierra con un toque: el staff decide con un boton.
-      onClick={result.kind === "confirm" ? undefined : onClose}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center px-6 pb-40 text-center ${look.bg} ${look.text}`}
+      // Aldo 2026-11-05 — no se cierra solo ni con un toque: el staff lee el brazalete y cierra con el botón.
+      className={`fixed inset-0 z-50 flex flex-col items-center overflow-y-auto px-6 pb-44 pt-8 text-center ${look.bg} ${look.text}`}
     >
-      <div className="animate-scan-in flex flex-col items-center">
-        <span aria-hidden className="text-[160px] font-black leading-none">
+      <div className="animate-scan-in my-auto flex w-full max-w-md flex-col items-center">
+        <span aria-hidden className={`${attendee ? "text-[88px]" : "text-[160px]"} font-black leading-none`}>
           {look.icon}
         </span>
         <p className="mt-4 text-4xl font-black tracking-wide">{look.title}</p>
@@ -532,6 +575,7 @@ function ResultScreen({
             </p>
           </div>
         )}
+        {attendee && <BraceletCard attendee={attendee} />}
       </div>
 
       <div className="absolute inset-x-0 bottom-0 space-y-3 p-6">
@@ -569,14 +613,6 @@ function ResultScreen({
         >
           {result.kind === "confirm" ? "No pasa" : "Escanear siguiente"}
         </button>
-        {result.kind !== "error" && result.kind !== "confirm" && (
-          <div className="h-1.5 overflow-hidden rounded-full bg-black/15">
-            <div
-              className="h-full origin-left bg-current"
-              style={{ animation: `scan-countdown ${AUTO_CLOSE_MS}ms linear forwards` }}
-            />
-          </div>
-        )}
       </div>
     </div>
   );

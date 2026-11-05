@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getActiveStations } from "@/lib/stations";
+import { braceletFor, type Bracelet } from "@/lib/bracelet";
 
 export type StationProgress = {
   id: string;
@@ -27,7 +28,14 @@ export type AttendeeProgress = {
 };
 
 /** Lo que ve el staff al escanear: sin correo ni telefono. */
-export type StaffAttendeeProgress = Omit<AttendeeProgress, "id" | "email" | "phone" | "createdAt">;
+export type StaffAttendeeProgress = Omit<AttendeeProgress, "id" | "email" | "phone" | "createdAt"> & {
+  company: string | null;
+  position: string | null;
+  state: string | null;
+  /** Perfil de la base de Fester; null = no viene en su Excel. */
+  festerProfile: string | null;
+  bracelet: Bracelet | null;
+};
 
 /**
  * Lo unico que puede salir sin sesion (pagina y API del pase). El codigo viaja
@@ -124,6 +132,10 @@ export async function getStaffAttendeeProgress(code: string): Promise<StaffAtten
       completedAt: true,
       redeemedAt: true,
       redeemedBy: { select: { name: true } },
+      company: true,
+      position: true,
+      state: true,
+      festerProfile: true,
     },
   });
   if (!attendee) return null;
@@ -133,6 +145,11 @@ export async function getStaffAttendeeProgress(code: string): Promise<StaffAtten
   return {
     code: attendee.code,
     name: attendee.name,
+    company: attendee.company,
+    position: attendee.position,
+    state: attendee.state,
+    festerProfile: attendee.festerProfile,
+    bracelet: braceletFor(attendee.festerProfile),
     completedAt: attendee.completedAt?.toISOString() ?? null,
     redeemedAt: attendee.redeemedAt?.toISOString() ?? null,
     redeemedByName: attendee.redeemedBy?.name ?? null,
