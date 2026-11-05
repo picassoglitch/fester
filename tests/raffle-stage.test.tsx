@@ -96,6 +96,44 @@ describe("escenario de la rifa por premio", () => {
     await waitFor(() => expect(screen.getByRole("alert").textContent).toBe("x"));
   });
 
+  function revealWith(winnerName: string) {
+    // Movimiento reducido: sin la espera ni el mosaico, se revela de inmediato.
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("reduce"), media: q }));
+    drawWinner.mockImplementationOnce(async (key: string) => ({
+      ok: true,
+      winner: { id: "nuevo", name: winnerName, code: "N1", company: null, state: null, prizeKey: key },
+    }) as never);
+  }
+
+  it("al ganar el único lugar, el botón pasa al siguiente premio sin esperar al refresh", async () => {
+    revealWith("Ana Ganadora");
+    await renderStage({});
+    fireEvent.keyDown(document.body, { key: " " });
+    await screen.findByText("Ana Ganadora");
+    expect(drawWinner).toHaveBeenCalledWith("kit-01");
+    expect(screen.queryByRole("button", { name: "Sortear otro lugar" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Siguiente premio" }));
+    expect(screen.getByRole("heading").textContent).toBe("Constructor de Aplicación");
+    vi.unstubAllGlobals();
+  });
+
+  it("si el sonido falla, el ganador ya registrado se revela igual", async () => {
+    revealWith("Beto Ganador");
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        constructor() {
+          throw new Error("sin audio");
+        }
+      },
+    );
+    await renderStage({});
+    fireEvent.keyDown(document.body, { key: " " });
+    await screen.findByText("Beto Ganador");
+    expect(screen.getByText("Se lleva")).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+
   it("la lista de ganadores dice qué premio se llevó cada quien", async () => {
     const { container } = await renderStage({ "kit-01": 1 }, [
       { prizeKey: "kit-01" },
