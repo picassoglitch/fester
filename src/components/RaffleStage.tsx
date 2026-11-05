@@ -281,6 +281,8 @@ export default function RaffleStage({
     stopConfetti.current();
     setError(null);
     setWinner(null);
+    setResetOpen(false);
+    setResetDone(false);
     setPhase("spinning");
 
     const calm = reducedMotion();
@@ -377,6 +379,8 @@ export default function RaffleStage({
 
   async function confirmReset() {
     if (busy.current) return;
+    // Con el candado tomado, Espacio/Enter no arrancan un sorteo a mitad del reinicio.
+    busy.current = true;
     setError(null);
     setResetting(true);
     try {
@@ -393,6 +397,7 @@ export default function RaffleStage({
       setResetOpen(false);
       setResetDone(true);
     } finally {
+      busy.current = false;
       setResetting(false);
       router.refresh();
     }
@@ -460,18 +465,23 @@ export default function RaffleStage({
         </button>
       </header>
 
-      {!fullscreen && resetOpen && winners.length > 0 && (
+      {!fullscreen && resetOpen && phase !== "spinning" && winners.length > 0 && (
         <div
           role="alertdialog"
           aria-label="Reiniciar rifa"
+          aria-describedby="reiniciar-aviso"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setResetOpen(false);
+          }}
           className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-brand/70 bg-navy/80 px-4 py-3"
         >
-          <p className="flex-1 text-base">
+          <p id="reiniciar-aviso" className="flex-1 text-base">
             Esto borra {winners.length.toLocaleString("es-MX")} {winners.length === 1 ? "ganador" : "ganadores"}
             {winners.length > valid.length ? " (anulados incluidos)" : ""} y todos vuelven a participar.
           </p>
           <button
             type="button"
+            autoFocus
             onClick={() => setResetOpen(false)}
             disabled={resetting}
             className="rounded-lg border border-white/30 px-4 py-2 text-sm font-semibold hover:bg-white/10"

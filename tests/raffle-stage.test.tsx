@@ -205,4 +205,31 @@ describe("escenario de la rifa por premio", () => {
     await screen.findByText("No se pudo reiniciar la rifa. Recarga la página e intenta de nuevo.");
     expect(screen.queryByRole("status")).toBeNull();
   });
+
+  it("mientras se reinicia, Espacio no arranca un sorteo; Escape cierra la confirmación", async () => {
+    let release: (v: { deleted: number }) => void = () => {};
+    resetRaffle.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+    await renderStage({}, [{ prizeKey: "kit-01" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancelar" }));
+    fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sí, reiniciar" }));
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.keyDown(document.body, { key: " " });
+    expect(drawWinner).not.toHaveBeenCalled();
+    release({ deleted: 1 });
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  });
+
+  it("al arrancar un sorteo se cierra la confirmación de reinicio", async () => {
+    await renderStage({}, [{ prizeKey: "kit-01" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.keyDown(document.body, { key: " " });
+    await waitFor(() => expect(drawWinner).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
 });
