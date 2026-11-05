@@ -49,7 +49,7 @@ describe("escenario de la rifa por premio", () => {
     await renderStage({ "kit-01": 1 });
     expect(screen.getByRole("heading").textContent).toBe("Constructor de Aplicación");
     expect(screen.getByText("Mezcladora RUBI RUBIMIX-9 SUPERTORQUE")).toBeTruthy();
-    expect(screen.getByText("1 ganador")).toBeTruthy();
+    expect(screen.getByText("0 de 2 ganadores")).toBeTruthy();
     expect(screen.getByRole("img").getAttribute("src")).toBe("/rifa/kit-02.webp");
   });
 
