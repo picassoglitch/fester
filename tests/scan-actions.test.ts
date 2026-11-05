@@ -84,4 +84,66 @@ describe.skipIf(!hasLocalDb)("acciones de escaneo (base local)", () => {
     expect(attendee.redeemedAt).not.toBeNull();
     session.role = "STAFF";
   });
+
+  describe("estrellas completas sin completedAt (el sync falló o se apagó una estación)", () => {
+    async function stuckAttendee(missing = 0) {
+      const { prisma } = await import("@/lib/db");
+      const { getActiveStations } = await import("@/lib/stations");
+      const stations = await getActiveStations();
+      const stuck = await prisma.attendee.create({ data: { code: testCode(), name: "Atorado Prueba" } });
+      await prisma.scan.createMany({
+        data: stations.slice(missing).map((st) => ({ attendeeId: stuck.id, stationId: st.id, staffId: session.id })),
+      });
+      return { stuck, stations };
+    }
+
+    it("la mesa de premios lo recalcula y entrega", async () => {
+      const { prisma } = await import("@/lib/db");
+      const { redeemPrize } = await import("@/app/actions/scan");
+      const { stuck } = await stuckAttendee();
+      session.role = "PRIZES";
+      try {
+        expect(await redeemPrize(stuck.code)).toMatchObject({ ok: true, status: "premio" });
+        const after = await prisma.attendee.findUniqueOrThrow({ where: { id: stuck.id } });
+        expect(after.completedAt).not.toBeNull();
+        expect(after.redeemedAt).not.toBeNull();
+      } finally {
+        session.role = "STAFF";
+        await prisma.attendee.delete({ where: { id: stuck.id } });
+      }
+    });
+
+    it("si de verdad le falta una estación, la mesa sigue sin entregar", async () => {
+      const { prisma } = await import("@/lib/db");
+      const { redeemPrize } = await import("@/app/actions/scan");
+      const { stuck } = await stuckAttendee(1);
+      session.role = "PRIZES";
+      try {
+        expect(await redeemPrize(stuck.code)).toEqual({
+          ok: false,
+          error: "Atorado Prueba todavía no completa todas las estaciones.",
+        });
+        const after = await prisma.attendee.findUniqueOrThrow({ where: { id: stuck.id } });
+        expect(after.completedAt).toBeNull();
+        expect(after.redeemedAt).toBeNull();
+      } finally {
+        session.role = "STAFF";
+        await prisma.attendee.delete({ where: { id: stuck.id } });
+      }
+    });
+
+    it("volver a escanear una estación ('repetido') marca el recorrido completo", async () => {
+      const { prisma } = await import("@/lib/db");
+      const { recordScan } = await import("@/app/actions/scan");
+      const { stuck, stations } = await stuckAttendee();
+      const kiosk = stations.find((st) => !["Registro", "Salida"].includes(st.name))!;
+      try {
+        expect(await recordScan(stuck.code, kiosk.id)).toMatchObject({ ok: true, status: "repetido" });
+        const after = await prisma.attendee.findUniqueOrThrow({ where: { id: stuck.id } });
+        expect(after.completedAt).not.toBeNull();
+      } finally {
+        await prisma.attendee.delete({ where: { id: stuck.id } });
+      }
+    });
+  });
 });
