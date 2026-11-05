@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { countByProfile } from "@/lib/profiles";
 import { getActiveStations } from "@/lib/stations";
+import { ARRIVED } from "@/lib/access";
 
 type ProfileScanRow = { stationId: string; position: string | null; count: number };
 
@@ -42,6 +43,7 @@ export async function getDashboardStats() {
     stations,
     activeStations,
     totalAttendees,
+    arrivedAttendees,
     completedAttendees,
     redeemedAttendees,
     pendingPrizeAttendees,
@@ -61,6 +63,7 @@ export async function getDashboardStats() {
     prisma.station.findMany({ orderBy: [{ order: "asc" }, { createdAt: "asc" }] }),
     getActiveStations(),
     prisma.attendee.count(),
+    prisma.attendee.count({ where: ARRIVED }),
     prisma.attendee.count({ where: { completedAt: { not: null } } }),
     prisma.attendee.count({ where: { redeemedAt: { not: null } } }),
     // Consulta propia: restar entregados de completos sale negativo cuando hay
@@ -85,9 +88,14 @@ export async function getDashboardStats() {
       take: 8,
       select: { name: true, code: true, createdAt: true },
     }),
+    // Aldo 2026-11-05 — el tiempo se mide desde que llegó (Entrada o primera estrella), no desde el registro web.
     prisma.attendee.findMany({
       where: { completedAt: { not: null } },
-      select: { createdAt: true, completedAt: true },
+      select: {
+        completedAt: true,
+        accesses: { where: { kind: "ENTRY" }, orderBy: { createdAt: "asc" }, take: 1, select: { createdAt: true } },
+        scans: { orderBy: { createdAt: "asc" }, take: 1, select: { createdAt: true } },
+      },
     }),
     prisma.attendee.findMany({ select: { createdAt: true } }),
     scansByStationAndPosition(),
@@ -110,8 +118,8 @@ export async function getDashboardStats() {
       order: station.order,
       active: station.active,
       visits,
-      pending: Math.max(0, totalAttendees - visits),
-      rate: totalAttendees > 0 ? visits / totalAttendees : 0,
+      pending: Math.max(0, arrivedAttendees - visits),
+      rate: arrivedAttendees > 0 ? visits / arrivedAttendees : 0,
       lastScanAt: lastScanByStation.get(station.id)?.toISOString() ?? null,
       profiles: profilesAll.get(station.id) ?? [],
       profilesLastHour: profilesLastHour.get(station.id) ?? [],
@@ -120,6 +128,7 @@ export async function getDashboardStats() {
 
   // Distribucion de estrellas: cuantos asistentes tienen 0, 1, 2 ... N estrellas.
   const starCounts = await prisma.attendee.findMany({
+    where: ARRIVED,
     select: { id: true, scans: { select: { stationId: true } } },
   });
   const activeIds = new Set(activeStations.map((s) => s.id));
@@ -131,8 +140,11 @@ export async function getDashboardStats() {
   }
 
   const completionDurations = completedTimes
-    .filter((a) => a.completedAt)
-    .map((a) => a.completedAt!.getTime() - a.createdAt.getTime())
+    .flatMap((a) => {
+      const starts = [a.accesses[0]?.createdAt, a.scans[0]?.createdAt].filter((d): d is Date => !!d);
+      if (!a.completedAt || starts.length === 0) return [];
+      return [a.completedAt.getTime() - Math.min(...starts.map((d) => d.getTime()))];
+    })
     .filter((ms) => ms >= 0)
     .sort((a, b) => a - b);
   const medianCompletionMs =
@@ -166,12 +178,13 @@ export async function getDashboardStats() {
     .map(([hour, count]) => ({ hour: `${hour}:00`, count }))
     .sort((a, b) => a.hour.localeCompare(b.hour));
 
-  const totalPossible = totalAttendees * activeStations.length;
+  const totalPossible = arrivedAttendees * activeStations.length;
 
   return {
     generatedAt: new Date().toISOString(),
     totals: {
       attendees: totalAttendees,
+      arrived: arrivedAttendees,
       completed: completedAttendees,
       redeemed: redeemedAttendees,
       pendingPrizes: pendingPrizeAttendees,
@@ -180,7 +193,7 @@ export async function getDashboardStats() {
       scansLastHour,
       stations: activeStations.length,
       progressRate: totalPossible > 0 ? totalScans / totalPossible : 0,
-      avgStars: totalAttendees > 0 ? totalScans / totalAttendees : 0,
+      avgStars: arrivedAttendees > 0 ? totalScans / arrivedAttendees : 0,
       medianCompletionMs,
     },
     stations: stationStats,

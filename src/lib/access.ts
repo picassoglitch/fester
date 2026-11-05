@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
 /** Aforo del Frontón Bucareli acordado con Fester (solo invitados, no cuenta staff). */
@@ -26,6 +27,11 @@ export function checkEntry(input: {
 }
 
 export const INSIDE = { insideAt: { not: null } } as const;
+
+/** Llegó al evento: tiene Entrada o alguna estrella (quien entró antes de que existiera la puerta). */
+export const ARRIVED: Prisma.AttendeeWhereInput = {
+  OR: [{ accesses: { some: { kind: "ENTRY" } } }, { scans: { some: {} } }],
+};
 
 export async function getAccessCounts() {
   const [inside, entered] = await Promise.all([
