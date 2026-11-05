@@ -19,19 +19,10 @@ export default function CapacityBoard({ counts }: { counts: AccessCounts }) {
           {pct >= 100 ? "Aforo lleno" : `Quedan ${counts.capacity - counts.inside} lugares`}
         </p>
       </div>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          ["Entraron hoy", counts.entered],
-          ["Entradas 15 min", counts.entries15],
-          ["Salidas 15 min", counts.exits15],
-          ["Pasaron con aviso", counts.overrides],
-        ].map(([label, value]) => (
-          <div key={label} className="card p-4 text-center">
-            <dt className="text-xs text-white/60">{label}</dt>
-            <dd className="text-3xl font-bold tabular-nums">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className="card mx-auto max-w-xs p-4 text-center">
+        <p className="text-xs text-white/60">Entraron hoy</p>
+        <p className="text-3xl font-bold tabular-nums">{counts.entered}</p>
+      </div>
     </div>
   );
 }

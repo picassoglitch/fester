@@ -30,15 +30,11 @@ export function checkEntry(input: {
 export const INSIDE = { insideAt: { not: null } } as const;
 
 export async function getAccessCounts() {
-  const since = new Date(Date.now() - 15 * 60 * 1000);
-  const [inside, entered, entries15, exits15, overrides] = await Promise.all([
+  const [inside, entered] = await Promise.all([
     prisma.attendee.count({ where: INSIDE }),
     prisma.attendee.count({ where: { accesses: { some: { kind: "ENTRY" } } } }),
-    prisma.access.count({ where: { kind: "ENTRY", createdAt: { gte: since } } }),
-    prisma.access.count({ where: { kind: "EXIT", createdAt: { gte: since } } }),
-    prisma.access.count({ where: { kind: "ENTRY", override: true } }),
   ]);
-  return { inside, capacity: CAPACITY, entered, entries15, exits15, overrides };
+  return { inside, capacity: CAPACITY, entered };
 }
 
 export type AccessCounts = Awaited<ReturnType<typeof getAccessCounts>>;
