@@ -144,7 +144,7 @@ model Access {
   attendeeId String
   kind       AccessKind
   staffId    String?
-  /// Entro con "Dejar pasar": no aprobado o aforo lleno.
+  /// Entro con "Dejar pasar": aforo lleno.
   override   Boolean    @default(false)
   createdAt  DateTime   @default(now())
 
