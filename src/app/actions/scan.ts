@@ -135,7 +135,6 @@ export async function recordScan(
     await prisma.scan.create({
       data: { attendeeId: attendee.id, stationId: station.id, staffId: session.id },
     });
-    await syncCompletion(attendee.id);
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       repetido = true;
@@ -143,6 +142,9 @@ export async function recordScan(
       throw error;
     }
   }
+  // También en "repetido": si el sync falló tras guardar la estrella o se apagó una
+  // estación, el pase quedaba sin completar para siempre (mesa de premios, 2026-11-05).
+  await syncCompletion(attendee.id);
 
   const [progress, inside] = await Promise.all([
     getStaffAttendeeProgress(code),
@@ -187,7 +189,9 @@ export async function redeemPrize(rawCode: string): Promise<ScanOutcome> {
     select: { id: true, name: true, completedAt: true, redeemedAt: true },
   });
   if (!attendee) return { ok: false, error: `El código ${code} no existe.` };
-  if (!attendee.completedAt) {
+  // Recalcula antes de rechazar: tiene todas las estrellas pero completedAt no se marcó.
+  const completedAt = attendee.completedAt ?? (await syncCompletion(attendee.id));
+  if (!completedAt) {
     return { ok: false, error: `${attendee.name} todavía no completa todas las estaciones.` };
   }
 
