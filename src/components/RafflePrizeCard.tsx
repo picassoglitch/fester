@@ -58,11 +58,6 @@ function PrizePlaceholder({ prize, compact }: { prize: RafflePrize; compact: boo
       {prize.items.length === 1 && (
         <span className="text-[clamp(1rem,2.2vh,1.5rem)] font-semibold text-navy/70">{prize.items[0]}</span>
       )}
-      {prize.note && (
-        <span className="rounded-full border border-navy/20 px-4 py-1 text-[clamp(0.8rem,1.6vh,1.1rem)] font-semibold uppercase tracking-[0.25em] text-navy/60">
-          {prize.note}
-        </span>
-      )}
     </div>
   );
 }

@@ -16,8 +16,6 @@ export type RafflePrize = {
   slots: number;
   /** Ruta en public/. Si el archivo no existe se muestra la ficha sin foto. */
   image: string;
-  /** Línea extra de la ficha sin foto. */
-  note?: string;
 };
 
 export const RAFFLE_PRIZES = [
@@ -59,7 +57,6 @@ export const RAFFLE_PRIZES = [
     slots: 1,
     image: "/rifa/moto-aplicador.webp",
     items: ["1 motocicleta · premio para aplicador"],
-    note: "Sin rotular",
   },
   {
     key: "kit-03",
@@ -99,7 +96,6 @@ export const RAFFLE_PRIZES = [
     slots: 1,
     image: "/rifa/moto-profesionista.webp",
     items: ["1 motocicleta · premio para profesionista"],
-    note: "Sin rotular",
   },
 ] as const satisfies readonly RafflePrize[];
 
