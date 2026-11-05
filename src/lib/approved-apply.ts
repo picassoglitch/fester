@@ -8,10 +8,8 @@ export type ApplyResult =
   | { ok: false; error: string }
   | { ok: true; approved: number; byEmail: number; notFound: string[]; notApproved: number; applied: boolean };
 
-/**
- * Reemplaza la lista completa: quien no viene con "Sí" queda no aprobado. Por código y, si
- * el código no existe, por correo. Con `apply: false` solo cuenta (vista previa).
- */
+// Reemplaza la lista completa (quien no viene con "Sí" queda no aprobado); por código y, si no existe, por correo.
+// Con `apply: false` solo cuenta: es la vista previa del script.
 export async function applyApprovedList(
   db: PrismaClient,
   rows: readonly ApprovedRow[],

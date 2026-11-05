@@ -1,7 +1,5 @@
-/**
- * Carga la lista de aprobados que validó Fester ("Sí" en la hoja REGISTROS) en la base de DATABASE_URL.
- * Uso: npx tsx scripts/importar-aprobados.ts "<ruta al .xlsx>" [--aplicar]   (sin --aplicar solo muestra)
- */
+// Junta Fester 2026-11-04 — carga la lista validada ("Sí" en REGISTROS) en DATABASE_URL.
+// Uso: npx tsx scripts/importar-aprobados.ts "<archivo.xlsx>" [--aplicar]  (sin --aplicar solo muestra)
 import readXlsxFile from "read-excel-file/node";
 import { PrismaClient } from "@prisma/client";
 import { approvedFromSheets } from "../src/lib/approved";
