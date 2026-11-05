@@ -35,7 +35,7 @@ export default function ApprovedImport() {
           </p>
           {state.ok.notFound.length > 0 && (
             <details>
-              <summary className="cursor-pointer text-white/70">
+              <summary className="cursor-pointer font-semibold text-gold">
                 {state.ok.notFound.length} del Excel no tienen pase en el sistema
               </summary>
               <p className="mt-1 break-words font-mono text-xs text-white/60">{state.ok.notFound.join(", ")}</p>

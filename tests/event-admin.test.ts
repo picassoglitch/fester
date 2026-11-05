@@ -4,9 +4,8 @@ import { approvedFromSheets } from "@/lib/approved";
 import { buildXlsx } from "@/lib/xlsx";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/auth", () => ({
-  requireAdmin: vi.fn(async () => ({ id: "admin", name: "Admin", role: "ADMIN" })),
-}));
+const requireAdmin = vi.fn(async () => ({ id: "admin", name: "Admin", role: "ADMIN" }));
+vi.mock("@/lib/auth", () => ({ requireAdmin }));
 
 const HEADER = ["# registro", "codigo", "ok", "nombre", "correo"];
 
@@ -24,7 +23,7 @@ describe("approvedFromSheets", () => {
     const list = approvedFromSheets(
       workbook([
         ["1", "abc123", "Sí", "Ana", "ana@x.mx"],
-        ["2", "DEF456", "si ", "Beto", null],
+        ["2", "def-456 ", "si ", "Beto", null],
         ["3", "GHI789", "No", "Caro", "caro@x.mx"],
         ["4", null, "Sí", "Dani Alta Manual", "Dani@X.mx"],
         ["5", null, "Sí", "Eli Sin Datos", null],
@@ -33,8 +32,11 @@ describe("approvedFromSheets", () => {
     expect(list).toEqual({
       ok: true,
       sheet: "REGISTROS",
-      approved: ["ABC123", "DEF456"],
-      approvedEmails: ["dani@x.mx"],
+      rows: [
+        { code: "ABC123", email: "ana@x.mx" },
+        { code: "DEF456", email: null },
+        { code: null, email: "dani@x.mx" },
+      ],
       unmatched: ["Eli Sin Datos"],
       rejected: 1,
     });
@@ -53,9 +55,12 @@ describe.skipIf(!hasLocalDb)("importApproved y resetEvent (base local)", () => {
   const nope = testCode();
   const mail = `${byMail.toLowerCase()}@pruebas.mx`;
   let stationId = "";
+  // La importacion reemplaza la lista de toda la base local: se restaura al final.
+  let wasApproved: string[] = [];
 
   beforeAll(async () => {
     const { prisma } = await import("@/lib/db");
+    wasApproved = (await prisma.attendee.findMany({ where: { approved: true }, select: { id: true } })).map((a) => a.id);
     await prisma.attendee.createMany({
       data: [
         { code: yes, name: "Import Sí" },
@@ -70,6 +75,7 @@ describe.skipIf(!hasLocalDb)("importApproved y resetEvent (base local)", () => {
     const { prisma } = await import("@/lib/db");
     await prisma.attendee.deleteMany({ where: { code: { in: [yes, byMail, nope] } } });
     await prisma.station.deleteMany({ where: { id: stationId } });
+    await prisma.attendee.updateMany({ where: { id: { in: wasApproved } }, data: { approved: true } });
     await prisma.$disconnect();
   });
 
@@ -99,6 +105,46 @@ describe.skipIf(!hasLocalDb)("importApproved y resetEvent (base local)", () => {
     const rows = await prisma.attendee.findMany({ where: { code: { in: [yes, byMail, nope] } } });
     const approved = Object.fromEntries(rows.map((r) => [r.code, r.approved]));
     expect(approved).toEqual({ [yes]: true, [byMail]: true, [nope]: false });
+  });
+
+  it("sin rol de administrador no se importa ni se reinicia", async () => {
+    const { importApproved, resetEvent } = await import("@/app/actions/event");
+    requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
+    await expect(importApproved({}, upload([["1", yes, "Sí", "x", ""]]))).rejects.toThrow();
+    requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
+    const data = new FormData();
+    data.set("confirm", "REINICIAR");
+    await expect(resetEvent({}, data)).rejects.toThrow();
+  });
+
+  it("un Excel que casi no coincide con la base no toca la lista", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { importApproved } = await import("@/app/actions/event");
+    const state = await importApproved(
+      {},
+      upload([
+        ["1", "NADA01", "Sí", "x", ""],
+        ["2", "NADA02", "Sí", "y", ""],
+        ["3", nope, "Sí", "z", ""],
+      ]),
+    );
+    expect(state.error).toMatch(/1 de 3/);
+    expect((await prisma.attendee.findUniqueOrThrow({ where: { code: yes } })).approved).toBe(true);
+    expect((await prisma.attendee.findUniqueOrThrow({ where: { code: nope } })).approved).toBe(false);
+  });
+
+  it("un código equivocado en el Excel se rescata por correo", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { importApproved } = await import("@/app/actions/event");
+    const state = await importApproved(
+      {},
+      upload([
+        ["1", yes, "Sí", "Import Sí", ""],
+        ["2", "MAL999", "Sí", "Import Correo", mail],
+      ]),
+    );
+    expect(state.ok).toMatchObject({ approved: 2, byEmail: 1, notFound: [] });
+    expect((await prisma.attendee.findUniqueOrThrow({ where: { code: byMail } })).approved).toBe(true);
   });
 
   it("un archivo que no es Excel no cambia nada", async () => {

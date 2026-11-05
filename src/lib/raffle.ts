@@ -1,10 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
-/**
- * Entran a la rifa quienes Fester aprobo ("Sí" en REGISTROS) y completaron el
- * pasaporte. Quien ya salio sorteado, incluso anulado, no vuelve a entrar.
- */
+// Junta Fester 2026-11-04 — aprobados con pasaporte completo; quien ya salio sorteado (incluso anulado) no repite.
 export const RAFFLE_POOL: Prisma.AttendeeWhereInput = {
   approved: true,
   completedAt: { not: null },

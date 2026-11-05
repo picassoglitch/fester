@@ -7,7 +7,8 @@ const session: { id: string; name: string; role: "STAFF" | "PRIZES" | "ADMIN" } 
   name: "Puerta Pruebas",
   role: "STAFF",
 };
-vi.mock("@/lib/auth", () => ({ requireSession: vi.fn(async () => session) }));
+let loggedIn = true;
+vi.mock("@/lib/auth", () => ({ getSession: vi.fn(async () => (loggedIn ? session : null)) }));
 
 describe("checkEntry", () => {
   const base = { approved: true, inside: false, insideCount: 0, override: false };
@@ -87,11 +88,43 @@ describe.skipIf(!hasLocalDb)("recordAccess (base local)", () => {
     expect(JSON.stringify(first)).not.toMatch(/"email"|"phone"/);
   });
 
+  it("foro lleno pide confirmar aun aprobado; con Dejar pasar entra marcado y sin aviso no se marca", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { recordAccess } = await import("@/app/actions/access");
+    const a = await prisma.attendee.findUniqueOrThrow({ where: { code: ok } });
+    await prisma.attendee.updateMany({ where: { code: { in: [ok, no] } }, data: { insideAt: null } });
+    await prisma.access.deleteMany({ where: { attendeeId: a.id } });
+
+    // Con lugar, override=true no marca el acceso: no hubo nada que perdonar.
+    expect(await recordAccess(ok, "ENTRY", true)).toMatchObject({ status: "entrada" });
+    expect((await prisma.access.findFirstOrThrow({ where: { attendeeId: a.id } })).override).toBe(false);
+    await recordAccess(ok, "EXIT");
+
+    const filler = Array.from({ length: CAPACITY }, () => testCode());
+    await prisma.attendee.createMany({
+      data: filler.map((code) => ({ code, name: "Relleno", insideAt: new Date() })),
+    });
+    try {
+      expect(await recordAccess(ok, "ENTRY")).toMatchObject({ status: "confirmar", reasons: ["aforo-lleno"] });
+      expect(await recordAccess(ok, "ENTRY", true)).toMatchObject({ status: "entrada" });
+      const last = await prisma.access.findFirstOrThrow({
+        where: { attendeeId: a.id, kind: "ENTRY" },
+        orderBy: { createdAt: "desc" },
+      });
+      expect(last.override).toBe(true);
+    } finally {
+      await prisma.attendee.deleteMany({ where: { code: { in: filler } } });
+    }
+  });
+
   it("código inexistente y rol Premios se rechazan", async () => {
     const { recordAccess } = await import("@/app/actions/access");
     expect(await recordAccess("ZZZZZZ9", "ENTRY")).toMatchObject({ ok: false });
     session.role = "PRIZES";
     expect(await recordAccess(ok, "ENTRY")).toMatchObject({ ok: false });
     session.role = "STAFF";
+    loggedIn = false;
+    expect(await recordAccess(ok, "ENTRY")).toMatchObject({ ok: false, reauth: true });
+    loggedIn = true;
   });
 });

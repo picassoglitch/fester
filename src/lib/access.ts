@@ -10,10 +10,7 @@ export type EntryCheck =
   | { action: "already" }
   | { action: "confirm"; reasons: ("no-aprobado" | "aforo-lleno")[] };
 
-/**
- * Decide la entrada sin tocar la base. No aprobado o foro lleno no bloquea:
- * pide "Dejar pasar" al staff (acuerdo con Fester, 2026-11-04).
- */
+// Junta Fester 2026-11-04 — no aprobado o foro lleno no bloquea: el staff decide con "Dejar pasar".
 export function checkEntry(input: {
   approved: boolean;
   inside: boolean;

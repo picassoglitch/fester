@@ -1,19 +1,18 @@
-/**
- * Lista de aprobados que manda Fester en Excel ("30-10 Registros.xlsx").
- * Aprobado = "Sí" en la columna "ok" (columna C) de la hoja REGISTROS.
- * Sin Prisma ni Node: se prueba con datos sueltos.
- */
+// Junta Fester 2026-11-04 — aprobado = "Sí" en la columna ok (C) de la hoja REGISTROS del Excel de Fester.
+
+import { normalizeCode } from "@/lib/codes";
 
 type Cell = unknown;
 export type SheetInput = { sheet: string; data: Cell[][] };
+
+export type ApprovedRow = { code: string | null; email: string | null };
 
 export type ApprovedList =
   | {
       ok: true;
       sheet: string;
-      approved: string[];
-      /** Filas con "Sí" pero sin código (altas a mano): se aprueban por correo si se registraron. */
-      approvedEmails: string[];
+      /** Filas con "Sí": por código y, si no hay código o no existe, por correo. */
+      rows: ApprovedRow[];
       /** "Sí" sin código ni correo: no hay forma de ligarlos a un pase. */
       unmatched: string[];
       rejected: number;
@@ -50,29 +49,26 @@ export function approvedFromSheets(sheets: SheetInput[]): ApprovedList {
   const header = findHeader(sheet.data);
   if (!header) return { ok: false, error: "La hoja REGISTROS no tiene las columnas «codigo» y «ok»." };
 
-  const approved = new Set<string>();
-  const approvedEmails = new Set<string>();
+  const rows: ApprovedRow[] = [];
   const unmatched: string[] = [];
   let rejected = 0;
   for (const row of sheet.data.slice(header.row + 1)) {
-    const code = String(row[header.code] ?? "").trim().toUpperCase();
+    const code = normalizeCode(String(row[header.code] ?? ""));
     const email = header.email >= 0 ? String(row[header.email] ?? "").trim().toLowerCase() : "";
     if (plain(row[header.ok]) !== "si") {
       if (code || email) rejected++;
       continue;
     }
-    if (code) approved.add(code);
-    else if (email) approvedEmails.add(email);
+    if (code || email) rows.push({ code: code || null, email: email || null });
     else if (header.name >= 0 && row[header.name]) unmatched.push(String(row[header.name]).trim());
   }
-  if (approved.size + approvedEmails.size === 0) {
+  if (rows.length === 0) {
     return { ok: false, error: "No encontramos ningún «Sí» en la columna ok." };
   }
   return {
     ok: true,
     sheet: sheet.sheet.trim(),
-    approved: [...approved],
-    approvedEmails: [...approvedEmails],
+    rows,
     unmatched,
     rejected,
   };

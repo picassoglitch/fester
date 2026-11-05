@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { requireSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { normalizeCode } from "@/lib/codes";
 import { canRecordStations } from "@/lib/roles";
 import { CAPACITY, checkEntry, INSIDE, type AccessKindValue } from "@/lib/access";
@@ -9,7 +9,7 @@ import { CAPACITY, checkEntry, INSIDE, type AccessKindValue } from "@/lib/access
 export type AccessAttendee = { name: string; code: string; company: string | null; approved: boolean };
 
 export type AccessOutcome =
-  | { ok: false; error: string }
+  | { ok: false; error: string; reauth?: true }
   | {
       ok: true;
       status: "entrada" | "salida" | "ya-dentro" | "ya-afuera" | "confirmar";
@@ -23,7 +23,9 @@ export async function recordAccess(
   kind: AccessKindValue,
   override = false,
 ): Promise<AccessOutcome> {
-  const session = await requireSession();
+  // Sesion vencida a media jornada: se avisa para volver a entrar, no "sin conexion".
+  const session = await getSession();
+  if (!session) return { ok: false, reauth: true, error: "Tu sesión expiró. Vuelve a entrar con tu PIN." };
   if (!canRecordStations(session.role)) return { ok: false, error: "No tienes permiso para registrar accesos." };
   const code = normalizeCode(rawCode);
   if (!code) return { ok: false, error: "Código vacío." };
@@ -38,13 +40,16 @@ export async function recordAccess(
 
   if (kind === "EXIT") {
     // Condicional: dos lectores a la vez solo restan una persona.
-    const { count } = await prisma.attendee.updateMany({
-      where: { id: row.id, insideAt: { not: null } },
-      data: { insideAt: null },
+    const count = await prisma.$transaction(async (tx) => {
+      const moved = await tx.attendee.updateMany({
+        where: { id: row.id, insideAt: { not: null } },
+        data: { insideAt: null },
+      });
+      if (moved.count === 1) {
+        await tx.access.create({ data: { attendeeId: row.id, kind: "EXIT", staffId: session.id } });
+      }
+      return moved.count;
     });
-    if (count === 1) {
-      await prisma.access.create({ data: { attendeeId: row.id, kind: "EXIT", staffId: session.id } });
-    }
     const inside = await prisma.attendee.count({ where: INSIDE });
     return { ok: true, status: count === 1 ? "salida" : "ya-afuera", attendee, inside };
   }
@@ -56,16 +61,19 @@ export async function recordAccess(
     return { ok: true, status: "confirmar", reasons: check.reasons, attendee, inside: insideCount };
   }
 
-  const { count } = await prisma.attendee.updateMany({
-    where: { id: row.id, insideAt: null },
-    data: { insideAt: new Date() },
-  });
-  if (count === 1) {
-    const forced = override && (!row.approved || insideCount >= CAPACITY);
-    await prisma.access.create({
-      data: { attendeeId: row.id, kind: "ENTRY", staffId: session.id, override: forced },
+  const forced = override && (!row.approved || insideCount >= CAPACITY);
+  const count = await prisma.$transaction(async (tx) => {
+    const moved = await tx.attendee.updateMany({
+      where: { id: row.id, insideAt: null },
+      data: { insideAt: new Date() },
     });
-  }
+    if (moved.count === 1) {
+      await tx.access.create({
+        data: { attendeeId: row.id, kind: "ENTRY", staffId: session.id, override: forced },
+      });
+    }
+    return moved.count;
+  });
   const inside = await prisma.attendee.count({ where: INSIDE });
   return { ok: true, status: count === 1 ? "entrada" : "ya-dentro", attendee, inside };
 }

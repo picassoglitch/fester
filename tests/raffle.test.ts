@@ -2,9 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { hasLocalDb, testCode } from "./db";
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/auth", () => ({
-  requireAdmin: vi.fn(async () => ({ id: "admin", name: "Admin", role: "ADMIN" })),
-}));
+const requireAdmin = vi.fn(async () => ({ id: "admin", name: "Admin", role: "ADMIN" }));
+vi.mock("@/lib/auth", () => ({ requireAdmin }));
 
 describe.skipIf(!hasLocalDb)("rifa (base local)", () => {
   const codes = {
@@ -84,5 +83,16 @@ describe.skipIf(!hasLocalDb)("rifa (base local)", () => {
     expect(await voidWinner(first.winner.id)).toEqual({ ok: true });
     expect(await voidWinner(first.winner.id)).toEqual({ ok: false });
     expect((await drawWinner()).ok).toBe(false);
+  });
+
+  it("sin rol de administrador no se sortea ni se anula", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { drawWinner, voidWinner } = await import("@/app/actions/raffle");
+    requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
+    await expect(drawWinner()).rejects.toThrow();
+    requireAdmin.mockRejectedValueOnce(new Error("Se requiere rol de administrador"));
+    await expect(voidWinner("x")).rejects.toThrow();
+    const eligible = await prisma.attendee.findUniqueOrThrow({ where: { code: codes.eligible } });
+    expect(await prisma.raffleWinner.count({ where: { attendeeId: eligible.id } })).toBe(0);
   });
 });

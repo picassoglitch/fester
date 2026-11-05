@@ -21,18 +21,22 @@ const SAME_CODE_GUARD_MS = 3000;
 const NETWORK_ERROR = "Sin conexión con el servidor. Revisa la red e intenta de nuevo.";
 
 type Ok = Extract<AccessOutcome, { ok: true }>;
-type Result = { kind: "ok" | "warn" | "confirm"; outcome: Ok } | { kind: "error"; message: string; retry: string | null };
+type Result =
+  | { kind: "ok" | "warn" | "confirm"; outcome: Ok; retried?: boolean }
+  | { kind: "error"; message: string; retry: string | null; variant: "invalid" | "offline" | "reauth" };
 
 const REASON: Record<"no-aprobado" | "aforo-lleno", string> = {
   "no-aprobado": "No está en la lista de aprobados",
   "aforo-lleno": "El foro está lleno",
 };
 
-function toResult(outcome: AccessOutcome): Result {
-  if (!outcome.ok) return { kind: "error", message: outcome.error, retry: null };
+function toResult(outcome: AccessOutcome, retried: boolean): Result {
+  if (!outcome.ok) {
+    return { kind: "error", message: outcome.error, retry: null, variant: outcome.reauth ? "reauth" : "invalid" };
+  }
   if (outcome.status === "confirmar") return { kind: "confirm", outcome };
   if (outcome.status === "entrada" || outcome.status === "salida") return { kind: "ok", outcome };
-  return { kind: "warn", outcome };
+  return { kind: "warn", outcome, retried };
 }
 
 const TONE: Record<Result["kind"], ScanTone> = { ok: "ok", warn: "warn", confirm: "error", error: "error" };
@@ -92,7 +96,7 @@ export default function AccessConsole({
   }
 
   const submit = useCallback(
-    (rawCode: string, override = false) => {
+    (rawCode: string, override = false, retried = false) => {
       const code = normalizeCode(rawCode);
       if (!code || !kind || inFlight.current) return;
       inFlight.current = true;
@@ -100,13 +104,13 @@ export default function AccessConsole({
         let next: Result;
         try {
           const outcome = await recordAccess(code, kind, override);
-          next = toResult(outcome);
+          next = toResult(outcome, retried);
           if (outcome.ok) {
             setCount(outcome.inside);
             router.refresh();
           }
         } catch {
-          next = { kind: "error", message: NETWORK_ERROR, retry: code };
+          next = { kind: "error", message: NETWORK_ERROR, retry: code, variant: "offline" };
         }
         inFlight.current = false;
         last.current = { code, at: Date.now() };
@@ -216,7 +220,7 @@ export default function AccessConsole({
           }}
           onRetry={(code) => {
             setResult(null);
-            submit(code);
+            submit(code, false, true);
           }}
         />
       )}
@@ -263,6 +267,27 @@ function AccessResult({
   onOverride: (code: string) => void;
   onRetry: (code: string) => void;
 }) {
+  if (result.kind === "error" && result.variant === "reauth") {
+    return (
+      <Screen bg="bg-navy text-white" icon="🔒" title="SESIÓN EXPIRADA" subtitle={result.message} onClose={onClose} sticky>
+        <a href="/staff?next=/staff/acceso" className="block w-full rounded-xl bg-white py-4 text-lg font-bold text-navy">
+          Entrar con PIN
+        </a>
+      </Screen>
+    );
+  }
+  if (result.kind === "error" && result.variant === "offline") {
+    // No es problema del pase: la persona no se rechaza por la red.
+    return (
+      <Screen bg="bg-[#f59e0b] text-navy" icon="📶" title="SIN CONEXIÓN" subtitle="No es problema del pase. Reintenta." onClose={onClose}>
+        {result.retry && (
+          <button type="button" className="w-full rounded-xl bg-navy py-4 text-lg font-bold text-white" onClick={() => onRetry(result.retry!)}>
+            Reintentar
+          </button>
+        )}
+      </Screen>
+    );
+  }
   if (result.kind === "error") {
     return (
       <Screen bg="bg-[#c8102e] text-white" icon="✕" title="NO VÁLIDO" subtitle={result.message} onClose={onClose}>
@@ -299,7 +324,9 @@ function AccessResult({
       ? { bg: "bg-[#0f8a4c] text-white", icon: "⬇", title: "BIENVENIDO", subtitle: `Dentro: ${outcome.inside}` }
       : outcome.status === "salida"
         ? { bg: "bg-gold text-navy", icon: "⬆", title: "SALIDA", subtitle: `Dentro: ${outcome.inside}` }
-        : outcome.status === "ya-dentro"
+        : result.kind === "warn" && result.retried
+          ? { bg: "bg-[#f59e0b] text-navy", icon: "✓", title: "YA REGISTRADO", subtitle: "El intento anterior sí llegó" }
+          : outcome.status === "ya-dentro"
           ? { bg: "bg-[#f59e0b] text-navy", icon: "⚠️", title: "YA ESTÁ DENTRO", subtitle: "No se cuenta otra vez" }
           : { bg: "bg-[#f59e0b] text-navy", icon: "⚠️", title: "NO TENÍA ENTRADA", subtitle: "No se descuenta" };
   return <Screen {...look} attendee={a} onClose={onClose} autoClose />;

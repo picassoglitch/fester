@@ -166,7 +166,11 @@ export default function RaffleStage({
 
     const names = reel.length > 0 ? reel : ["…"];
     const calm = reducedMotion();
-    const result = drawWinner().catch(() => ({ ok: false as const, error: "Sin conexión con el servidor." }));
+    // Sin respuesta no sabemos si quedo registrado: se pide revisar la lista antes de repetir.
+    const result = drawWinner().catch(() => ({
+      ok: false as const,
+      error: "Se perdió la conexión. Revisa la lista de ganadores antes de volver a sortear.",
+    }));
 
     // Carrete: cada nombre dura un poco mas que el anterior (frenado cuadratico).
     if (!calm) {
@@ -189,6 +193,7 @@ export default function RaffleStage({
       setError(outcome.error);
       setPhase("idle");
       busy.current = false;
+      router.refresh();
       return;
     }
     setWinner(outcome.winner);
@@ -215,7 +220,12 @@ export default function RaffleStage({
   async function voidCurrent(id: string) {
     setVoiding(true);
     try {
-      await voidWinner(id);
+      const res = await voidWinner(id).catch(() => null);
+      if (!res?.ok) {
+        setError("No se pudo anular. Recarga la página y revisa la lista de ganadores.");
+        router.refresh();
+        return;
+      }
       if (winner?.id === id) {
         stopConfetti.current();
         setWinner(null);
