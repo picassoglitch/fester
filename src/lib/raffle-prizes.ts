@@ -118,6 +118,10 @@ const PLURAL: Record<RaffleCategory, string> = {
   Profesionista: "profesionistas",
 };
 
+export function categoryPlural(category: RaffleCategory): string {
+  return PLURAL[category];
+}
+
 export function emptyPoolMessage(prize: RafflePrize): string {
   return `No quedan ${PLURAL[prize.category]} por sortear para ${prizeTitle(prize)}.`;
 }

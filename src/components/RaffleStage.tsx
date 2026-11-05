@@ -8,6 +8,7 @@ import { PrizeImage, SlotDots } from "@/components/RafflePrizeCard";
 import {
   RAFFLE_CATEGORIES,
   RAFFLE_PRIZES,
+  categoryPlural,
   emptyPoolMessage,
   fullPrizeMessage,
   prizeTitle,
@@ -56,6 +57,13 @@ function ctx(): AudioContext | null {
 }
 
 function tone(freq: number, start: number, length: number, gain = 0.18, type: OscillatorType = "triangle") {
+  // El sonido nunca debe trabar un sorteo que el servidor ya registro.
+  try {
+    playTone(freq, start, length, gain, type);
+  } catch {}
+}
+
+function playTone(freq: number, start: number, length: number, gain: number, type: OscillatorType) {
   const ac = ctx();
   if (!ac) return;
   const t0 = ac.currentTime + start;
@@ -165,7 +173,7 @@ function firstOpen(filled: Record<string, number>): RafflePrize {
 export default function RaffleStage({
   pools,
   reels,
-  filled,
+  filled: filledProp,
   winners,
 }: {
   pools: Record<RaffleCategory, number>;
@@ -179,7 +187,12 @@ export default function RaffleStage({
   const busy = useRef(false);
   const stopConfetti = useRef<() => void>(() => {});
   const [phase, setPhase] = useState<Phase>("idle");
-  const [prizeKey, setPrizeKey] = useState<string>(() => firstOpen(filled).key);
+  const [prizeKey, setPrizeKey] = useState<string>(() => firstOpen(filledProp).key);
+  // El lugar recien ganado cuenta ya, sin esperar a que router.refresh() traiga el conteo nuevo.
+  const [justWon, setJustWon] = useState<{ key: string; atLeast: number } | null>(null);
+  const filled = justWon
+    ? { ...filledProp, [justWon.key]: Math.max(filledProp[justWon.key] ?? 0, justWon.atLeast) }
+    : filledProp;
   const [tiles, setTiles] = useState<Tile[]>([]);
   const [left, setLeft] = useState(0);
   const [stage, setStage] = useState("");
@@ -292,7 +305,8 @@ export default function RaffleStage({
     mixing = false;
     await mix;
 
-    if (outcome.ok && !calm) await playWall(outcome.winner.name);
+    // Si la animacion falla, el ganador ya registrado se revela igual.
+    if (outcome.ok && !calm) await playWall(outcome.winner.name).catch(() => {});
 
     if (!outcome.ok) {
       setError(outcome.error);
@@ -301,13 +315,16 @@ export default function RaffleStage({
       router.refresh();
       return;
     }
+    setJustWon({ key: prize.key, atLeast: taken + 1 });
     setWinner(outcome.winner);
     setPhase("revealed");
     fanfare();
-    if (!calm && canvasRef.current) stopConfetti.current = launchConfetti(canvasRef.current);
+    try {
+      if (!calm && canvasRef.current) stopConfetti.current = launchConfetti(canvasRef.current);
+    } catch {}
     busy.current = false;
     router.refresh();
-  }, [reel, pool, full, prize.key, router, playWall]);
+  }, [reel, pool, full, taken, prize.key, router, playWall]);
 
   // Lleno el premio, el boton avanza al siguiente con lugares libres.
   const next = RAFFLE_PRIZES.find((p) => p.key !== prize.key && (filled[p.key] ?? 0) < p.slots) ?? null;
@@ -341,6 +358,7 @@ export default function RaffleStage({
         router.refresh();
         return;
       }
+      setJustWon(null);
       if (winner?.id === id) {
         stopConfetti.current();
         setWinner(null);
@@ -391,8 +409,8 @@ export default function RaffleStage({
             Rifa Encuentro Fester 2026
           </p>
           <p className="mt-1 text-[clamp(0.8rem,1.2vw,1.25rem)] text-white/70">
-            {pools.Aplicador.toLocaleString("es-MX")} aplicadores · {pools.Profesionista.toLocaleString("es-MX")}{" "}
-            profesionistas con pasaporte completo
+            {RAFFLE_CATEGORIES.map((c) => `${pools[c].toLocaleString("es-MX")} ${categoryPlural(c)}`).join(" · ")} con
+            pasaporte completo
           </p>
         </div>
         <button
@@ -451,7 +469,7 @@ export default function RaffleStage({
             className="animate-scan-in grid w-full max-w-[min(96vw,120rem)] items-center gap-[clamp(1.5rem,4vw,5rem)] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]"
           >
             <div className="flex justify-center">
-              <PrizeImage prize={prize} />
+              <PrizeImage key={prize.key} prize={prize} />
             </div>
             <div className="flex flex-col items-center gap-[clamp(0.5rem,1.6vh,1.25rem)] text-center lg:items-start lg:text-left">
               <span
@@ -527,7 +545,7 @@ export default function RaffleStage({
               ))}
             </ul>
             <p className="text-sm text-white/55">
-              Muestra al azar de los {pool.toLocaleString("es-MX")} participantes {prize.category.toLowerCase()}s · el
+              Muestra al azar de los {pool.toLocaleString("es-MX")} {categoryPlural(prize.category)} · el
               ganador lo elige el servidor con azar criptográfico
             </p>
           </div>
@@ -551,7 +569,7 @@ export default function RaffleStage({
             )}
             <p className="font-mono text-[clamp(0.9rem,1.4vw,1.5rem)] tracking-[0.35em] text-white/60">{winner.code}</p>
             <div className="mt-[clamp(0.25rem,1.5vh,1rem)] flex items-center gap-[clamp(1rem,2vw,2rem)] rounded-3xl bg-white/10 p-[clamp(0.6rem,1.2vw,1rem)] pr-[clamp(1.25rem,2.5vw,2.5rem)] text-left ring-1 ring-white/20">
-              <PrizeImage prize={won} compact />
+              <PrizeImage key={won.key} prize={won} compact />
               <div>
                 <p className="text-[clamp(0.8rem,1.1vw,1.15rem)] font-semibold uppercase tracking-[0.25em] text-white/65">
                   Se lleva

@@ -1,6 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { hasLocalDb, testCode } from "./db";
-import { emptyPoolMessage, fullPrizeMessage, rafflePrize, RAFFLE_PRIZES } from "@/lib/raffle-prizes";
+import { emptyPoolMessage, fullPrizeMessage, rafflePrize, RAFFLE_PRIZES, type RafflePrize } from "@/lib/raffle-prizes";
 
 const revalidatePath = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath }));
@@ -19,6 +21,13 @@ describe("premios de la rifa", () => {
     expect(prize("kit-04").slots).toBe(2);
     expect(new Set(RAFFLE_PRIZES.map((p) => p.key)).size).toBe(RAFFLE_PRIZES.length);
     expect(RAFFLE_PRIZES.every((p) => p.image === `/rifa/${p.key}.webp`)).toBe(true);
+  });
+
+  it("los kits traen foto; lo que no tiene foto (motos) trae ficha", () => {
+    const exists = (p: { image: string }) => fs.existsSync(path.join(process.cwd(), "public", p.image));
+    for (const key of ["kit-01", "kit-02", "kit-03", "kit-04"]) expect(exists(prize(key))).toBe(true);
+    const all: readonly RafflePrize[] = RAFFLE_PRIZES;
+    for (const p of all.filter((p) => !exists(p))) expect(p.note).toBeTruthy();
   });
 });
 
@@ -129,6 +138,9 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
     const keys = ["kit-03", "kit-04", "kit-04", "moto-profesionista", "kit-03", "moto-profesionista"];
     const results = await Promise.all(keys.map(draw));
     const winners = results.flatMap((r) => (r.ok ? [r.winner.code] : []));
+    // Los que no ganaron fallan por premio lleno o sin participantes, nunca por un error generico.
+    const expected = new Set(keys.flatMap((k) => [fullPrizeMessage(prize(k)), emptyPoolMessage(prize(k))]));
+    for (const r of results) if (!r.ok) expect(expected.has(r.error)).toBe(true);
     // Hay 3 profesionistas: solo 3 premios se entregan y cada uno a alguien distinto.
     expect(winners).toHaveLength(3);
     expect(new Set(winners).size).toBe(3);
@@ -173,6 +185,34 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
     expect(Object.values(state.filled).every((n) => n === 0)).toBe(true);
     expect(state.pools.Aplicador).toBe(2);
     expect(state.winners.find((w) => w.code === codes.apl1)).toMatchObject({ prizeKey: null, voidedAt: null });
+    // El ganador anterior no ocupa lugar del Kit 01, pero tampoco vuelve a salir.
+    expect(await draw("kit-01")).toMatchObject({ ok: true });
+    expect(await draw("kit-02")).toMatchObject({ ok: true });
+    expect(await draw("kit-02")).toEqual({ ok: false, error: emptyPoolMessage(prize("kit-02")) });
+  });
+
+  it("con pool grande, 10 sorteos simultáneos de un premio de un lugar dan un solo ganador", async () => {
+    const { prisma } = await import("@/lib/db");
+    const extra = Array.from({ length: 15 }, (_, i) => ({
+      code: testCode(),
+      name: `Rifa extra ${i}`,
+      approved: true,
+      completedAt: done,
+      festerProfile: "Profesionista",
+    }));
+    await prisma.attendee.createMany({ data: extra });
+    const created = await prisma.attendee.findMany({ where: { code: { in: extra.map((e) => e.code) } } });
+    ids.push(...created.map((a) => a.id));
+    try {
+      const results = await Promise.all(Array.from({ length: 10 }, () => draw("moto-profesionista")));
+      expect(results.filter((r) => r.ok)).toHaveLength(1);
+      for (const r of results.filter((r) => !r.ok)) {
+        expect(r).toEqual({ ok: false, error: fullPrizeMessage(prize("moto-profesionista")) });
+      }
+      expect(await prisma.raffleWinner.count({ where: { prizeKey: "moto-profesionista", voidedAt: null } })).toBe(1);
+    } finally {
+      await prisma.attendee.deleteMany({ where: { id: { in: created.map((a) => a.id) } } });
+    }
   });
 
   it("premio desconocido no sortea", async () => {

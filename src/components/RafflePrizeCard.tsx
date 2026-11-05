@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RafflePrize } from "@/lib/raffle-prizes";
 
-/** Foto del premio sobre tarjeta blanca; sin archivo en public/rifa se ve la ficha tipográfica. */
+/** Foto del premio sobre tarjeta blanca; sin archivo en public/rifa se ve la ficha. Montar con key={prize.key}. */
 export function PrizeImage({ prize, compact = false }: { prize: RafflePrize; compact?: boolean }) {
   const img = useRef<HTMLImageElement>(null);
   const [failed, setFailed] = useState(false);
@@ -13,7 +13,6 @@ export function PrizeImage({ prize, compact = false }: { prize: RafflePrize; com
     const el = img.current;
     if (el?.complete && el.naturalWidth === 0) setFailed(true);
   }, []);
-  useEffect(() => setFailed(false), [prize.image]);
 
   return (
     <div
@@ -27,9 +26,7 @@ export function PrizeImage({ prize, compact = false }: { prize: RafflePrize; com
         <PrizePlaceholder prize={prize} compact={compact} />
       ) : (
         // Fotos de producto en public/rifa: sin optimizador para no escalarlas de mas.
-        // eslint-disable-next-line @next/next/no-img-element
         <img
-          key={prize.image}
           ref={img}
           src={prize.image}
           alt={`${prize.label} · ${prize.name}`}

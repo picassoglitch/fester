@@ -20,7 +20,7 @@ export type RaffleWinnerView = {
 export type DrawResult = { ok: true; winner: RaffleWinnerView } | { ok: false; error: string };
 
 /** Llave del candado de Postgres que pone los sorteos en fila. */
-const DRAW_LOCK = 20261105;
+const DRAW_LOCK = "rifa";
 
 export async function drawWinner(prizeKey: string): Promise<DrawResult> {
   await requireAdmin();
@@ -33,7 +33,7 @@ export async function drawWinner(prizeKey: string): Promise<DrawResult> {
         async (tx): Promise<DrawResult> => {
           // Un sorteo a la vez: dos pantallas no llenan de mas un premio. El indice
           // unico de RaffleWinner sigue impidiendo que alguien gane dos veces.
-          await tx.$executeRaw`SELECT pg_advisory_xact_lock(${DRAW_LOCK})`;
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${DRAW_LOCK}))`;
           const filled = await tx.raffleWinner.count({ where: { prizeKey: prize.key, voidedAt: null } });
           if (filled >= prize.slots) return { ok: false, error: fullPrizeMessage(prize) };
 
@@ -51,6 +51,7 @@ export async function drawWinner(prizeKey: string): Promise<DrawResult> {
         { maxWait: 10_000, timeout: 20_000 },
       );
     } catch (error) {
+      // Respaldo: si algo fuera del candado ya registro a esa persona, el indice unico lo rechaza y se repite.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") continue;
       throw error;
     }
