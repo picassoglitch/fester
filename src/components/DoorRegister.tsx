@@ -77,8 +77,9 @@ function WalkInForm({ capacity, onNext }: { capacity: number; onNext: () => void
     startTransition(async () => {
       try {
         setEntry(await admitWalkIn(pass.code, override));
-      } catch {
-        setEntry({ status: "error", error: "Sin conexión. Intenta de nuevo." });
+      } catch (error) {
+        console.error(error);
+        setEntry({ status: "error", error: "No se pudo marcar la Entrada. Revisa la conexión o vuelve a iniciar sesión." });
       }
       router.refresh();
     });

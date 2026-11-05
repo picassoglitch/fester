@@ -6,11 +6,10 @@ export const DOOR_SIGNUP_UNTIL = new Date("2026-11-06T06:00:00Z");
 
 export const DOOR_SCOPE = "puerta";
 
-/** Token del QR que el staff muestra para que la persona se registre sola en la puerta. */
+/** Token del QR de autoregistro. Sin iat sale igual en cada render: el QR no cambia en pantalla. */
 export async function createDoorToken(): Promise<string> {
   return new SignJWT({ scope: DOOR_SCOPE })
     .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
     .setExpirationTime(Math.floor(DOOR_SIGNUP_UNTIL.getTime() / 1000))
     .sign(getSecret());
 }

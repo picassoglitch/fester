@@ -134,6 +134,45 @@ describe.skipIf(!hasLocalDb)("registro en la puerta (base local)", () => {
       expect(await prisma.attendee.findFirstOrThrow({ where: { email } })).toMatchObject({ position: "Otro: Ingeniera" });
     });
 
+    it("si la Entrada truena después de crear el pase, el pase se muestra con el error", async () => {
+      const { prisma } = await import("@/lib/db");
+      const auth = await import("@/lib/auth");
+      const { registerWalkIn } = await import("@/app/actions/door");
+      // La primera llamada es la de registerWalkIn; la segunda (recordScan) simula una sesión revocada.
+      vi.mocked(auth.requireSession)
+        .mockImplementationOnce(async () => session)
+        .mockImplementationOnce(async () => {
+          throw new Error("Sesion no valida");
+        });
+      const email = mail("entrada-truena");
+      const state = await registerWalkIn({}, form({ email, name: "Iván Truena", position: "DIY" }));
+      expect(state.pass).toMatchObject({ created: true });
+      expect(state.entry).toMatchObject({ status: "error" });
+      const attendee = await prisma.attendee.findFirstOrThrow({ where: { email } });
+      expect(attendee.insideAt).toBeNull();
+      expect(state.pass?.code).toBe(attendee.code);
+    });
+
+    it("staff y el QR con el mismo correo al mismo tiempo dejan un solo pase", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(DURING_EVENT);
+      try {
+        const { prisma } = await import("@/lib/db");
+        const { createDoorToken } = await import("@/lib/door-token");
+        const { registerWalkIn, selfRegisterAtDoor } = await import("@/app/actions/door");
+        const email = mail("carrera");
+        const t = await createDoorToken();
+        await Promise.all([
+          registerWalkIn({}, form({ email, name: "Juan Carrera", position: "DIY" })),
+          selfRegisterAtDoor({}, form({ t, email, name: "Juan Carrera", position: "DIY" })),
+          registerWalkIn({}, form({ email, name: "Juan Carrera", position: "DIY" })),
+        ]);
+        expect(await prisma.attendee.count({ where: { email } })).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("Premios no registra en la puerta", async () => {
       const { prisma } = await import("@/lib/db");
       const { admitWalkIn, registerWalkIn } = await import("@/app/actions/door");
@@ -262,6 +301,7 @@ describe.skipIf(!hasLocalDb)("registro en la puerta (base local)", () => {
     it("el token deja de valer al terminar el día del evento", async () => {
       const { isValidDoorToken, DOOR_SIGNUP_UNTIL } = await import("@/lib/door-token");
       const t = await token();
+      expect(await token()).toBe(t);
       expect(await isValidDoorToken(t, new Date(DOOR_SIGNUP_UNTIL.getTime() - 1000))).toBe(true);
       expect(await isValidDoorToken(t, new Date(DOOR_SIGNUP_UNTIL.getTime() + 1000))).toBe(false);
     });
@@ -288,6 +328,27 @@ describe.skipIf(!hasLocalDb)("registro en la puerta (base local)", () => {
       expect(sendMail.mock.calls[0][0].text).toContain(code);
       expect(setAttendeeSessionCookie).not.toHaveBeenCalled();
       expect(await prisma.attendee.count({ where: { email } })).toBe(1);
+    });
+
+    it("QR con correo nuevo y correo caído: el pase se muestra y avisa", async () => {
+      const { selfRegisterAtDoor } = await import("@/app/actions/door");
+      sendMail.mockResolvedValueOnce({ ok: false, error: "Resend caído" });
+      const state = await selfRegisterAtDoor({}, form({ t: await token(), email: mail("solo-sin-correo"), name: "Nora Sin", position: "DIY" }));
+      expect(state.pass).toMatchObject({ created: true, mailFailed: true });
+      expect(setAttendeeSessionCookie).toHaveBeenCalledTimes(1);
+    });
+
+    it("correo con pase: si el reenvío falla o está topado, no promete el correo", async () => {
+      const { prisma } = await import("@/lib/db");
+      const { selfRegisterAtDoor } = await import("@/app/actions/door");
+      const { DOOR_EXISTING_NOT_SENT, DOOR_RESEND_PER_HOUR } = await import("@/lib/door");
+      const email = mail("no-reenviado");
+      await prisma.attendee.create({ data: { code: `N${RUN.slice(-6).toUpperCase()}`, name: "Olga Oculta", email } });
+      const t = await token();
+      sendMail.mockResolvedValueOnce({ ok: false, error: "Resend caído" });
+      expect(await selfRegisterAtDoor({}, form({ t, email, name: "X Y", position: "DIY" }))).toEqual({ notice: DOOR_EXISTING_NOT_SENT });
+      for (let i = 1; i < DOOR_RESEND_PER_HOUR; i++) await selfRegisterAtDoor({}, form({ t, email, name: "X Y", position: "DIY" }));
+      expect(await selfRegisterAtDoor({}, form({ t, email, name: "X Y", position: "DIY" }))).toEqual({ notice: DOOR_EXISTING_NOT_SENT });
     });
 
     it("el reenvío al mismo correo tiene tope por hora", async () => {

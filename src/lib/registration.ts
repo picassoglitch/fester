@@ -6,6 +6,8 @@ import { OTHER_OPTION, POSITIONS } from "@/lib/event";
 
 export type FieldError = { error: string };
 
+type Db = Prisma.TransactionClient;
+
 export function pick(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
 }
@@ -37,10 +39,10 @@ export function parsePosition(choice: string, otherDetail: string): string | Fie
 }
 
 /** Codigo de pase que no exista todavia; null si no se encontro uno libre. */
-export async function generateUniqueCode(): Promise<string | null> {
+export async function generateUniqueCode(db: Db = prisma): Promise<string | null> {
   for (let attempt = 0; attempt < 8; attempt++) {
     const candidate = generateCode();
-    const taken = await prisma.attendee.findUnique({
+    const taken = await db.attendee.findUnique({
       where: { code: candidate },
       select: { id: true },
     });
@@ -52,8 +54,9 @@ export async function generateUniqueCode(): Promise<string | null> {
 /** Crea el pase con un codigo nuevo; null si no se pudo generar el codigo. */
 export async function createAttendee(
   data: Omit<Prisma.AttendeeCreateInput, "code">,
+  db: Db = prisma,
 ): Promise<{ id: string; code: string } | null> {
-  const code = await generateUniqueCode();
+  const code = await generateUniqueCode(db);
   if (!code) return null;
-  return prisma.attendee.create({ data: { ...data, code }, select: { id: true, code: true } });
+  return db.attendee.create({ data: { ...data, code }, select: { id: true, code: true } });
 }

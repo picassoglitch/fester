@@ -1,9 +1,9 @@
 "use server";
 
 import { requireSession, setAttendeeSessionCookie } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import {
   DOOR_EXISTING_NOTICE,
+  DOOR_EXISTING_NOT_SENT,
   DOOR_RESEND_PER_HOUR,
   DOOR_SIGNUP_LIMIT,
   mailPass,
@@ -15,7 +15,7 @@ import { isValidDoorToken } from "@/lib/door-token";
 import { REGISTRATION_CLOSED } from "@/lib/event";
 import { canRecordStations } from "@/lib/roles";
 import { appUrl } from "@/lib/site";
-import { doorKindOf } from "@/lib/stations";
+import { doorKindOf, getScannerStations } from "@/lib/stations";
 import { clientIpHash, consumeRateLimit, hmacKey } from "@/lib/throttle";
 import { recordScan } from "@/app/actions/scan";
 
@@ -46,11 +46,7 @@ function passView(pass: DoorPass): DoorPassView {
 
 // Aldo 2026-11-05 — la Entrada usa el mismo recordScan de la estacion Registro: aforo 450 y "Dejar pasar".
 async function enter(code: string, override: boolean): Promise<DoorEntry> {
-  const stations = await prisma.station.findMany({
-    where: { active: true },
-    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
-    select: { id: true, name: true },
-  });
+  const stations = await getScannerStations();
   const door = stations.find((s) => doorKindOf(s.name) === "ENTRY");
   if (!door) return { status: "error", error: "No hay una estación «Registro» activa: la entrada no se marcó." };
 
@@ -71,14 +67,24 @@ export async function registerWalkIn(_prev: WalkInState, formData: FormData): Pr
   const pass = await registerAtDoor(fields);
   if ("error" in pass) return { error: pass.error };
 
-  return { pass: passView(pass), entry: await enter(pass.code, false) };
+  return { pass: passView(pass), entry: await safeEnter(pass.code, false) };
+}
+
+// El pase ya quedo creado: si la Entrada truena, se muestra el pase con "Reintentar entrada".
+async function safeEnter(code: string, override: boolean): Promise<DoorEntry> {
+  try {
+    return await enter(code, override);
+  } catch (error) {
+    console.error(`[puerta] No se pudo marcar la Entrada de ${code}:`, error);
+    return { status: "error", error: "El pase está creado, pero la Entrada no se marcó. Reintenta o vuelve a iniciar sesión." };
+  }
 }
 
 /** "Dejar pasar" o reintento de la Entrada de un pase recien mostrado. */
 export async function admitWalkIn(code: string, override: boolean): Promise<DoorEntry> {
   const session = await requireSession();
   if (!canRecordStations(session.role)) return { status: "error", error: NO_DOOR };
-  return enter(code, override);
+  return safeEnter(code, override);
 }
 
 /** La persona se registra sola con el QR de la puerta. No marca Entrada: la escanean al pasar. */
@@ -106,6 +112,6 @@ export async function selfRegisterAtDoor(_prev: SelfSignupState, formData: FormD
 
   // Quien tiene el QR no probo que el correo sea suyo: el pase existente solo viaja a ese correo.
   const resend = await consumeRateLimit(`puerta:reenvio:${hmacKey(fields.email)}`, DOOR_RESEND_PER_HOUR, 60 * 60_000);
-  if (resend.allowed) await mailPass(fields.email, pass.name, pass.code);
-  return { notice: DOOR_EXISTING_NOTICE };
+  const sent = resend.allowed && (await mailPass(fields.email, pass.name, pass.code));
+  return { notice: sent ? DOOR_EXISTING_NOTICE : DOOR_EXISTING_NOT_SENT };
 }

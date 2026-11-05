@@ -31,14 +31,21 @@ export function readDoorFields(formData: FormData): DoorFields | FieldError {
 
 // Aldo 2026-11-05 — en la puerta no hay codigo por correo; si el correo ya tiene pase se muestra ese.
 export async function registerAtDoor(fields: DoorFields): Promise<DoorPass | FieldError> {
-  const existing = await prisma.attendee.findFirst({
-    where: { email: fields.email },
-    orderBy: { createdAt: "asc" },
-    select: { id: true, code: true, name: true },
+  // Candado por correo: staff y el telefono de la persona al mismo tiempo no crean dos pases.
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`puerta:${fields.email}`}))`;
+    const existing = await tx.attendee.findFirst({
+      where: { email: fields.email },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, code: true, name: true },
+    });
+    if (existing) return { existing };
+    return { created: await createAttendee({ ...fields, origin: "PUERTA" }, tx) };
   });
-  if (existing) return { ...existing, created: false, mailFailed: false };
-
-  const created = await createAttendee({ ...fields, origin: "PUERTA" });
+  if ("existing" in result && result.existing) {
+    return { ...result.existing, created: false, mailFailed: false };
+  }
+  const created = "created" in result ? result.created : null;
   if (!created) return { error: "No pudimos generar el código del pase. Intenta de nuevo." };
 
   // El pase ya existe: si el correo falla se avisa en pantalla, sin borrar ni frenar el registro.
@@ -59,10 +66,13 @@ export async function mailPass(to: string, name: string, code: string): Promise<
 }
 
 /** Registros por IP cada 10 min en el QR de la puerta: holgado porque la red del recinto se comparte. */
-export const DOOR_SIGNUP_LIMIT = { perIp: 20, windowMs: 10 * 60_000 };
+export const DOOR_SIGNUP_LIMIT = { perIp: 60, windowMs: 10 * 60_000 };
 
 /** Reenvios del pase al mismo correo por hora desde el QR de la puerta. */
 export const DOOR_RESEND_PER_HOUR = 3;
 
 export const DOOR_EXISTING_NOTICE =
   "Este correo ya tiene pase; te lo reenviamos a tu correo. Si no te llega, pide ayuda al staff.";
+
+export const DOOR_EXISTING_NOT_SENT =
+  "Este correo ya tiene pase, pero no pudimos reenviarlo. Pide al staff que lo busque con tu correo.";

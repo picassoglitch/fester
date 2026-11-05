@@ -16,14 +16,14 @@ enum Role {
   ADMIN
 }
 
-/// Para que se sepa si el codigo de 6 digitos es de un registro nuevo o de
-/// alguien que vuelve a abrir su pase.
 /// De donde salio el pase: el formulario web o el registro en la puerta el dia del evento.
 enum AttendeeOrigin {
   WEB
   PUERTA
 }
 
+/// Para que se sepa si el codigo de 6 digitos es de un registro nuevo o de
+/// alguien que vuelve a abrir su pase.
 enum VerificationPurpose {
   REGISTER
   LOGIN
