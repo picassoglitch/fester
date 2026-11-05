@@ -105,7 +105,7 @@ describe.skipIf(!hasLocalDb)("resendPassAsAdmin (base local)", () => {
     const result = await resendPassAsAdmin({}, form(attendee.code));
 
     expect(result.ok).toBeUndefined();
-    expect(result.error).toBe(`No se pudo reenviar el pase a ${attendee.email}. Intenta de nuevo.`);
+    expect(result.error).toBe(`No se pudo reenviar el pase a ${attendee.email} (Resend respondió 429). Intenta de nuevo.`);
     expect(errorLog.mock.calls.some(([msg]) => String(msg).includes(`[admin] No se pudo reenviar el pase ${attendee.code}`))).toBe(true);
     errorLog.mockRestore();
   });
@@ -118,7 +118,27 @@ describe.skipIf(!hasLocalDb)("resendPassAsAdmin (base local)", () => {
 
     const result = await resendPassAsAdmin({}, form(attendee.code));
 
-    expect(result.error).toContain(`No se pudo reenviar el pase a ${attendee.email}`);
+    expect(result.ok).toBeUndefined();
+    expect(result.error).toBe(`No se pudo reenviar el pase a ${attendee.email}. Intenta de nuevo.`);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(errorLog.mock.calls.some(([msg]) => String(msg).includes(`[admin] No se pudo reenviar el pase ${attendee.code}`))).toBe(true);
+    errorLog.mockRestore();
+  });
+
+  it("si la base falla, regresa un error en línea en vez de lanzar", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { resendPassAsAdmin } = await import("@/app/actions/admin");
+    const attendee = await newAttendee();
+    // Sin spyOn: el cliente de Prisma no se deja restaurar; la propiedad propia se borra al final.
+    Object.defineProperty(prisma, "$queryRaw", { value: () => Promise.reject(new Error("Neon caido")), configurable: true });
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = await resendPassAsAdmin({}, form(attendee.code));
+
+    expect(result).toEqual({ error: "No se pudo reenviar el pase por un error del servidor. Intenta en un momento." });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(errorLog.mock.calls.some(([msg]) => String(msg).includes(`[admin] Fallo el reenvio del pase ${attendee.code}`))).toBe(true);
+    delete (prisma as { $queryRaw?: unknown }).$queryRaw;
     errorLog.mockRestore();
   });
 
@@ -131,11 +151,23 @@ describe.skipIf(!hasLocalDb)("resendPassAsAdmin (base local)", () => {
       expect((await resendPassAsAdmin({}, form(attendee.code))).ok).toBeDefined();
     }
     const sixth = await resendPassAsAdmin({}, form(attendee.code));
-    expect(sixth.error).toMatch(/Ya se reenvió 5 veces en la última hora/);
+    expect(sixth.error).toMatch(/Ya se intentó reenviar 5 veces en la última hora/);
     expect(fetchMock).toHaveBeenCalledTimes(5);
 
     expect((await resendPassAsAdmin({}, form(other.code))).ok).toBe(`Pase reenviado a ${other.email}`);
     expect(fetchMock).toHaveBeenCalledTimes(6);
+  });
+
+  it("los intentos fallidos también cuentan contra el límite", async () => {
+    const { resendPassAsAdmin } = await import("@/app/actions/admin");
+    const attendee = await newAttendee();
+    fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    for (let i = 0; i < 5; i++) expect((await resendPassAsAdmin({}, form(attendee.code))).error).toMatch(/No se pudo/);
+    expect((await resendPassAsAdmin({}, form(attendee.code))).error).toMatch(/Ya se intentó reenviar 5 veces/);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    errorLog.mockRestore();
   });
 
   it("dos clics simultáneos cuentan los dos contra el límite", async () => {
