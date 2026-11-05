@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Scanner from "@/components/Scanner";
-import { recordScan, redeemPrize, type ScanOutcome } from "@/app/actions/scan";
+import { findAttendeesByName, recordScan, redeemPrize, type ScanOutcome } from "@/app/actions/scan";
+import { MIN_SEARCH_CHARS, type NameMatch } from "@/lib/name-search";
 import type { StaffAttendeeProgress } from "@/lib/attendee";
 import type { BraceletColor } from "@/lib/bracelet";
 import { normalizeCode } from "@/lib/codes";
@@ -362,6 +363,8 @@ export default function ScanConsole({
         </button>
       </form>
 
+      <NameSearch disabled={pending || needsStation} onPick={submit} />
+
       {loadedCode && !result && !pending && (
         <div
           role="dialog"
@@ -474,6 +477,83 @@ const SCREEN: Record<Result["kind"], { bg: string; text: string; icon: string; t
   confirm: { bg: "bg-[#c8102e]", text: "text-white", icon: "⚠️", title: "REVISAR" },
   error: { bg: "bg-[#c8102e]", text: "text-white", icon: "✕", title: "NO VÁLIDO" },
 };
+
+function NameSearch({ disabled, onPick }: { disabled: boolean; onPick: (code: string) => void }) {
+  const [query, setQuery] = useState("");
+  const [matches, setMatches] = useState<NameMatch[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const latest = useRef(0);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Con el teclado abierto los resultados quedan abajo del campo: se traen a la vista.
+  useEffect(() => {
+    if (matches) listRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [matches]);
+
+  useEffect(() => {
+    const ticket = ++latest.current;
+    if (query.replace(/\s/g, "").length < MIN_SEARCH_CHARS) {
+      setMatches(null);
+      setFailed(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const found = await findAttendeesByName(query);
+        if (ticket === latest.current) {
+          setMatches(found);
+          setFailed(false);
+        }
+      } catch {
+        if (ticket === latest.current) setFailed(true);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  return (
+    <div className="space-y-2" ref={listRef}>
+      <input
+        className="field w-full"
+        type="search"
+        placeholder="¿Sin QR? Buscar por nombre"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        autoComplete="off"
+        disabled={disabled}
+      />
+      {failed && <p className="text-sm text-[#ff8a8a]">Sin conexión. Intenta de nuevo.</p>}
+      {matches && matches.length === 0 && !failed && (
+        <p className="text-sm text-white/60">Nadie registrado con ese nombre.</p>
+      )}
+      {matches && matches.length > 0 && (
+        <ul className="divide-y divide-white/10 overflow-hidden rounded-xl border border-white/15" aria-label="Resultados por nombre">
+          {matches.map((match) => (
+            <li key={match.code}>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-white/5 disabled:opacity-50"
+                disabled={disabled}
+                onClick={() => {
+                  onPick(match.code);
+                  setQuery("");
+                }}
+              >
+                <span>
+                  <span className="block font-semibold">{match.name}</span>
+                  <span className="block text-xs text-white/60">
+                    {[match.company, match.state].filter(Boolean).join(" · ")}
+                  </span>
+                </span>
+                <span className="font-mono text-xs tracking-widest text-white/50">{match.code}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 const BRACELET_LOOK: Record<BraceletColor, string> = {
   ROJO: "bg-[#c8102e] text-white",
