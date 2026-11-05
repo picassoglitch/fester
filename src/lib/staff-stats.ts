@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { getScannerStations } from "@/lib/stations";
+import { doorKindOf, getScannerStations } from "@/lib/stations";
 
 export type StaffStats = Awaited<ReturnType<typeof getStaffStats>>;
 
@@ -21,6 +21,7 @@ export async function getStaffStats(staffId: string) {
     myScans,
     byStation,
     recent,
+    exits,
   ] = await Promise.all([
     getScannerStations(),
     prisma.attendee.count(),
@@ -43,9 +44,12 @@ export async function getStaffStats(staffId: string) {
         staff: { select: { name: true } },
       },
     }),
+    // Salida no guarda Scan (no es estrella), guarda Access EXIT.
+    prisma.access.count({ where: { kind: "EXIT" } }),
   ]);
 
   const countByStation = new Map(byStation.map((g) => [g.stationId, g._count._all]));
+  for (const station of stations) if (doorKindOf(station.name) === "EXIT") countByStation.set(station.id, exits);
   const busiest = Math.max(1, ...stations.map((s) => countByStation.get(s.id) ?? 0));
 
   return {

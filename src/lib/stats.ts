@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { countByProfile } from "@/lib/profiles";
-import { getActiveStations } from "@/lib/stations";
+import { doorKindOf, getActiveStations } from "@/lib/stations";
 import { ARRIVED } from "@/lib/access";
 
 type ProfileScanRow = { stationId: string; position: string | null; count: number };
@@ -59,6 +59,7 @@ export async function getDashboardStats() {
     profileScans,
     profileScansLastHour,
     positionGroups,
+    exits,
   ] = await Promise.all([
     prisma.station.findMany({ orderBy: [{ order: "asc" }, { createdAt: "asc" }] }),
     getActiveStations(),
@@ -101,6 +102,8 @@ export async function getDashboardStats() {
     scansByStationAndPosition(),
     scansByStationAndPosition(lastHour),
     prisma.attendee.groupBy({ by: ["position"], _count: { _all: true } }),
+    // Salida no guarda Scan (no es estrella), guarda Access EXIT.
+    prisma.access.count({ where: { kind: "EXIT" } }),
   ]);
 
   const scanCountByStation = new Map(scanGroups.map((g) => [g.stationId, g._count._all]));
@@ -110,7 +113,7 @@ export async function getDashboardStats() {
   const profilesLastHour = profilesByStation(profileScansLastHour);
 
   const stationStats = stations.map((station) => {
-    const visits = scanCountByStation.get(station.id) ?? 0;
+    const visits = doorKindOf(station.name) === "EXIT" ? exits : (scanCountByStation.get(station.id) ?? 0);
     return {
       id: station.id,
       name: station.name,
