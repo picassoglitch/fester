@@ -36,6 +36,18 @@ export const RAFFLE_PENDING: Prisma.AttendeeWhereInput = {
   OR: [{ accesses: { some: { kind: "ENTRY" } } }, { scans: { some: {} } }],
 };
 
+// Aldo 2026-11-05 — botón «habilitar a todos»: exactamente los que cuenta «llegaron sin completar pasaporte».
+export async function enableArrivedPending(db: Prisma.TransactionClient = prisma): Promise<number> {
+  const pending = await poolsWhere(RAFFLE_PENDING, db);
+  const ids = [...pending.Aplicador, ...pending.Profesionista].map((c) => c.id);
+  if (ids.length === 0) return 0;
+  const { count } = await db.attendee.updateMany({
+    where: { id: { in: ids }, completedAt: null },
+    data: { completedAt: new Date() },
+  });
+  return count;
+}
+
 async function poolsWhere(
   where: Prisma.AttendeeWhereInput,
   db: Prisma.TransactionClient,

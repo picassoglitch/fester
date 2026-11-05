@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { getRafflePools } from "@/lib/raffle";
+import { enableArrivedPending, getRafflePools } from "@/lib/raffle";
 import { emptyPoolMessage, fullPrizeMessage, rafflePrize } from "@/lib/raffle-prizes";
 
 export type RaffleWinnerView = {
@@ -84,4 +84,12 @@ export async function resetRaffle(): Promise<{ deleted: number }> {
   );
   revalidatePath("/admin/rifa");
   return { deleted };
+}
+
+export async function enableArrived(): Promise<{ enabled: number }> {
+  await requireAdmin();
+  const enabled = await enableArrivedPending();
+  revalidatePath("/admin/rifa");
+  revalidatePath("/admin");
+  return { enabled };
 }
