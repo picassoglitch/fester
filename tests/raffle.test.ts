@@ -12,13 +12,13 @@ vi.mock("@/lib/auth", () => ({ requireAdmin }));
 const prize = (key: string) => rafflePrize(key)!;
 
 describe("premios de la rifa", () => {
-  // Aldo 2026-11-05 — un ganador por kit y por moto.
-  it("son 6 lugares: 3 por categoría, un ganador por premio", () => {
+  it("son 8 lugares: 4 por categoría, Kit 02 y Kit 04 con dos", () => {
     const slots = (category: string) =>
       RAFFLE_PRIZES.filter((p) => p.category === category).reduce((n, p) => n + p.slots, 0);
-    expect(slots("Aplicador")).toBe(3);
-    expect(slots("Profesionista")).toBe(3);
-    expect(RAFFLE_PRIZES.every((p) => p.slots === 1)).toBe(true);
+    expect(slots("Aplicador")).toBe(4);
+    expect(slots("Profesionista")).toBe(4);
+    expect(prize("kit-02").slots).toBe(2);
+    expect(prize("kit-04").slots).toBe(2);
     expect(new Set(RAFFLE_PRIZES.map((p) => p.key)).size).toBe(RAFFLE_PRIZES.length);
     expect(RAFFLE_PRIZES.every((p) => p.image === `/rifa/${p.key}.webp`)).toBe(true);
   });
@@ -130,8 +130,10 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
     expect(JSON.stringify(apl)).not.toMatch(/"email"|"phone"|festerProfile|position/);
   });
 
-  it("un premio lleno no se vuelve a sortear", async () => {
-    expect((await draw("kit-02")).ok).toBe(true);
+  it("un premio lleno no se vuelve a sortear (Kit 02 tiene dos lugares)", async () => {
+    const first = await draw("kit-02");
+    const second = await draw("kit-02");
+    expect(first.ok && second.ok).toBe(true);
     expect(await draw("kit-02")).toEqual({ ok: false, error: fullPrizeMessage(prize("kit-02")) });
     expect(await draw("kit-01")).toMatchObject({ ok: true });
     expect(await draw("kit-01")).toEqual({ ok: false, error: "Kit 01 · Constructor Premium ya tiene ganador." });
@@ -140,9 +142,9 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
   it("sorteos simultáneos del mismo premio no pasan del cupo", async () => {
     const { prisma } = await import("@/lib/db");
     const results = await Promise.all(Array.from({ length: 6 }, () => draw("kit-04")));
-    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(results.filter((r) => r.ok)).toHaveLength(2);
     for (const r of results.filter((r) => !r.ok)) expect(r).toEqual({ ok: false, error: fullPrizeMessage(prize("kit-04")) });
-    expect(await prisma.raffleWinner.count({ where: { prizeKey: "kit-04", voidedAt: null } })).toBe(1);
+    expect(await prisma.raffleWinner.count({ where: { prizeKey: "kit-04", voidedAt: null } })).toBe(2);
   });
 
   it("nadie gana dos veces, aunque se sorteen varios premios a la vez", async () => {
@@ -179,15 +181,8 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
   });
 
   it("sin participantes de la categoría avisa por premio", async () => {
-    const { prisma } = await import("@/lib/db");
-    // Deja 2 aplicadores para 3 premios.
-    await prisma.attendee.update({ where: { code: codes.apl3 }, data: { approved: false } });
-    try {
-      for (const key of ["kit-01", "kit-02"]) expect((await draw(key)).ok).toBe(true);
-      expect(await draw("moto-aplicador")).toEqual({ ok: false, error: emptyPoolMessage(prize("moto-aplicador")) });
-    } finally {
-      await prisma.attendee.update({ where: { code: codes.apl3 }, data: { approved: true } });
-    }
+    for (const key of ["kit-01", "kit-02", "kit-02"]) expect((await draw(key)).ok).toBe(true);
+    expect(await draw("moto-aplicador")).toEqual({ ok: false, error: emptyPoolMessage(prize("moto-aplicador")) });
     expect(emptyPoolMessage(prize("moto-aplicador"))).toBe(
       "No quedan aplicadores por sortear para Moto · VENTO TERRA DS 170 – 2026.",
     );
@@ -207,7 +202,7 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
     // El ganador anterior no ocupa lugar del Kit 01, pero tampoco vuelve a salir.
     expect(await draw("kit-01")).toMatchObject({ ok: true });
     expect(await draw("kit-02")).toMatchObject({ ok: true });
-    expect(await draw("moto-aplicador")).toEqual({ ok: false, error: emptyPoolMessage(prize("moto-aplicador")) });
+    expect(await draw("kit-02")).toEqual({ ok: false, error: emptyPoolMessage(prize("kit-02")) });
   });
 
   it("con pool grande, 10 sorteos simultáneos de un premio de un lugar dan un solo ganador", async () => {
@@ -301,10 +296,10 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
 
   it("después de reiniciar se sortea normal, hasta llenar cada premio", async () => {
     const { resetRaffle } = await import("@/app/actions/raffle");
-    for (const key of ["kit-01", "kit-02", "moto-aplicador"]) expect((await draw(key)).ok).toBe(true);
+    for (const key of ["kit-01", "kit-02", "kit-02"]) expect((await draw(key)).ok).toBe(true);
     await resetRaffle();
     const winners = [];
-    for (const key of ["kit-01", "kit-02", "moto-aplicador"]) {
+    for (const key of ["kit-01", "kit-02", "kit-02"]) {
       const r = await draw(key);
       if (!r.ok) throw new Error(r.error);
       winners.push(r.winner.code);
@@ -317,7 +312,7 @@ describe.skipIf(!hasLocalDb)("rifa por premio (base local)", () => {
     const { prisma } = await import("@/lib/db");
     const { resetRaffle } = await import("@/app/actions/raffle");
     await Promise.all([draw("kit-04"), resetRaffle(), draw("kit-04"), draw("kit-04")]);
-    expect(await prisma.raffleWinner.count({ where: { prizeKey: "kit-04", voidedAt: null } })).toBeLessThanOrEqual(1);
+    expect(await prisma.raffleWinner.count({ where: { prizeKey: "kit-04", voidedAt: null } })).toBeLessThanOrEqual(2);
   });
 
   it("sin rol de administrador no se reinicia", async () => {
