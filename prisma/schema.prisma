@@ -79,6 +79,8 @@ model Attendee {
   approved Boolean   @default(false)
   /// Dentro del foro desde este momento; null = afuera. Lo mueven los QR de entrada y salida.
   insideAt DateTime?
+  /// Perfil de la base de Fester (columna «Perfil» de REGISTROS); define el color del brazalete.
+  festerProfile String?
 
   scans      Scan[]
   accesses   Access[]

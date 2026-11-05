@@ -263,7 +263,7 @@ describe("ScanConsole", () => {
       });
     }
 
-    it("los resultados correctos se cierran solos; el error se queda hasta tocarlo", async () => {
+    it("el resultado no se cierra solo ni al tocar el fondo: solo con Escanear siguiente", async () => {
       recordScan.mockImplementation(async () => ({
         ok: true,
         status: "nuevo",
@@ -273,15 +273,49 @@ describe("ScanConsole", () => {
       await renderAt();
       await scanManual();
       await screen.findByRole("alertdialog");
-      await vi.waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull(), { timeout: 2500 });
-
-      recordScan.mockImplementation(async () => ({ ok: false, error: "El código ZZZZZZ no existe." }));
-      await scanManual("ZZZZZZ");
-      await screen.findByRole("alertdialog");
       await new Promise((r) => setTimeout(r, 1800));
-      expect(screen.getByRole("alertdialog")).toBeTruthy();
       fireEvent.click(screen.getByRole("alertdialog"));
+      expect(screen.getByRole("alertdialog")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Escanear siguiente" }));
       expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
+
+    it("muestra el brazalete por perfil de Fester y los datos del registro", async () => {
+      recordScan.mockImplementation(async () => ({
+        ok: true,
+        status: "nuevo",
+        message: "ok",
+        attendee: progress({
+          festerProfile: "Constructora",
+          bracelet: { color: "AZUL", category: "Profesionista" },
+          company: "Obras Peña",
+          position: "Arquitecto",
+          state: "Puebla",
+        }),
+      }));
+      await renderAt();
+      await scanManual();
+      const dialog = await screen.findByRole("alertdialog");
+      expect(dialog.querySelector("[data-bracelet]")?.getAttribute("data-bracelet")).toBe("AZUL");
+      for (const text of ["AZUL", "Profesionista", "Constructora", "Obras Peña", "Arquitecto", "Puebla"]) {
+        expect(dialog.textContent).toContain(text);
+      }
+    });
+
+    it("sin perfil de Fester pide revisar el brazalete", async () => {
+      recordScan.mockImplementation(async () => ({
+        ok: true,
+        status: "nuevo",
+        message: "ok",
+        attendee: progress({ festerProfile: null, bracelet: null, position: "Albañil" }),
+      }));
+      await renderAt();
+      await scanManual();
+      const dialog = await screen.findByRole("alertdialog");
+      expect(dialog.querySelector("[data-bracelet]")?.getAttribute("data-bracelet")).toBe("SIN");
+      expect(dialog.textContent).toContain("REVISAR PERFIL");
+      expect(dialog.textContent).toContain("Sin perfil en la base de Fester");
+      expect(dialog.textContent).toContain("Albañil");
     });
 
     it("error de red ofrece Reintentar con el mismo código", async () => {
@@ -316,7 +350,7 @@ describe("ScanConsole", () => {
       await screen.findByRole("alertdialog");
       // Llega otra lectura del mismo QR mientras se ve el resultado y después de cerrarlo.
       await act(async () => cameraOnCode!("YD54MX"));
-      fireEvent.click(screen.getByRole("alertdialog"));
+      fireEvent.click(screen.getByRole("button", { name: "Escanear siguiente" }));
       await act(async () => cameraOnCode!("YD54MX"));
       await new Promise((r) => setTimeout(r, 50));
       expect(recordScan).toHaveBeenCalledTimes(1);

@@ -300,14 +300,6 @@ input[type="number"].field-light::-webkit-inner-spin-button {
   animation: scan-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@keyframes scan-countdown {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
 
 /* Mapa en vivo: el contador de un kiosko rebota cuando cambia. */
 @keyframes map-bump {
