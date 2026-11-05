@@ -15,7 +15,7 @@ export default async function ApprovedPage() {
       </header>
       <div className="card max-w-md p-6">
         <p className="font-display text-6xl font-bold tabular-nums">{approved}</p>
-        <p className="text-sm text-white/60">de {total} pases aprobados. Entran a la rifa y pasan la puerta sin aviso.</p>
+        <p className="text-sm text-white/60">de {total} pases aprobados. Solo ellos entran a la rifa; la puerta deja pasar a todos.</p>
       </div>
     </div>
   );

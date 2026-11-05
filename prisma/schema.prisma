@@ -75,7 +75,7 @@ model Attendee {
   redeemedById String?
   redeemedBy   Staff?  @relation("RedeemedBy", fields: [redeemedById], references: [id], onDelete: SetNull)
 
-  /// Aprobado por Fester: "Sí" en la columna C de la hoja REGISTROS que se sube en /admin/aprobados.
+  /// Aprobado por Fester ("Sí" en REGISTROS): solo filtra la rifa, no la entrada.
   approved Boolean   @default(false)
   /// Dentro del foro desde este momento; null = afuera. Lo mueven los QR de entrada y salida.
   insideAt DateTime?
