@@ -169,13 +169,13 @@ describe("escenario de la rifa por premio", () => {
     vi.stubGlobal("confirm", confirm);
     const winners = [{ prizeKey: "kit-01" }, { prizeKey: "kit-04", voided: true }, { prizeKey: null }];
     const { rerender } = await renderStage({ "kit-01": 1 }, winners);
-    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar dinámica" }));
     expect(screen.getByRole("alertdialog").textContent).toContain("Esto borra 3 ganadores (anulados incluidos)");
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(screen.queryByRole("alertdialog")).toBeNull();
     expect(resetRaffle).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar dinámica" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, reiniciar" }));
     await waitFor(() => expect(resetRaffle).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(refresh).toHaveBeenCalled());
@@ -191,8 +191,8 @@ describe("escenario de la rifa por premio", () => {
         winners={[]}
       />,
     );
-    expect(screen.getByRole("status").textContent).toBe("Rifa reiniciada: 0 ganadores");
-    expect(screen.queryByRole("button", { name: "Reiniciar rifa" })).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe("Dinámica reiniciada: 0 ganadores");
+    expect(screen.queryByRole("button", { name: "Reiniciar dinámica" })).toBeNull();
     expect(screen.getByRole("heading").textContent).toBe("Constructor Premium");
     vi.unstubAllGlobals();
   });
@@ -200,9 +200,9 @@ describe("escenario de la rifa por premio", () => {
   it("si el reinicio falla lo dice y no avisa 0 ganadores", async () => {
     resetRaffle.mockRejectedValueOnce(new Error("red"));
     await renderStage({}, [{ prizeKey: "kit-01" }]);
-    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar dinámica" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, reiniciar" }));
-    await screen.findByText("No se pudo reiniciar la rifa. Recarga la página e intenta de nuevo.");
+    await screen.findByText("No se pudo reiniciar la dinámica. Recarga la página e intenta de nuevo.");
     expect(screen.queryByRole("status")).toBeNull();
   });
 
@@ -210,12 +210,12 @@ describe("escenario de la rifa por premio", () => {
     let release: (v: { deleted: number }) => void = () => {};
     resetRaffle.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
     await renderStage({}, [{ prizeKey: "kit-01" }]);
-    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar dinámica" }));
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Cancelar" }));
     fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
     expect(screen.queryByRole("alertdialog")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar dinámica" }));
     fireEvent.click(screen.getByRole("button", { name: "Sí, reiniciar" }));
     (document.activeElement as HTMLElement | null)?.blur();
     fireEvent.keyDown(document.body, { key: " " });
@@ -226,7 +226,7 @@ describe("escenario de la rifa por premio", () => {
 
   it("al arrancar un sorteo se cierra la confirmación de reinicio", async () => {
     await renderStage({}, [{ prizeKey: "kit-01" }]);
-    fireEvent.click(screen.getByRole("button", { name: "Reiniciar rifa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reiniciar dinámica" }));
     (document.activeElement as HTMLElement | null)?.blur();
     fireEvent.keyDown(document.body, { key: " " });
     await waitFor(() => expect(drawWinner).toHaveBeenCalledTimes(1));
@@ -247,5 +247,12 @@ describe("escenario de la rifa por premio", () => {
     Object.defineProperty(document, "fullscreenElement", { configurable: true, get: () => null });
     fireEvent(document, new Event("fullscreenchange"));
     await waitFor(() => expect(screen.getByLabelText("Participantes")).toBeTruthy());
+  });
+
+  // Aldo 2026-11-05 — «no podemos decir rifa».
+  it("la pantalla no dice «rifa» en ningún lado", async () => {
+    const { container } = await renderStage({}, [{ prizeKey: "kit-01" }]);
+    expect(container.textContent).not.toMatch(/rifa/i);
+    expect(screen.getByText("Dinámica Encuentro Fester 2026")).toBeTruthy();
   });
 });

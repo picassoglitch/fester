@@ -386,7 +386,7 @@ export default function RaffleStage({
     try {
       const res = await resetRaffle().catch(() => null);
       if (!res) {
-        setError("No se pudo reiniciar la rifa. Recarga la página e intenta de nuevo.");
+        setError("No se pudo reiniciar la dinámica. Recarga la página e intenta de nuevo.");
         return;
       }
       stopConfetti.current();
@@ -418,7 +418,7 @@ export default function RaffleStage({
       : phase === "revealed" && full
         ? next
           ? "Siguiente premio"
-          : "Rifa completa"
+          : "Dinámica completa"
         : full
           ? "Premio completo"
           : phase === "revealed"
@@ -440,7 +440,7 @@ export default function RaffleStage({
         <FesterLogo className="h-[clamp(2rem,4vw,4.5rem)]" />
         <div className="min-w-0 flex-1">
           <p className="font-display text-[clamp(1.4rem,3vw,3.2rem)] font-bold uppercase leading-none tracking-wide">
-            Rifa Encuentro Fester 2026
+            Dinámica Encuentro Fester 2026
           </p>
         </div>
         {!fullscreen && phase !== "spinning" && winners.length > 0 && (
@@ -453,7 +453,7 @@ export default function RaffleStage({
             aria-expanded={resetOpen}
             className="rounded-lg px-3 py-1.5 text-sm text-white/60 underline-offset-2 hover:underline"
           >
-            Reiniciar rifa
+            Reiniciar dinámica
           </button>
         )}
         <button
@@ -468,7 +468,7 @@ export default function RaffleStage({
       {!fullscreen && resetOpen && phase !== "spinning" && winners.length > 0 && (
         <div
           role="alertdialog"
-          aria-label="Reiniciar rifa"
+          aria-label="Reiniciar dinámica"
           aria-describedby="reiniciar-aviso"
           onKeyDown={(event) => {
             if (event.key === "Escape") setResetOpen(false);
@@ -500,7 +500,7 @@ export default function RaffleStage({
       )}
       {!fullscreen && resetDone && winners.length === 0 && (
         <p role="status" className="mt-3 rounded-xl bg-white/10 px-4 py-2 text-base font-semibold">
-          Rifa reiniciada: 0 ganadores
+          Dinámica reiniciada: 0 ganadores
         </p>
       )}
 

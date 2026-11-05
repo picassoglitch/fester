@@ -214,7 +214,7 @@ export default async function AttendeeJourneyPage({
               <form action={enableWithoutPassport} className="mt-4">
                 <input type="hidden" name="code" value={attendee.code} />
                 <button type="submit" className="btn btn-primary w-full text-sm">
-                  Habilitar sin completar (premio y rifa)
+                  Habilitar sin completar (premio y dinámica)
                 </button>
               </form>
             )}

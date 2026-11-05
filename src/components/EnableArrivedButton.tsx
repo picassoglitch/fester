@@ -17,7 +17,7 @@ export default function EnableArrivedButton({ count }: { count: number }) {
       const res = await enableArrived().catch(() => null);
       setResult(
         res
-          ? `${res.enabled.toLocaleString("es-MX")} habilitados para la rifa.`
+          ? `${res.enabled.toLocaleString("es-MX")} habilitados para la dinámica.`
           : "No se pudo habilitar. Intenta de nuevo.",
       );
       setOpen(false);
@@ -34,7 +34,7 @@ export default function EnableArrivedButton({ count }: { count: number }) {
         <>
           <p className="flex-1">
             ¿Habilitar a {count.toLocaleString("es-MX")} aprobados que llegaron
-            sin completar el pasaporte? Entran a la rifa.
+            sin completar el pasaporte? Entran a la dinámica.
           </p>
           <button
             type="button"
