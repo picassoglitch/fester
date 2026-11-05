@@ -1,0 +1,470 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import FesterLogo from "@/components/FesterLogo";
+import { drawWinner, voidWinner, type RaffleWinnerView } from "@/app/actions/raffle";
+
+type WinnerRow = RaffleWinnerView & { voided: boolean };
+type Phase = "idle" | "spinning" | "revealed";
+
+/** Mosaico de participantes que se proyecta mientras se elimina al azar. */
+const WALL = 36;
+const FINALISTS = 3;
+
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function shuffled<T>(items: readonly T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+type Tile = { name: string; out: boolean; hot: boolean };
+const CONFETTI_MS = 6000;
+const BRAND = ["#e2001a", "#ffffff", "#f5b301", "#9fd0ff", "#1e6fc0"];
+
+function reducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
+/* ------------------------------- sonido ------------------------------- */
+
+let audio: AudioContext | null = null;
+function ctx(): AudioContext | null {
+  try {
+    audio ??= new AudioContext();
+    if (audio.state === "suspended") void audio.resume();
+    return audio;
+  } catch {
+    return null;
+  }
+}
+
+function tone(freq: number, start: number, length: number, gain = 0.18, type: OscillatorType = "triangle") {
+  const ac = ctx();
+  if (!ac) return;
+  const t0 = ac.currentTime + start;
+  const osc = ac.createOscillator();
+  const vol = ac.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  vol.gain.setValueAtTime(0.0001, t0);
+  vol.gain.exponentialRampToValueAtTime(gain, t0 + 0.02);
+  vol.gain.exponentialRampToValueAtTime(0.0001, t0 + length);
+  osc.connect(vol).connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + length + 0.05);
+}
+
+const tick = () => tone(1400, 0, 0.04, 0.05, "square");
+
+function fanfare() {
+  // Arpegio de trompeta: Do-Mi-Sol-Do, y el acorde final sostenido.
+  const notes: [number, number, number][] = [
+    [523.25, 0, 0.18],
+    [659.25, 0.16, 0.18],
+    [783.99, 0.32, 0.18],
+    [1046.5, 0.5, 0.9],
+    [783.99, 0.5, 0.9],
+    [659.25, 0.5, 0.9],
+  ];
+  for (const [f, s, l] of notes) tone(f, s, l, 0.16, "sawtooth");
+}
+
+/* ------------------------------ confeti ------------------------------- */
+
+type Piece = { x: number; y: number; vx: number; vy: number; r: number; spin: number; w: number; h: number; color: string };
+
+function launchConfetti(canvas: HTMLCanvasElement): () => void {
+  const g = canvas.getContext("2d");
+  if (!g) return () => {};
+  const dpr = window.devicePixelRatio || 1;
+  const { width, height } = canvas.getBoundingClientRect();
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  g.scale(dpr, dpr);
+
+  const pieces: Piece[] = [];
+  const burst = (x: number, y: number, n: number, dir: number) => {
+    for (let i = 0; i < n; i++) {
+      const angle = -Math.PI / 2 + dir * (Math.random() * 0.9) + (Math.random() - 0.5) * 0.6;
+      const speed = 9 + Math.random() * 11;
+      pieces.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        r: Math.random() * Math.PI,
+        spin: (Math.random() - 0.5) * 0.4,
+        w: 8 + Math.random() * 8,
+        h: 4 + Math.random() * 6,
+        color: BRAND[i % BRAND.length],
+      });
+    }
+  };
+  burst(0, height, 160, 1);
+  burst(width, height, 160, -1);
+  for (let i = 0; i < 140; i++) burst(Math.random() * width, -20, 1, 0);
+
+  const start = performance.now();
+  let frame = 0;
+  const step = (now: number) => {
+    const elapsed = now - start;
+    g.clearRect(0, 0, width, height);
+    for (const p of pieces) {
+      p.vy += 0.35;
+      p.vx *= 0.99;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.r += p.spin;
+      g.save();
+      g.globalAlpha = Math.max(0, 1 - elapsed / CONFETTI_MS);
+      g.translate(p.x, p.y);
+      g.rotate(p.r);
+      g.fillStyle = p.color;
+      g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2)));
+      g.restore();
+    }
+    if (elapsed < CONFETTI_MS) frame = requestAnimationFrame(step);
+    else g.clearRect(0, 0, width, height);
+  };
+  frame = requestAnimationFrame(step);
+  return () => {
+    cancelAnimationFrame(frame);
+    g.clearRect(0, 0, width, height);
+  };
+}
+
+/* ------------------------------- escena ------------------------------- */
+
+export default function RaffleStage({
+  pool,
+  reel,
+  winners,
+}: {
+  pool: number;
+  reel: string[];
+  winners: WinnerRow[];
+}) {
+  const router = useRouter();
+  const stageRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const busy = useRef(false);
+  const stopConfetti = useRef<() => void>(() => {});
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [tiles, setTiles] = useState<Tile[]>([]);
+  const [left, setLeft] = useState(pool);
+  const [stage, setStage] = useState("");
+  const [winner, setWinner] = useState<RaffleWinnerView | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [voiding, setVoiding] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === stageRef.current);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  useEffect(() => () => stopConfetti.current(), []);
+
+  // El ganador ya lo eligio el servidor (azar criptografico); esto solo lo muestra en pantalla.
+  const playWall = useCallback(
+    async (winnerName: string) => {
+      const others = shuffled(reel.filter((n) => n !== winnerName)).slice(0, WALL - 1);
+      const winnerAt = Math.floor(Math.random() * (others.length + 1));
+      const names = [...others.slice(0, winnerAt), winnerName, ...others.slice(winnerAt)];
+      const total = names.length;
+      setTiles(names.map((name) => ({ name, out: false, hot: false })));
+      setStage("Eliminando al azar · quedan");
+
+      const order = shuffled(names.map((_, i) => i).filter((i) => i !== winnerAt));
+      const knockouts = order.slice(0, Math.max(0, total - FINALISTS));
+      const finalists = [winnerAt, ...order.slice(knockouts.length)];
+      const gone = new Set<number>();
+      for (let k = 0; k < knockouts.length; k++) {
+        gone.add(knockouts[k]);
+        const remaining = total - gone.size;
+        setTiles((prev) => prev.map((t, i) => ({ ...t, out: gone.has(i), hot: i === knockouts[k] })));
+        // El contador baja del total real de participantes a los finalistas.
+        setLeft(Math.max(FINALISTS, Math.round((pool * remaining) / total)));
+        tick();
+        const t = k / knockouts.length;
+        await wait(170 - 120 * Math.sin(Math.PI * t));
+      }
+
+      setStage(`¡${finalists.length} finalistas!`);
+      setLeft(finalists.length);
+      await wait(900);
+      const hops = 14;
+      let at = 0;
+      for (let h = 0; h < hops; h++) {
+        at = h === hops - 1 ? 0 : (at + 1 + Math.floor(Math.random() * (finalists.length - 1))) % finalists.length;
+        const spot = finalists[at];
+        setTiles((prev) => prev.map((t, i) => ({ ...t, hot: i === spot })));
+        tone(600 + h * 40, 0, 0.08, 0.08, "square");
+        await wait(90 + 45 * h);
+      }
+      setTiles((prev) => prev.map((t, i) => ({ ...t, out: i !== winnerAt, hot: i === winnerAt })));
+      setLeft(1);
+      await wait(1100);
+    },
+    [reel, pool],
+  );
+
+  const draw = useCallback(async () => {
+    if (busy.current) return;
+    busy.current = true;
+    stopConfetti.current();
+    setError(null);
+    setWinner(null);
+    setPhase("spinning");
+
+    const calm = reducedMotion();
+    setLeft(pool);
+    setStage("Mezclando participantes…");
+    setTiles(shuffled(reel).slice(0, WALL).map((name) => ({ name, out: false, hot: false })));
+    // Sin respuesta no sabemos si quedo registrado: se pide revisar la lista antes de repetir.
+    const result = drawWinner().catch(() => ({
+      ok: false as const,
+      error: "Se perdió la conexión. Revisa la lista de ganadores antes de volver a sortear.",
+    }));
+
+    // Mientras responde el servidor, los nombres se revuelven en el mosaico.
+    let mixing = true;
+    const mix = (async () => {
+      while (mixing) {
+        setTiles((prev) => {
+          const names = shuffled(prev.map((t) => t.name));
+          return prev.map((t, i) => ({ ...t, name: names[i], hot: Math.random() < 0.12 }));
+        });
+        tick();
+        await wait(90);
+      }
+    })();
+    const outcome = await result;
+    await wait(calm ? 0 : 1600);
+    mixing = false;
+    await mix;
+
+    if (outcome.ok && !calm) await playWall(outcome.winner.name);
+
+    if (!outcome.ok) {
+      setError(outcome.error);
+      setPhase("idle");
+      busy.current = false;
+      router.refresh();
+      return;
+    }
+    setWinner(outcome.winner);
+    setPhase("revealed");
+    fanfare();
+    if (!calm && canvasRef.current) stopConfetti.current = launchConfetti(canvasRef.current);
+    busy.current = false;
+    router.refresh();
+  }, [reel, pool, router, playWall]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("button, a, input, textarea, select")) return;
+      event.preventDefault();
+      void draw();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [draw]);
+
+  async function voidCurrent(id: string) {
+    setError(null);
+    setVoiding(true);
+    try {
+      const res = await voidWinner(id).catch(() => null);
+      if (!res?.ok) {
+        setError("No se pudo anular. Recarga la página y revisa la lista de ganadores.");
+        router.refresh();
+        return;
+      }
+      if (winner?.id === id) {
+        stopConfetti.current();
+        setWinner(null);
+        setPhase("idle");
+      }
+      router.refresh();
+    } finally {
+      setVoiding(false);
+    }
+  }
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void stageRef.current?.requestFullscreen?.();
+  }
+
+  const valid = winners.filter((w) => !w.voided);
+
+  return (
+    <div
+      ref={stageRef}
+      className="relative isolate flex min-h-[calc(100dvh-8rem)] flex-col overflow-hidden rounded-2xl bg-[radial-gradient(60rem_35rem_at_50%_-10%,rgba(255,255,255,0.14),transparent_65%),radial-gradient(45rem_30rem_at_100%_100%,rgba(226,0,26,0.28),transparent_60%),linear-gradient(180deg,#00559c_0%,#004f92_45%,#002a52_100%)] p-[clamp(1rem,2.5vw,3rem)] data-[fs=true]:min-h-dvh data-[fs=true]:rounded-none"
+      data-fs={fullscreen}
+    >
+      <div aria-hidden className="blueprint pointer-events-none absolute inset-0 -z-10 opacity-60" />
+      <canvas ref={canvasRef} aria-hidden className="pointer-events-none absolute inset-0 z-20 h-full w-full" />
+
+      <header className="flex items-center gap-4">
+        <FesterLogo className="h-[clamp(2rem,4vw,4.5rem)]" />
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-[clamp(1.4rem,3vw,3.2rem)] font-bold uppercase leading-none tracking-wide">
+            Rifa Encuentro Fester 2026
+          </p>
+          <p className="mt-1 text-[clamp(0.8rem,1.2vw,1.25rem)] text-white/70">
+            {pool.toLocaleString("es-MX")} participantes con pasaporte completo
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          className="rounded-lg border border-white/25 px-3 py-1.5 text-sm text-white/80 hover:bg-white/10"
+        >
+          {fullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+        </button>
+      </header>
+
+      <section className="flex flex-1 flex-col items-center justify-center gap-[clamp(1rem,3vh,2.5rem)] py-8 text-center">
+        {phase === "idle" && (
+          <>
+            <p className="font-display text-[clamp(2rem,6vw,7rem)] font-black uppercase leading-none">
+              ¿Quién se lo lleva?
+            </p>
+          </>
+        )}
+
+        {/* Fuera de "idle": un anular fallido se ve aunque el ganador siga en pantalla. */}
+        {error && phase !== "spinning" && (
+          <p role="alert" className="rounded-xl bg-brand px-6 py-3 text-xl font-semibold">
+            {error}
+          </p>
+        )}
+
+        {phase === "spinning" && (
+          <div className="flex w-full flex-col items-center gap-4">
+            <div className="flex items-baseline gap-4">
+              <p className="font-display text-[clamp(1.6rem,3.5vw,4rem)] font-black uppercase">{stage}</p>
+              {!stage.startsWith("¡") && (
+                <p className="font-display text-[clamp(1.6rem,3.5vw,4rem)] font-black tabular-nums text-gold">
+                  {left.toLocaleString("es-MX")}
+                </p>
+              )}
+            </div>
+            <ul
+              aria-hidden
+              className="grid w-full max-w-[min(96vw,110rem)] grid-cols-3 gap-[clamp(0.25rem,0.6vw,0.6rem)] sm:grid-cols-4 lg:grid-cols-6"
+            >
+              {tiles.map((tile, i) => (
+                <li
+                  key={i}
+                  className={`truncate rounded-lg px-2 py-[clamp(0.3rem,1vh,0.8rem)] text-[clamp(0.7rem,1.05vw,1.15rem)] font-semibold transition-all duration-150 ${
+                    tile.hot
+                      ? "scale-110 bg-brand text-white shadow-[0_0_30px_rgba(226,0,26,0.8)] ring-4 ring-white"
+                      : tile.out
+                        ? "scale-90 bg-white/5 text-white/20 line-through"
+                        : "bg-white/12 text-white"
+                  }`}
+                >
+                  {tile.name}
+                </li>
+              ))}
+            </ul>
+            <p className="text-sm text-white/55">
+              Muestra al azar de los {pool.toLocaleString("es-MX")} participantes · el ganador lo elige el servidor con azar
+              criptográfico
+            </p>
+          </div>
+        )}
+
+        {phase === "revealed" && winner && (
+          <div className="animate-scan-in flex flex-col items-center gap-[clamp(0.5rem,2vh,1.5rem)]">
+            <p className="rounded-full bg-gold px-6 py-1.5 font-display text-[clamp(1.1rem,2.2vw,2.4rem)] font-black uppercase tracking-widest text-navy">
+              ¡Ganador!
+            </p>
+            <p
+              aria-live="assertive"
+              className="max-w-[90vw] font-display text-[clamp(2.6rem,8vw,10rem)] font-black uppercase leading-[0.95] drop-shadow-[0_6px_0_rgba(226,0,26,0.9)]"
+            >
+              {winner.name}
+            </p>
+            {(winner.company || winner.state) && (
+              <p className="text-[clamp(1.1rem,2.4vw,2.6rem)] font-semibold text-white/85">
+                {[winner.company, winner.state].filter(Boolean).join(" · ")}
+              </p>
+            )}
+            <p className="font-mono text-[clamp(0.9rem,1.4vw,1.5rem)] tracking-[0.35em] text-white/60">
+              {winner.code}
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => void draw()}
+            disabled={phase === "spinning" || pool === 0}
+            className="rounded-2xl bg-brand px-[clamp(2rem,5vw,5rem)] py-[clamp(0.9rem,2.2vh,1.6rem)] font-display text-[clamp(1.6rem,3.2vw,3.6rem)] font-black uppercase tracking-wider text-white shadow-[0_10px_0_#a80014] transition active:translate-y-1 active:shadow-[0_5px_0_#a80014] disabled:opacity-50"
+          >
+            {phase === "revealed" ? "Sortear otro" : phase === "spinning" ? "Sorteando…" : "Sortear"}
+          </button>
+          {phase === "revealed" && winner && (
+            <button
+              type="button"
+              onClick={() => void voidCurrent(winner.id)}
+              disabled={voiding}
+              className="rounded-2xl border-2 border-white/70 px-6 py-3 text-[clamp(1rem,1.6vw,1.6rem)] font-bold hover:bg-white/10 disabled:opacity-50"
+            >
+              Anular (no está)
+            </button>
+          )}
+        </div>
+        {pool === 0 && phase !== "spinning" && (
+          <p className="text-white/70">No quedan participantes por sortear.</p>
+        )}
+      </section>
+
+      {winners.length > 0 && (
+        <footer className="border-t border-white/15 pt-4">
+          <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-white/60">
+            Ganadores ({valid.length})
+          </p>
+          <ol className="flex flex-wrap gap-2">
+            {winners.map((w) => (
+              <li
+                key={w.id}
+                className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-[clamp(0.85rem,1.1vw,1.15rem)] ${
+                  w.voided ? "bg-white/5 text-white/40 line-through" : "bg-white/12 font-semibold"
+                }`}
+              >
+                <span>{w.name}</span>
+                {!w.voided && !fullscreen && phase !== "spinning" && (
+                  <button
+                    type="button"
+                    onClick={() => void voidCurrent(w.id)}
+                    disabled={voiding}
+                    className="text-xs font-normal text-white/60 underline underline-offset-2"
+                    aria-label={`Anular a ${w.name}`}
+                  >
+                    anular
+                  </button>
+                )}
+              </li>
+            ))}
+          </ol>
+        </footer>
+      )}
+    </div>
+  );
+}

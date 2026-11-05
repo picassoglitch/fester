@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import FesterLogo from "@/components/FesterLogo";
-import { EVENT, NAV_LINKS } from "@/lib/event";
+import { EVENT, NAV_LINKS, REGISTRATION_OPEN } from "@/lib/event";
 
 export default function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -46,14 +46,16 @@ export default function SiteHeader() {
           >
             Mi cuenta
           </Link>
-          <a href="#registro" className="btn btn-primary ml-2 px-5 py-2.5 text-xs uppercase">
-            Regístrate
-          </a>
+          {REGISTRATION_OPEN && (
+            <a href="#registro" className="btn btn-primary ml-2 px-5 py-2.5 text-xs uppercase">
+              Regístrate
+            </a>
+          )}
         </nav>
 
         <div className="ml-auto flex items-center gap-2 xl:hidden">
-          <a href="#registro" className="btn btn-primary px-4 py-2 text-xs uppercase">
-            Regístrate
+          <a href={REGISTRATION_OPEN ? "#registro" : "/mi-cuenta"} className="btn btn-primary px-4 py-2 text-xs uppercase">
+            {REGISTRATION_OPEN ? "Regístrate" : "Mi pase"}
           </a>
           <button
             type="button"

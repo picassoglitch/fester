@@ -33,7 +33,7 @@ describe.skipIf(!hasLocalDb)("acciones de escaneo (base local)", () => {
   it("recordScan dos veces en la misma estación deja un solo Scan y 'repetido'", async () => {
     const { prisma } = await import("@/lib/db");
     const { recordScan } = await import("@/app/actions/scan");
-    const station = await prisma.station.findFirstOrThrow({ where: { active: true } });
+    const station = await prisma.station.findFirstOrThrow({ where: { active: true, name: { notIn: ["Registro", "Salida"] } } });
 
     const first = await recordScan(code, station.id);
     const second = await recordScan(code, station.id);
@@ -47,7 +47,7 @@ describe.skipIf(!hasLocalDb)("acciones de escaneo (base local)", () => {
   it("Premios no registra estaciones ni consulta pases para estaciones", async () => {
     const { prisma } = await import("@/lib/db");
     const { lookupAttendee, recordScan } = await import("@/app/actions/scan");
-    const station = await prisma.station.findFirstOrThrow({ where: { active: true } });
+    const station = await prisma.station.findFirstOrThrow({ where: { active: true, name: { notIn: ["Registro", "Salida"] } } });
     const attendee = await prisma.attendee.findUniqueOrThrow({ where: { code } });
     const before = await prisma.scan.count({ where: { attendeeId: attendee.id } });
 

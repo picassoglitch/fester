@@ -1,7 +1,7 @@
 import Link from "next/link";
 import FesterLogo from "@/components/FesterLogo";
 import Icon, { type IconName } from "@/components/landing/Icon";
-import { EVENT } from "@/lib/event";
+import { EVENT, REGISTRATION_OPEN } from "@/lib/event";
 import type { PrivacyBlock } from "@/lib/privacy-notice";
 
 export type LegalBlock = PrivacyBlock;
@@ -129,8 +129,8 @@ export default function LegalDocument({
               {EVENT.name} {EVENT.year}
             </span>
           </Link>
-          <Link href="/#registro" className="btn btn-ghost px-4 py-2 text-xs uppercase">
-            Volver al registro
+          <Link href={REGISTRATION_OPEN ? "/#registro" : "/"} className="btn btn-ghost px-4 py-2 text-xs uppercase">
+            {REGISTRATION_OPEN ? "Volver al registro" : "Volver al inicio"}
           </Link>
         </div>
       </header>

@@ -19,10 +19,14 @@ type Mode = "estacion" | "premio";
 
 /** Lo que ve el staff a pantalla completa despues de cada escaneo. */
 type Result =
-  | { kind: "star" | "complete" | "prize" | "warn"; outcome: Extract<ScanOutcome, { ok: true }> }
+  | {
+      kind: "star" | "complete" | "prize" | "warn" | "entry" | "exit" | "confirm";
+      outcome: Extract<ScanOutcome, { ok: true }>;
+    }
   | { kind: "error"; message: string; retryCode: string | null };
 
 const STATION_KEY = "fester_station";
+
 /** Estrella, completo, premio y "ya registrado" se cierran solos para el siguiente. */
 export const AUTO_CLOSE_MS = 1500;
 /** El mismo QR frente a la camara no vuelve a contar durante este tiempo. */
@@ -31,6 +35,9 @@ const NETWORK_ERROR = "Sin conexión con el servidor. Revisa la red e intenta de
 
 function resultOf(outcome: ScanOutcome, mode: Mode): Result {
   if (!outcome.ok) return { kind: "error", message: outcome.error, retryCode: null };
+  if (outcome.status === "confirmar") return { kind: "confirm", outcome };
+  if (outcome.status === "entrada") return { kind: "entry", outcome };
+  if (outcome.status === "salida") return { kind: "exit", outcome };
   if (outcome.status === "nuevo") return { kind: "star", outcome };
   if (outcome.status === "premio") return { kind: mode === "premio" ? "prize" : "complete", outcome };
   return { kind: "warn", outcome };
@@ -41,7 +48,15 @@ const TONE: Record<Result["kind"], ScanTone> = {
   complete: "prize",
   prize: "prize",
   warn: "warn",
+  entry: "ok",
+  exit: "ok",
+  confirm: "error",
   error: "error",
+};
+
+const REASONS: Record<string, string> = {
+  "no-aprobado": "No está en la lista de aprobados",
+  "aforo-lleno": "El foro está lleno",
 };
 
 export default function ScanConsole({
@@ -50,11 +65,16 @@ export default function ScanConsole({
   mode,
   initialCode,
   showModeLink = false,
+  inside,
+  capacity,
 }: {
   stations: Station[];
   staffName: string;
   mode: Mode;
   initialCode?: string;
+  /** Personas dentro del foro: se ve en todas las estaciones (junta Fester 2026-11-04). */
+  inside?: number;
+  capacity?: number;
   /** Liga a la otra pantalla (estaciones/premios): solo el admin abre las dos. */
   showModeLink?: boolean;
 }) {
@@ -73,6 +93,9 @@ export default function ScanConsole({
   const mutedRef = useRef(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const [count, setCount] = useState(inside);
+  // El refresh del servidor trae el conteo de todas las puertas.
+  useEffect(() => setCount(inside), [inside]);
 
   useEffect(() => {
     if (mode !== "estacion" || stations.length === 0) return;
@@ -141,7 +164,7 @@ export default function ScanConsole({
   const activeStation = stations.find((s) => s.id === stationId);
 
   const submit = useCallback(
-    (rawCode: string) => {
+    (rawCode: string, override = false) => {
       const code = normalizeCode(rawCode);
       if (!code || inFlight.current) return;
       if (mode === "estacion" && !stationId) return;
@@ -150,8 +173,9 @@ export default function ScanConsole({
         let next: Result;
         try {
           const outcome =
-            mode === "premio" ? await redeemPrize(code) : await recordScan(code, stationId);
+            mode === "premio" ? await redeemPrize(code) : await recordScan(code, stationId, override);
           next = resultOf(outcome, mode);
+          if (outcome.ok && outcome.inside !== undefined) setCount(outcome.inside);
           // Refresca los contadores del servidor; el resultado vive aqui y no se pierde.
           if (outcome.ok) router.refresh();
         } catch {
@@ -181,7 +205,7 @@ export default function ScanConsole({
   const closeResult = useCallback(() => setResult(null), []);
 
   useEffect(() => {
-    if (!result || result.kind === "error") return;
+    if (!result || result.kind === "error" || result.kind === "confirm") return;
     const timer = setTimeout(closeResult, AUTO_CLOSE_MS);
     return () => clearTimeout(timer);
   }, [result, closeResult]);
@@ -238,6 +262,16 @@ export default function ScanConsole({
             <span className="font-semibold text-gold">Sin estación</span>
           )}
         </p>
+        {count !== undefined && capacity !== undefined && (
+          <span
+            aria-label={`Dentro del foro: ${count} de ${capacity}`}
+            className={`rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums ${
+              count >= capacity ? "bg-brand text-white" : "bg-white/10"
+            }`}
+          >
+            Foro {count}/{capacity}
+          </span>
+        )}
         <button
           type="button"
           onClick={toggleMuted}
@@ -407,6 +441,10 @@ export default function ScanConsole({
             setResult(null);
             submit(code);
           }}
+          onOverride={(code) => {
+            setResult(null);
+            submit(code, true);
+          }}
         />
       )}
 
@@ -434,6 +472,9 @@ const SCREEN: Record<Result["kind"], { bg: string; text: string; icon: string; t
   complete: { bg: "bg-gold", text: "text-navy", icon: "🎉", title: "¡RECORRIDO COMPLETO!" },
   prize: { bg: "bg-[#0f8a4c]", text: "text-white", icon: "🎁", title: "PREMIO ENTREGADO" },
   warn: { bg: "bg-[#f59e0b]", text: "text-navy", icon: "⚠️", title: "YA REGISTRADO" },
+  entry: { bg: "bg-[#0f8a4c]", text: "text-white", icon: "⬇", title: "BIENVENIDO" },
+  exit: { bg: "bg-gold", text: "text-navy", icon: "⬆", title: "SALIDA" },
+  confirm: { bg: "bg-[#c8102e]", text: "text-white", icon: "⚠️", title: "REVISAR" },
   error: { bg: "bg-[#c8102e]", text: "text-white", icon: "✕", title: "NO VÁLIDO" },
 };
 
@@ -442,11 +483,13 @@ function ResultScreen({
   stationName,
   onClose,
   onRetry,
+  onOverride,
 }: {
   result: Result;
   stationName?: string;
   onClose: () => void;
   onRetry: (code: string) => void;
+  onOverride: (code: string) => void;
 }) {
   const look = SCREEN[result.kind];
   const attendee = result.kind === "error" ? null : result.outcome.attendee;
@@ -457,6 +500,8 @@ function ResultScreen({
   else if (result.kind === "star") subtitle = "Estrella registrada";
   else if (result.kind === "complete") subtitle = "Mándalo a Premios";
   else if (result.kind === "prize") subtitle = `Premio entregado a ${result.outcome.attendee.name}`;
+  else if (result.kind === "confirm") subtitle = (result.outcome.reasons ?? []).map((r) => REASONS[r]).join(" · ");
+  else if (result.kind === "entry" || result.kind === "exit") subtitle = `Dentro del foro: ${result.outcome.inside}`;
   else subtitle = result.outcome.message;
 
   return (
@@ -465,7 +510,8 @@ function ResultScreen({
       aria-live="assertive"
       aria-label={look.title}
       data-result={result.kind}
-      onClick={onClose}
+      // REVISAR no se cierra con un toque: el staff decide con un boton.
+      onClick={result.kind === "confirm" ? undefined : onClose}
       className={`fixed inset-0 z-50 flex flex-col items-center justify-center px-6 pb-40 text-center ${look.bg} ${look.text}`}
     >
       <div className="animate-scan-in flex flex-col items-center">
@@ -490,6 +536,18 @@ function ResultScreen({
       </div>
 
       <div className="absolute inset-x-0 bottom-0 space-y-3 p-6">
+        {result.kind === "confirm" && attendee && (
+          <button
+            type="button"
+            className="w-full rounded-xl bg-white py-4 text-lg font-bold text-[#c8102e]"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOverride(attendee.code);
+            }}
+          >
+            Dejar pasar
+          </button>
+        )}
         {retryCode && (
           <button
             type="button"
@@ -510,9 +568,9 @@ function ResultScreen({
             onClose();
           }}
         >
-          Escanear siguiente
+          {result.kind === "confirm" ? "No pasa" : "Escanear siguiente"}
         </button>
-        {result.kind !== "error" && (
+        {result.kind !== "error" && result.kind !== "confirm" && (
           <div className="h-1.5 overflow-hidden rounded-full bg-black/15">
             <div
               className="h-full origin-left bg-current"

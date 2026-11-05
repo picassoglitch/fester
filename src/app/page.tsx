@@ -1,3 +1,4 @@
+import RegistrationClosedBanner from "@/components/landing/RegistrationClosedBanner";
 import SiteHeader from "@/components/landing/SiteHeader";
 import Hero from "@/components/landing/Hero";
 import About from "@/components/landing/About";
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function HomePage() {
   return (
     <>
+      <RegistrationClosedBanner />
       <SiteHeader />
       <main>
         <Hero />
