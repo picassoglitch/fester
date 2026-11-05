@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { getActiveStations } from "@/lib/stations";
-import { braceletFor, type Bracelet } from "@/lib/bracelet";
+import { braceletOf, type Bracelet } from "@/lib/bracelet";
 
 export type StationProgress = {
   id: string;
@@ -149,7 +149,7 @@ export async function getStaffAttendeeProgress(code: string): Promise<StaffAtten
     position: attendee.position,
     state: attendee.state,
     festerProfile: attendee.festerProfile,
-    bracelet: braceletFor(attendee.festerProfile),
+    bracelet: braceletOf(attendee.festerProfile, attendee.position),
     completedAt: attendee.completedAt?.toISOString() ?? null,
     redeemedAt: attendee.redeemedAt?.toISOString() ?? null,
     redeemedByName: attendee.redeemedBy?.name ?? null,
