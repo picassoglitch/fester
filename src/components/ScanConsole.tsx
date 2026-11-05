@@ -491,7 +491,7 @@ function BraceletCard({ attendee }: { attendee: StaffAttendeeProgress }) {
   ].filter((row): row is [string, string] => Boolean(row[1]));
 
   return (
-    <div className="mt-5 w-full overflow-hidden rounded-2xl bg-white text-left text-navy shadow-xl" data-bracelet={bracelet?.color ?? "SIN"}>
+    <div className="mt-3 w-full overflow-hidden rounded-2xl bg-white text-left text-navy shadow-xl" data-bracelet={bracelet?.color ?? "SIN"}>
       {bracelet ? (
         <div className={`px-5 py-4 text-center ${BRACELET_LOOK[bracelet.color]}`}>
           <p className="text-xs font-bold tracking-[0.3em] opacity-80">BRAZALETE</p>
@@ -554,31 +554,32 @@ function ResultScreen({
       aria-label={look.title}
       data-result={result.kind}
       // Aldo 2026-11-05 — no se cierra solo ni con un toque: el staff lee el brazalete y cierra con el botón.
-      className={`fixed inset-0 z-50 flex flex-col items-center overflow-y-auto px-6 pb-44 pt-8 text-center ${look.bg} ${look.text}`}
+      className={`fixed inset-0 z-50 flex flex-col text-center ${look.bg} ${look.text}`}
     >
-      <div className="animate-scan-in my-auto flex w-full max-w-md flex-col items-center">
-        <span aria-hidden className={`${attendee ? "text-[88px]" : "text-[160px]"} font-black leading-none`}>
+      {/* Contenido con scroll y botones fijos abajo: en teléfonos chicos el brazalete no queda tapado. */}
+      <div className="flex flex-1 flex-col items-center overflow-y-auto px-6 pt-6">
+        <div className="animate-scan-in my-auto flex w-full max-w-md flex-col items-center pb-4">
+        <span aria-hidden className={`${attendee ? "text-[56px]" : "text-[160px]"} font-black leading-none`}>
           {look.icon}
         </span>
-        <p className="mt-4 text-4xl font-black tracking-wide">{look.title}</p>
-        <p className="mt-2 text-xl font-semibold">{subtitle}</p>
+        <p className={`mt-2 font-black tracking-wide ${attendee ? "text-3xl" : "text-4xl"}`}>{look.title}</p>
+        <p className={`mt-1 font-semibold ${attendee ? "text-base" : "text-xl"}`}>{subtitle}</p>
 
         {attendee && (
-          <div className="mt-5 space-y-1">
-            {result.kind !== "prize" && <p className="text-3xl font-bold">{attendee.name}</p>}
+          <div className="mt-3 w-full space-y-1">
+            {result.kind !== "prize" && <p className="text-2xl font-bold">{attendee.name}</p>}
             <p className="font-mono text-sm tracking-[0.3em] opacity-75">{attendee.code}</p>
-            {result.kind === "star" && stationName && (
-              <p className="text-lg font-semibold">{stationName}</p>
-            )}
-            <p className="pt-2 text-2xl font-bold">
+            <BraceletCard attendee={attendee} />
+            <p className="pt-3 text-xl font-bold">
+              {result.kind === "star" && stationName ? `${stationName} · ` : ""}
               {attendee.stars} de {attendee.total} ★
             </p>
           </div>
         )}
-        {attendee && <BraceletCard attendee={attendee} />}
+        </div>
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 space-y-3 p-6">
+      <div className="mx-auto w-full max-w-md shrink-0 space-y-3 px-6 pb-6 pt-3">
         {result.kind === "confirm" && attendee && (
           <button
             type="button"

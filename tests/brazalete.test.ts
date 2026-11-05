@@ -110,6 +110,31 @@ describe.skipIf(!hasLocalDb)("perfiles en la base y en el escaneo", () => {
     expect(await getStaffAttendeeProgress(b)).toMatchObject({ bracelet: { color: "AZUL" } });
   });
 
+  it("perfil repetido: se queda el que está en la tabla; correo compartido no se adivina", async () => {
+    const { prisma } = await import("@/lib/db");
+    const { applyFesterProfiles } = await import("@/lib/fester-profiles-apply");
+    const shared = `${a.toLowerCase()}-dup@prueba.mx`;
+    const c = testCode();
+    const d = testCode();
+    await prisma.attendee.createMany({ data: [{ code: c, name: "Dup C", email: shared }, { code: d, name: "Dup D", email: shared }] });
+    try {
+      const result = await applyFesterProfiles(
+        prisma,
+        [
+          { code: a, email: null, profile: "Aplicador" },
+          { code: a, email: null, profile: "REGISTRO REPETIDO" },
+          { code: null, email: shared, profile: "Profesionista" },
+        ],
+        { apply: true },
+      );
+      expect(result).toMatchObject({ ok: true, updated: 1, conflicts: [a], ambiguous: [shared] });
+      expect((await prisma.attendee.findUniqueOrThrow({ where: { code: a } })).festerProfile).toBe("Aplicador");
+      expect((await prisma.attendee.findUniqueOrThrow({ where: { code: c } })).festerProfile).toBeNull();
+    } finally {
+      await prisma.attendee.deleteMany({ where: { code: { in: [c, d] } } });
+    }
+  });
+
   it("si casi nada coincide no toca la base", async () => {
     const { prisma } = await import("@/lib/db");
     const { applyFesterProfiles } = await import("@/lib/fester-profiles-apply");
@@ -123,6 +148,6 @@ describe.skipIf(!hasLocalDb)("perfiles en la base y en el escaneo", () => {
       { apply: true },
     );
     expect(result).toMatchObject({ ok: false });
-    expect((await prisma.attendee.findUniqueOrThrow({ where: { code: a } })).festerProfile).toBe("Distribuidor-ventas");
+    expect((await prisma.attendee.findUniqueOrThrow({ where: { code: a } })).festerProfile).toBe("Aplicador");
   });
 });

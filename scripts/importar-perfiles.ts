@@ -20,7 +20,9 @@ async function main() {
   try {
     const result = await applyFesterProfiles(db, list.rows, { apply });
     if (!result.ok) throw new Error(result.error);
-    console.log(`Con pase: ${result.updated} (${result.byEmail} por correo). Sin pase: ${result.notFound.length}.`);
+    console.log(`Personas con perfil: ${result.updated} (${result.byEmail} por correo). Sin pase: ${result.notFound.length}.`);
+    if (result.ambiguous.length) console.log(`Correo de más de un pase (se omiten): ${result.ambiguous.join(", ")}`);
+    if (result.conflicts.length) console.log(`Dos perfiles en el Excel (se queda el de la tabla): ${result.conflicts.join(", ")}`);
     const byColor: Record<string, number> = {};
     for (const [profile, n] of Object.entries(result.perProfile)) {
       const color = braceletFor(profile)?.color ?? `REVISAR (${profile})`;
