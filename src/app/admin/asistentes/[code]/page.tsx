@@ -6,6 +6,7 @@ import { formatDateTime, formatDuration, formatTime } from "@/lib/format";
 import { appUrl } from "@/lib/site";
 import { getActiveStations } from "@/lib/stations";
 import { deleteAttendee, setPrizeState, undoScan } from "@/app/actions/admin";
+import ResendPassButton from "@/components/ResendPassButton";
 
 export const dynamic = "force-dynamic";
 
@@ -250,6 +251,11 @@ export default async function AttendeeJourneyPage({
             <p className="break-all font-mono text-xs text-white/45">
               {appUrl()}/s/{attendee.code}
             </p>
+            {attendee.email && (
+              <div className="mt-4">
+                <ResendPassButton code={attendee.code} />
+              </div>
+            )}
             <form action={deleteAttendee} className="mt-4 border-t border-white/8 pt-4">
               <input type="hidden" name="code" value={attendee.code} />
               <button type="submit" className="text-xs text-alert/80 underline underline-offset-4">
