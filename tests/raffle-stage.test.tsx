@@ -58,7 +58,7 @@ describe("escenario de la rifa por premio", () => {
     fireEvent.click(pill(/^Moto/, 0));
     fireEvent.error(screen.getByRole("img"));
     expect(screen.queryByRole("img")).toBeNull();
-    expect(screen.getByText("Sin rotular")).toBeTruthy();
+    expect(screen.queryByText(/rotular/i)).toBeNull();
     expect(screen.getAllByText("1 motocicleta · premio para aplicador").length).toBeGreaterThan(0);
   });
 

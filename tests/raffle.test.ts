@@ -23,11 +23,11 @@ describe("premios de la rifa", () => {
     expect(RAFFLE_PRIZES.every((p) => p.image === `/rifa/${p.key}.webp`)).toBe(true);
   });
 
-  it("los kits traen foto; lo que no tiene foto (motos) trae ficha", () => {
+  it("los kits traen foto; ningún premio trae «Sin rotular»", () => {
     const exists = (p: { image: string }) => fs.existsSync(path.join(process.cwd(), "public", p.image));
     for (const key of ["kit-01", "kit-02", "kit-03", "kit-04"]) expect(exists(prize(key))).toBe(true);
     const all: readonly RafflePrize[] = RAFFLE_PRIZES;
-    for (const p of all.filter((p) => !exists(p))) expect(p.note).toBeTruthy();
+    expect(JSON.stringify(all)).not.toMatch(/rotular/i);
   });
 });
 
